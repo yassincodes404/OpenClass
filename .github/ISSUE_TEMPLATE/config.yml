@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security reporting policy
+    url: https://github.com/yassincodes404/OpenClass/blob/main/SECURITY.md
+    about: Do not disclose vulnerability details in a public issue.

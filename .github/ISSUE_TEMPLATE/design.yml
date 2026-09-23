@@ -1,0 +1,16 @@
+name: Design proposal
+description: Discuss core, API, UI, schema, or learning policy changes before implementation
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and evidence
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal, alternatives, safety and compatibility
+      description: Reference a milestone and RFC where appropriate.
+    validations:
+      required: true

@@ -1,0 +1,38 @@
+[project]
+name = "openclass-workspace"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = ["openclass-core", "openclass-server", "openclass-cli", "openclass-sdk", "openclass-provider-mock"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/core", "packages/server", "packages/cli", "packages/sdk-python", "providers/mock"]
+
+[tool.uv.sources]
+openclass-core = { workspace = true }
+openclass-server = { workspace = true }
+openclass-cli = { workspace = true }
+openclass-sdk = { workspace = true }
+openclass-provider-mock = { workspace = true }
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1", "mypy>=1.15,<2", "build>=1,<2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["postgres: requires OPENCLASS_TEST_DATABASE_URL pointing to a disposable PostgreSQL database"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["openclass_core", "openclass_server", "openclass_sdk", "openclass_cli", "openclass_provider_mock"]

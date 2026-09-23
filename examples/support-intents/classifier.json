@@ -1,0 +1,25 @@
+{
+  "slug": "support-intent",
+  "name": "Support intent",
+  "description": "Primary intent of customer support messages.",
+  "classes": [
+    {
+      "canonical_name": "billing",
+      "display_name": "Billing",
+      "description": "Payments, invoices, and charging problems.",
+      "aliases": ["charged", "invoice", "payment"]
+    },
+    {
+      "canonical_name": "technical",
+      "display_name": "Technical",
+      "description": "Product functionality problems.",
+      "aliases": ["broken", "error", "crash"]
+    },
+    {
+      "canonical_name": "sales",
+      "display_name": "Sales",
+      "description": "Purchasing and pricing inquiries.",
+      "aliases": ["buy", "pricing", "purchase"]
+    }
+  ]
+}

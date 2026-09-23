@@ -1,0 +1,57 @@
+name: openclass
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: openclass
+      POSTGRES_PASSWORD: ${OPENCLASS_DB_PASSWORD:-openclass}
+      POSTGRES_DB: openclass
+    ports:
+      - "127.0.0.1:${OPENCLASS_DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openclass -d openclass"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  migrate:
+    build: .
+    environment:
+      OPENCLASS_DATABASE_URL: postgresql+asyncpg://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+  server:
+    build: .
+    environment:
+      OPENCLASS_DATABASE_URL: postgresql+asyncpg://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
+    ports:
+      - "127.0.0.1:${OPENCLASS_PORT:-7331}:7331"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:7331/health/ready')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  test:
+    profiles: [test]
+    build:
+      context: .
+      target: test
+    environment:
+      OPENCLASS_TEST_DATABASE_URL: postgresql+asyncpg://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres-data:
