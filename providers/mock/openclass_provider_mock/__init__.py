@@ -2,7 +2,14 @@
 
 import re
 
-from openclass_core.models import ChoiceRequest, ChoiceResult
+from openclass_core.models import (
+    ChoiceRequest,
+    ChoiceResult,
+    ReviewRecommendation,
+    ReviewRequest,
+    ReviewResult,
+    SupervisorFinding,
+)
 
 
 class MockDecisionProvider:
@@ -34,6 +41,37 @@ class MockDecisionProvider:
             model="lexical-demo-v1",
             probabilities=probabilities,
             unknown_probability=unknown,
+            provider_metadata={"simulated": True},
+            estimated_cost=0.0,
+        )
+
+
+class MockSupervisorProvider:
+    """Advisory infrastructure fixture. It reports run shape, not semantic judgment."""
+
+    async def review(self, request: ReviewRequest) -> ReviewResult:
+        if request.classification.selected_class is None:
+            finding, recommendation = (
+                SupervisorFinding.POSSIBLE_MISSING_CLASS,
+                ReviewRecommendation.COLLECT_MORE_EVIDENCE,
+            )
+            rationale = (
+                "Simulated advisory review: the run selected no class, so the observation "
+                "may belong outside the current ontology. This mock does not judge meaning."
+            )
+        else:
+            finding, recommendation = SupervisorFinding.NO_ISSUE, ReviewRecommendation.NONE
+            rationale = (
+                "Simulated advisory review: the run selected a known class. This mock does "
+                "not evaluate whether that selection is semantically correct."
+            )
+        return ReviewResult(
+            provider="mock-supervisor",
+            model="advisory-demo-v1",
+            finding=finding,
+            confidence=0.5,
+            recommendation=recommendation,
+            rationale=rationale,
             provider_metadata={"simulated": True},
             estimated_cost=0.0,
         )
