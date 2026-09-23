@@ -27,9 +27,14 @@ def main() -> None:
     classify = commands.add_parser("classify", help="Classify and persist an observation")
     classify.add_argument("observation")
     classify.add_argument("--classifier", default="support-intent")
-    for name in ("ontology", "unknowns"):
+    for name in ("ontology", "unknowns", "runs", "reviews"):
         command = commands.add_parser(name)
         command.add_argument("--classifier", default="support-intent")
+    review = commands.add_parser(
+        "review", help="Request an advisory supervisor review of a classification run"
+    )
+    review.add_argument("run_id")
+    review.add_argument("--classifier", default="support-intent")
     commands.add_parser("classifiers")
     commands.add_parser("doctor", help="Check API, database and migration readiness")
     args = parser.parse_args()
@@ -58,6 +63,12 @@ def main() -> None:
                     output = client.ontology(args.classifier)
                 case "unknowns":
                     output = client.unknowns(args.classifier)
+                case "runs":
+                    output = client.runs(args.classifier)
+                case "reviews":
+                    output = client.reviews(args.classifier)
+                case "review":
+                    output = client.review_run(classifier=args.classifier, run_id=args.run_id)
                 case "classifiers":
                     output = client.classifiers()
                 case "doctor":

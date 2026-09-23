@@ -192,6 +192,36 @@ h3 {
   border-color: var(--accent);
   color: var(--accent);
 }
+.review {
+  margin-top: 26px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.review button {
+  width: 100%;
+}
+.review-result {
+  margin-top: 20px;
+}
+.review-result p {
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 13px;
+}
+.finding {
+  display: inline-block;
+  border: 1px solid #b89f69;
+  color: #e2c68a;
+  padding: 6px 10px;
+  font:
+    12px ui-monospace,
+    monospace;
+  margin-bottom: 16px;
+}
+.finding.no_issue {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 dl {
   display: grid;
   grid-template-columns: 1fr 1fr;

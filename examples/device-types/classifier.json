@@ -1,0 +1,21 @@
+{
+  "slug": "device-type",
+  "name": "Device type",
+  "description": "Primary commercial category of consumer computing devices.",
+  "classes": [
+    {
+      "canonical_name": "phone",
+      "display_name": "Phone",
+      "description": "Handheld smartphones and mobile communication devices.",
+      "aliases": ["smartphone", "iphone", "galaxy"],
+      "positive_examples": ["Samsung Galaxy phone"]
+    },
+    {
+      "canonical_name": "laptop",
+      "display_name": "Laptop",
+      "description": "Clamshell portable computers with an attached keyboard.",
+      "aliases": ["notebook", "macbook"],
+      "positive_examples": ["MacBook Pro laptop"]
+    }
+  ]
+}

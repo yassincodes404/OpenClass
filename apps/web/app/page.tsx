@@ -1,6 +1,11 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
-import { OpenClass, type Classifier, type ClassificationResult } from "@openclass/sdk";
+import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
+import {
+  OpenClass,
+  type Classifier,
+  type ClassificationResult,
+  type SupervisorReview,
+} from "@openclass/sdk";
 const client = new OpenClass("");
 
 export default function Home() {
@@ -8,9 +13,14 @@ export default function Home() {
   const [classifier, setClassifier] = useState("");
   const [observation, setObservation] = useState("I was charged twice");
   const [result, setResult] = useState<ClassificationResult | null>(null);
+  const [review, setReview] = useState<SupervisorReview | null>(null);
   const [status, setStatus] = useState("Connecting");
   const [error, setError] = useState("");
+  const [reviewError, setReviewError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+
+  const displayedRun = useRef<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -26,20 +36,48 @@ export default function Home() {
       });
     return () => {
       active = false;
+      displayedRun.current = null;
     };
   }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (busy || reviewBusy) return;
+    displayedRun.current = null;
     setBusy(true);
     setError("");
     setResult(null);
+    setReview(null);
+    setReviewError("");
     try {
-      setResult(await client.classify({ classifier, observation }));
+      const next = await client.classify({ classifier, observation });
+      displayedRun.current = next.id;
+      setResult(next);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Classification failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function requestReview(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (!result || busy || reviewBusy) return;
+    const runId = result.id;
+    setReviewBusy(true);
+    setReviewError("");
+    setReview(null);
+    try {
+      const next = await client.reviewRun({ classifier, runId });
+      if (displayedRun.current === runId && next.classification_run_id === runId) {
+        setReview(next);
+      }
+    } catch (error) {
+      if (displayedRun.current === runId) {
+        setReviewError(error instanceof Error ? error.message : "Review failed");
+      }
+    } finally {
+      setReviewBusy(false);
     }
   }
 
@@ -80,10 +118,13 @@ export default function Home() {
             id="classifier"
             value={classifier}
             onChange={(e) => {
+              displayedRun.current = null;
               setClassifier(e.target.value);
               setResult(null);
+              setReview(null);
+              setReviewError("");
             }}
-            disabled={busy || !classifiers.length}
+            disabled={busy || reviewBusy || !classifiers.length}
           >
             {!classifiers.length && <option value="">No classifier available</option>}
             {classifiers.map((item) => (
@@ -106,9 +147,9 @@ export default function Home() {
             maxLength={100000}
             rows={5}
             required
-            disabled={busy}
+            disabled={busy || reviewBusy}
           />
-          <button disabled={busy || !classifier || !observation.trim()}>
+          <button disabled={busy || reviewBusy || !classifier || !observation.trim()}>
             {busy ? "Classifying…" : "Classify observation ↗"}
           </button>
           <p className="hint">Mock provider · deterministic lexical matching · no API key</p>
@@ -137,6 +178,41 @@ export default function Home() {
               <p className="hint">
                 {result.novelty.reasons.map((reason) => reason.replaceAll("_", " ")).join(" · ")}
               </p>
+              <div className="review">
+                <p className="eyebrow">03 / REVIEW</p>
+                <button type="button" onClick={requestReview} disabled={reviewBusy || !result.id}>
+                  {reviewBusy ? "Reviewing…" : "Review with Supervisor ↗"}
+                </button>
+                {reviewError && <p role="alert">{reviewError}</p>}
+                {review && review.classification_run_id === result.id && (
+                  <div className="review-result">
+                    <span className={`finding ${review.result.finding}`}>
+                      {review.result.finding.replaceAll("_", " ")}
+                    </span>
+                    <dl>
+                      <dt>Supervisor</dt>
+                      <dd>{review.result.provider}</dd>
+                      <dt>Confidence</dt>
+                      <dd>{review.result.confidence.toFixed(2)}</dd>
+                      <dt>Recommendation</dt>
+                      <dd>{review.result.recommendation.replaceAll("_", " ")}</dd>
+                      {review.result.suspected_class && (
+                        <>
+                          <dt>Suspected class</dt>
+                          <dd>{review.result.suspected_class}</dd>
+                        </>
+                      )}
+                    </dl>
+                    <p>{review.result.rationale}</p>
+                    <p className="hint">
+                      {review.result.provider_metadata.simulated === true
+                        ? "Simulated advisory finding"
+                        : "Advisory finding"}{" "}
+                      · a review never changes the classification
+                    </p>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <div className="empty">

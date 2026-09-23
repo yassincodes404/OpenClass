@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Probability = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
 Name = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,79}$")]
@@ -162,6 +162,99 @@ class UnknownEvent(Model):
     review_state: Literal["pending"] = "pending"
     cluster_id: UUID | None = None
     candidate_id: UUID | None = None
+
+
+class ClassificationRecord(Model):
+    """Historical run plus the observation it classified; reviews are advisory."""
+
+    observation: Observation
+    result: ClassificationResult
+
+    @model_validator(mode="after")
+    def coherent_observation(self) -> "ClassificationRecord":
+        if self.observation.id != self.result.observation_id:
+            raise ValueError("observation must match the classification observation")
+        return self
+
+
+class SupervisorFinding(StrEnum):
+    NO_ISSUE = "no_issue"
+    POSSIBLE_MISCLASSIFICATION = "possible_misclassification"
+    POSSIBLE_MISSING_CLASS = "possible_missing_class"
+    CLASS_DEFINITION_ISSUE = "class_definition_issue"
+    INSTRUCTION_ISSUE = "instruction_issue"
+    SCHEMA_ISSUE = "schema_issue"
+    OUT_OF_DOMAIN = "out_of_domain"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+
+
+class ReviewRecommendation(StrEnum):
+    NONE = "none"
+    CHECK_CLASSIFICATION = "check_classification"
+    PROPOSE_CLASS = "propose_class"
+    ADD_ALIAS = "add_alias"
+    REVISE_CLASS_DEFINITION = "revise_class_definition"
+    REVISE_INSTRUCTION = "revise_instruction"
+    REVIEW_SCHEMA = "review_schema"
+    MARK_OUT_OF_DOMAIN = "mark_out_of_domain"
+    COLLECT_MORE_EVIDENCE = "collect_more_evidence"
+
+
+class ReviewRequest(Model):
+    """Historical context for one review; it is the run's ontology, not the active one."""
+
+    observation: Observation
+    classification: ClassificationResult
+    ontology: OntologyVersion
+
+    @model_validator(mode="after")
+    def coherent_context(self) -> "ReviewRequest":
+        if self.observation.id != self.classification.observation_id:
+            raise ValueError("observation must match the classification observation")
+        if self.ontology.id != self.classification.ontology_version_id:
+            raise ValueError("ontology must match the classification ontology version")
+        if self.ontology.classifier_id != self.classification.classifier_id:
+            raise ValueError("ontology must belong to the classification classifier")
+        return self
+
+
+class ReviewResult(Model):
+    """Advisory provider output. It is evidence, never ground truth or authority."""
+
+    provider: str
+    model: str
+    finding: SupervisorFinding
+    confidence: Probability
+    recommendation: ReviewRecommendation
+    rationale: str = Field(min_length=1, max_length=4000)
+    suspected_class: str | None = Field(default=None, min_length=1, max_length=200)
+    proposed_class: str | None = Field(default=None, min_length=1, max_length=200)
+    proposed_instruction: str | None = Field(default=None, min_length=1, max_length=4000)
+    provider_metadata: dict[str, Any] = Field(default_factory=dict)
+    latency_ms: float = Field(default=0, ge=0, allow_inf_nan=False)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    estimated_cost: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+    @field_validator("rationale", "suspected_class", "proposed_class", "proposed_instruction")
+    @classmethod
+    def nonblank_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("review text must be nonblank")
+        return value
+
+
+class SupervisorReview(Model):
+    id: UUID = Field(default_factory=uuid4)
+    classifier_id: UUID
+    classification_run_id: UUID
+    ontology_version_id: UUID
+    trigger: Literal["manual"] = "manual"
+    result: ReviewResult
+    created_at: datetime = Field(default_factory=now)
 
 
 class DomainEvent(Model):

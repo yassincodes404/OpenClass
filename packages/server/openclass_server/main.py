@@ -1,37 +1,44 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
+from uuid import UUID
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from openclass_core.models import (
+    ClassificationRecord,
     ClassificationResult,
     Classifier,
     Observation,
     OntologyVersion,
+    SupervisorReview,
     UnknownEvent,
 )
-from openclass_core.providers import DecisionProvider, ProviderError
+from openclass_core.providers import DecisionProvider, ProviderError, SupervisorProvider
 from openclass_core.repositories import ConflictError, NotFoundError
 from openclass_core.service import ClassificationService
-from openclass_provider_mock import MockDecisionProvider
+from openclass_core.supervisor import SupervisorService
+from openclass_provider_mock import MockDecisionProvider, MockSupervisorProvider
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from openclass_server.api.schemas import ClassifyRequest, CreateClassifier
+from openclass_server.api.schemas import ClassifyRequest, CreateClassifier, CreateReview
 from openclass_server.persistence.database import create_database_engine
 from openclass_server.persistence.repository import SQLRepository
-from openclass_server.settings import Settings
+from openclass_server.settings import EXPECTED_SCHEMA_REVISION, Settings
 
 
 def create_app(
-    settings: Settings | None = None, provider: DecisionProvider | None = None
+    settings: Settings | None = None,
+    provider: DecisionProvider | None = None,
+    supervisor_provider: SupervisorProvider | None = None,
 ) -> FastAPI:
     config = settings or Settings()
     engine = create_database_engine(config, pool_pre_ping=True)
     repository = SQLRepository(async_sessionmaker(engine, expire_on_commit=False))
     service = ClassificationService(repository, provider or MockDecisionProvider(), config.novelty)
+    supervisor = SupervisorService(repository, supervisor_provider or MockSupervisorProvider())
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -74,7 +81,7 @@ def create_app(
         try:
             async with engine.connect() as connection:
                 revision = await connection.scalar(text("SELECT version_num FROM alembic_version"))
-                if revision != "0001_genesis":
+                if revision != EXPECTED_SCHEMA_REVISION:
                     return JSONResponse(status_code=503, content={"status": "migration_required"})
                 if engine.dialect.name == "postgresql":
                     vector = await connection.scalar(
@@ -84,7 +91,7 @@ def create_app(
                         return JSONResponse(status_code=503, content={"status": "vector_missing"})
         except (SQLAlchemyError, TimeoutError, OSError):
             return JSONResponse(status_code=503, content={"status": "database_unavailable"})
-        return JSONResponse(content={"status": "ready", "schema": "0001_genesis"})
+        return JSONResponse(content={"status": "ready", "schema": EXPECTED_SCHEMA_REVISION})
 
     @app.post("/api/v1/classifiers", response_model=Classifier, status_code=201)
     async def create_classifier(body: CreateClassifier) -> Classifier:
@@ -127,6 +134,42 @@ def create_app(
         classifier = await repository.get_classifier(identifier)
         return await repository.unknowns(classifier.id, limit, offset)
 
+    @app.get("/api/v1/classifiers/{identifier}/runs", response_model=list[ClassificationRecord])
+    async def runs(
+        identifier: str,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> list[ClassificationRecord]:
+        classifier = await repository.get_classifier(identifier)
+        return await repository.list_classifications(classifier.id, limit, offset)
+
+    @app.get("/api/v1/classifiers/{identifier}/runs/{run_id}", response_model=ClassificationRecord)
+    async def run(identifier: str, run_id: UUID) -> ClassificationRecord:
+        classifier = await repository.get_classifier(identifier)
+        return await repository.get_classification(classifier.id, run_id)
+
+    @app.post(
+        "/api/v1/classifiers/{identifier}/runs/{run_id}/reviews",
+        response_model=SupervisorReview,
+        status_code=201,
+    )
+    async def create_review(
+        identifier: str, run_id: UUID, body: CreateReview | None = None
+    ) -> SupervisorReview:
+        try:
+            return await supervisor.review_run(identifier, run_id, actor="local-user")
+        except ProviderError as exc:
+            raise HTTPException(status_code=502, detail="Supervisor provider failed") from exc
+
+    @app.get("/api/v1/classifiers/{identifier}/reviews", response_model=list[SupervisorReview])
+    async def reviews(
+        identifier: str,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
+        offset: Annotated[int, Query(ge=0)] = 0,
+    ) -> list[SupervisorReview]:
+        classifier = await repository.get_classifier(identifier)
+        return await repository.supervisor_reviews(classifier.id, limit, offset)
+
     @app.get("/api/v1/classifiers/{identifier}/events")
     async def events(
         identifier: str,
@@ -147,7 +190,13 @@ def create_app(
                 "model": "lexical-demo-v1",
                 "simulated": True,
                 "capabilities": ["choice"],
-            }
+            },
+            {
+                "name": "mock-supervisor",
+                "model": "advisory-demo-v1",
+                "simulated": True,
+                "capabilities": ["review"],
+            },
         ]
 
     return app

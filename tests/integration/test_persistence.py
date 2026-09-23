@@ -17,9 +17,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 def test_sqlite_history_rejects_mutations(
     client: TestClient, database_url: str, classifier_body: dict
 ) -> None:
-    client.post("/api/v1/classifiers", json=classifier_body).raise_for_status()
+    created = client.post("/api/v1/classifiers", json=classifier_body)
+    assert created.status_code == 201
+    base = f"/api/v1/classifiers/{created.json()['id']}"
+    run = client.post(f"{base}/classify", json={"observation": "charged twice"}).json()
+    assert client.post(f"{base}/runs/{run['id']}/reviews").status_code == 201
     with sqlite3.connect(database_url.removeprefix("sqlite+aiosqlite:///")) as db:
-        for table in ("ontology_versions", "ontology_events"):
+        for table in ("ontology_versions", "ontology_events", "supervisor_reviews"):
             for sql in (f"UPDATE {table} SET payload = '{{}}'", f"DELETE FROM {table}"):
                 with pytest.raises(sqlite3.IntegrityError, match="append-only"):
                     db.execute(sql)
@@ -70,7 +74,13 @@ async def test_postgres_append_only_and_atomic_rollback(postgres_url: str) -> No
         actor="test",
     )
     result = await service.classify(classifier.slug, Observation(content="billing"))
-    for table in ("ontology_versions", "ontology_events"):
+    from openclass_core.supervisor import SupervisorService
+    from openclass_provider_mock import MockSupervisorProvider
+
+    await SupervisorService(repository, MockSupervisorProvider()).review_run(
+        classifier.slug, result.id, "test"
+    )
+    for table in ("ontology_versions", "ontology_events", "supervisor_reviews"):
         async with engine.connect() as connection:
             with pytest.raises(DBAPIError, match="append-only"):
                 await connection.execute(
@@ -93,3 +103,66 @@ async def test_postgres_append_only_and_atomic_rollback(postgres_url: str) -> No
         assert count == 0
         assert await connection.scalar(text("SELECT '[1,2,3]'::vector <-> '[1,2,3]'::vector")) == 0
     await engine.dispose()
+
+
+@pytest.fixture(params=["sqlite", pytest.param("postgres", marks=pytest.mark.postgres)])
+def review_database_url(request: pytest.FixtureRequest) -> str:
+    return request.getfixturevalue(
+        "postgres_url" if request.param == "postgres" else "database_url"
+    )
+
+
+async def test_review_integrity_and_event_rollback(review_database_url: str) -> None:
+    from openclass_core.models import OntologyClass, SupervisorReview
+    from openclass_core.repositories import ConflictError, NotFoundError
+    from openclass_core.service import ClassificationService
+    from openclass_core.supervisor import SupervisorService
+    from openclass_provider_mock import MockDecisionProvider, MockSupervisorProvider
+    from openclass_server.persistence.database import create_database_engine
+
+    engine = create_database_engine(Settings(database_url=review_database_url))
+    repository = SQLRepository(async_sessionmaker(engine, expire_on_commit=False))
+    service = ClassificationService(repository, MockDecisionProvider())
+    try:
+        classifiers = [
+            await service.create_classifier(
+                slug=f"review-{uuid4().hex}",
+                name="Review",
+                description="",
+                classes=(OntologyClass(canonical_name="billing", display_name="Billing"),),
+                actor="test",
+            )
+            for _ in range(2)
+        ]
+        classifier, other = classifiers
+        run = await service.classify(classifier.slug, Observation(content="billing"))
+        original = await SupervisorService(repository, MockSupervisorProvider()).review_run(
+            classifier.slug, run.id, "test"
+        )
+        event = DomainEvent(
+            classifier_id=classifier.id,
+            type="supervisor.review_completed",
+            actor="test",
+            payload={},
+        )
+        before_reviews = await repository.supervisor_reviews(classifier.id, 100, 0)
+        before_events = await repository.events(classifier.id, 0, 100)
+        for changes, error in (
+            ({"classifier_id": other.id}, ConflictError),
+            ({"ontology_version_id": other.active_ontology_version_id}, ConflictError),
+            ({"classification_run_id": uuid4()}, NotFoundError),
+        ):
+            invalid = SupervisorReview.model_validate(
+                {**original.model_dump(), "id": uuid4(), **changes}
+            )
+            with pytest.raises(error):
+                await repository.save_supervisor_review(invalid, event)
+        review = SupervisorReview.model_validate({**original.model_dump(), "id": uuid4()})
+        invalid_event = event.model_copy(update={"classifier_id": uuid4()})
+        with pytest.raises(IntegrityError):
+            await repository.save_supervisor_review(review, invalid_event)
+        assert await repository.supervisor_reviews(classifier.id, 100, 0) == before_reviews
+        assert await repository.supervisor_reviews(other.id, 100, 0) == []
+        assert await repository.events(classifier.id, 0, 100) == before_events
+    finally:
+        await engine.dispose()

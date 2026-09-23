@@ -27,8 +27,14 @@ class OpenClass:
     def close(self) -> None:
         self._client.close()
 
-    def _request(self, method: str, path: str, body: dict[str, Any] | None = None) -> Any:
-        response = self._client.request(method, path, json=body)
+    def _request(
+        self,
+        method: str,
+        path: str,
+        body: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        response = self._client.request(method, path, json=body, params=params)
         response.raise_for_status()
         return response.json()
 
@@ -68,4 +74,38 @@ class OpenClass:
     def unknowns(self, classifier: str) -> list[dict[str, Any]]:
         return list(
             self._request("GET", f"/api/v1/classifiers/{quote(classifier, safe='')}/unknowns")
+        )
+
+    def runs(self, classifier: str, *, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        return list(
+            self._request(
+                "GET",
+                f"/api/v1/classifiers/{quote(classifier, safe='')}/runs",
+                params={"limit": limit, "offset": offset},
+            )
+        )
+
+    def run(self, classifier: str, run_id: str) -> dict[str, Any]:
+        return dict(
+            self._request(
+                "GET", f"/api/v1/classifiers/{quote(classifier, safe='')}/runs/{quote(run_id)}"
+            )
+        )
+
+    def review_run(self, classifier: str, run_id: str) -> dict[str, Any]:
+        return dict(
+            self._request(
+                "POST",
+                f"/api/v1/classifiers/{quote(classifier, safe='')}/runs/{quote(run_id)}/reviews",
+                {"trigger": "manual"},
+            )
+        )
+
+    def reviews(self, classifier: str, *, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        return list(
+            self._request(
+                "GET",
+                f"/api/v1/classifiers/{quote(classifier, safe='')}/reviews",
+                params={"limit": limit, "offset": offset},
+            )
         )

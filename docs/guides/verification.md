@@ -2,6 +2,57 @@
 
 Validated locally on 2026-09-23. This is implementation evidence, not a public release certification.
 
+## OC-016 — Supervisor review foundation
+
+Validated locally on 2026-09-23 on branch `oc-016-supervisor-review-foundation`,
+on top of the Genesis results below.
+
+| Check                                          | Result                                                                                                                                  |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Python lint, formatting and strict mypy        | Passed (25 source files)                                                                                                                |
+| Python unit / contract / integration / E2E     | 59 passed on SQLite; 61 passed including PostgreSQL                                                                                     |
+| Confidence bounds, closed enums, text limits   | Passed (`tests/unit/test_review_models.py`)                                                                                             |
+| Mock supervisor contract                       | Passed, deterministic and marked simulated                                                                                              |
+| Review lifecycle, isolation, safe 502, OpenAPI | Passed (`tests/integration/test_reviews.py`)                                                                                            |
+| Append-only review rows (SQLite + PostgreSQL)  | UPDATE/DELETE rejected with append-only errors                                                                                          |
+| Confident-misclassification stays advisory     | Passed (`tests/e2e/test_supervisor.py`): run remains `phone`, review says `possible_misclassification`, ontology v1 unchanged           |
+| Reviews survive restart                        | Passed (E2E restart and live Compose restart)                                                                                           |
+| TypeScript SDK contracts                       | 4 passed, including review route/trigger assertions                                                                                     |
+| Desktop/mobile browser review panel            | 6 passed (3 tests × 2 projects)                                                                                                         |
+| Next.js production build                       | Passed                                                                                                                                  |
+| Five wheels plus source distributions          | Built; workspace version/license consistency passed                                                                                     |
+| Compose migration to `0002_supervisor_reviews` | Passed; readiness reports the new revision                                                                                              |
+| Live CLI review flow                           | known → `no_issue`; unknown → `possible_missing_class`; reviews persisted across `docker compose restart server`, ontology v1 unchanged |
+
+The same environment qualifications as Genesis applied: image builds needed a
+temporary `build.network: host` Compose override, host-to-container published
+ports still time out (readiness and CLI checks run inside the container), and
+PostgreSQL-marked tests ran against a disposable host-networked pgvector
+container at `localhost:5432`. Browser tests used the local Chromium through
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
+
+## OC-016 review fixes — validation
+
+Validated on 2026-09-23 after the PR review:
+
+- `make check`: lint, formatting, strict Python/TypeScript checks and four SDK tests passed.
+- `make test`: 65 passed, three PostgreSQL checks skipped without the opt-in URL.
+- Full suite against a disposable migrated PostgreSQL 17/pgvector database: 68 passed.
+- Browser regressions: 10 passed across desktop/mobile, including delayed review
+  locking, forced classifier changes during review, stale responses and simulation labels.
+- `npm run build` and `uv build --all-packages`: passed.
+- Full HTTP response bytes for run, ontology versions and unknown pool match before
+  and after the confident-misclassification review.
+- Repository coherence and review/event rollback passed on SQLite and PostgreSQL.
+
+The Python environment was repaired with uv. Browser checks used local Chromium;
+the disposable database used loopback port 55432 and was removed after testing.
+The remote CI evidence below also verifies the reviewed fixes at head
+`1a7491dd6b86701293fc1e7241778bd1e2c39795`.
+No real model calls or model-quality claims are included.
+
+## Genesis
+
 | Check                                       | Result                                        |
 | ------------------------------------------- | --------------------------------------------- |
 | Python lint, formatting and strict mypy     | Passed                                        |
@@ -21,8 +72,10 @@ Validated locally on 2026-09-23. This is implementation evidence, not a public r
 
 Follow [development.md](development.md). `make check`, `make test`,
 `npm run test:web`, `npm run build`, `uv build --all-packages`, and the optional
-Compose test profile cover these checks. CI repeats the portable checks; a remote
-GitHub Actions run has not been performed by this local implementation session.
+Compose test profile cover these checks. CI repeats the portable checks. [PR #12 CI run](https://github.com/yassincodes404/OpenClass/actions/runs/35917368955)
+passed Python, web, Compose and security jobs on 2026-09-23 at head
+`1a7491dd6b86701293fc1e7241778bd1e2c39795`, including the OC-016 review fixes.
+This records the tested code head; later commits receive their own CI runs.
 
 ## Local environment qualifications
 

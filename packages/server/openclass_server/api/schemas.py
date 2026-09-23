@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from openclass_core.models import Model, Observation, OntologyClass, OntologyVersion
 from pydantic import Field, model_validator
@@ -28,3 +28,7 @@ class ClassifyRequest(Model):
     def valid_observation(self) -> "ClassifyRequest":
         Observation(content=self.observation, metadata=self.metadata)
         return self
+
+
+class CreateReview(Model):
+    trigger: Literal["manual"] = "manual"

@@ -2,11 +2,13 @@ from typing import Protocol
 from uuid import UUID
 
 from openclass_core.models import (
+    ClassificationRecord,
     ClassificationResult,
     Classifier,
     DomainEvent,
     Observation,
     OntologyVersion,
+    SupervisorReview,
     UnknownEvent,
 )
 
@@ -35,3 +37,15 @@ class Repository(Protocol):
         unknown: UnknownEvent | None,
         events: tuple[DomainEvent, ...],
     ) -> None: ...
+    async def get_classification(
+        self, classifier_id: UUID, run_id: UUID
+    ) -> ClassificationRecord: ...
+    async def list_classifications(
+        self, classifier_id: UUID, limit: int, offset: int
+    ) -> list[ClassificationRecord]: ...
+    async def save_supervisor_review(
+        self, review: SupervisorReview, event: DomainEvent
+    ) -> None: ...
+    async def supervisor_reviews(
+        self, classifier_id: UUID, limit: int, offset: int
+    ) -> list[SupervisorReview]: ...

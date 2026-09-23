@@ -21,6 +21,65 @@ export interface ClassificationResult {
   };
 }
 
+export interface ClassificationRecord {
+  observation: {
+    id: string;
+    content: string;
+    content_type: "text";
+    metadata: Record<string, unknown>;
+    created_at: string;
+  };
+  result: ClassificationResult;
+}
+
+export type SupervisorFinding =
+  | "no_issue"
+  | "possible_misclassification"
+  | "possible_missing_class"
+  | "class_definition_issue"
+  | "instruction_issue"
+  | "schema_issue"
+  | "out_of_domain"
+  | "insufficient_evidence";
+
+export type ReviewRecommendation =
+  | "none"
+  | "check_classification"
+  | "propose_class"
+  | "add_alias"
+  | "revise_class_definition"
+  | "revise_instruction"
+  | "review_schema"
+  | "mark_out_of_domain"
+  | "collect_more_evidence";
+
+export interface ReviewResult {
+  provider: string;
+  model: string;
+  finding: SupervisorFinding;
+  confidence: number;
+  recommendation: ReviewRecommendation;
+  rationale: string;
+  suspected_class: string | null;
+  proposed_class: string | null;
+  proposed_instruction: string | null;
+  provider_metadata: Record<string, unknown>;
+  latency_ms: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  estimated_cost: number | null;
+}
+
+export interface SupervisorReview {
+  id: string;
+  classifier_id: string;
+  classification_run_id: string;
+  ontology_version_id: string;
+  trigger: "manual";
+  result: ReviewResult;
+  created_at: string;
+}
+
 export class OpenClassError extends Error {
   constructor(public readonly status: number) {
     super(`OpenClass request failed (HTTP ${status})`);
@@ -54,5 +113,22 @@ export class OpenClass {
     return this.request(`/api/v1/classifiers/${encodeURIComponent(input.classifier)}/classify`, {
       observation: input.observation,
     });
+  }
+  runs(classifier: string): Promise<ClassificationRecord[]> {
+    return this.request(`/api/v1/classifiers/${encodeURIComponent(classifier)}/runs`);
+  }
+  run(input: { classifier: string; runId: string }): Promise<ClassificationRecord> {
+    return this.request(
+      `/api/v1/classifiers/${encodeURIComponent(input.classifier)}/runs/${encodeURIComponent(input.runId)}`,
+    );
+  }
+  reviewRun(input: { classifier: string; runId: string }): Promise<SupervisorReview> {
+    return this.request(
+      `/api/v1/classifiers/${encodeURIComponent(input.classifier)}/runs/${encodeURIComponent(input.runId)}/reviews`,
+      { trigger: "manual" },
+    );
+  }
+  reviews(classifier: string): Promise<SupervisorReview[]> {
+    return this.request(`/api/v1/classifiers/${encodeURIComponent(classifier)}/reviews`);
   }
 }
