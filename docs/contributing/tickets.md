@@ -139,3 +139,67 @@ from untrusted PRs. Current artifact workflow remains non-publishing.
 Specify bounded autonomy only after evidence from manual promotion benchmarks;
 operator opt-in, policy/audit/rollback and regression controls. No implementation
 or default activation is authorized by this ticket.
+
+## OC-016 — Supervisor review foundation
+
+**Depends on:** OC-001. **Status:** Implemented on `oc-016-supervisor-review-foundation`;
+release administration remains OC-002.
+**Scope:** `SupervisorProvider` port, structured review models (`SupervisorFinding`,
+`ReviewRecommendation`, `ReviewRequest`, `ReviewResult`, `SupervisorReview`),
+historical run retrieval (`ClassificationRecord`), append-only review persistence
+(migration `0002_supervisor_reviews`), `SupervisorService`, mock supervisor,
+runs/reviews API, Python/TypeScript SDK support, CLI `runs`/`review`/`reviews`,
+web review panel, `supervisor.review_completed` event, tests including the
+confident-misclassification demonstration.
+**Acceptance:** a review can disagree with a confident known result and nothing is
+rewritten — the run, ontology and unknown pool stay byte-identical; reviews are
+scoped to their classifier, survive restart, and reject SQL UPDATE/DELETE; provider
+failures return a safe 502 without persisting reviews; supervisor output is bounded
+advisory evidence, never ground truth. No remote LLM, no automatic action.
+
+## OC-017 — Versioned DecisionSpec
+
+**Depends on:** OC-016. **Status:** Planned.
+Version the instructions controlling classification (task description, instruction,
+UNKNOWN guidance) as immutable `DecisionSpecVersion` snapshots. Extend `Classifier`
+with an active spec pointer, `ClassificationResult` with the spec version used,
+and `ChoiceRequest` with the spec. Migrate existing classifiers/runs to a
+deterministic default spec v1. Read APIs only; instruction changes must later pass
+proposal/evaluation/review before activation. `ReviewRequest` gains the spec so the
+Supervisor can distinguish instruction issues from ontology issues.
+**Acceptance:** every run references both the ontology and spec versions actually
+used; specs are append-only; historical reviews reason over historical specs;
+migration preserves Genesis data without recreation.
+
+## OC-018 — Supervisor reasoning providers
+
+**Depends on:** OC-003, OC-016, OC-017. **Status:** Planned.
+Ollama first (local-first), then an OpenAI-compatible adapter. Structured
+`ReviewResult` responses only (never prose parsing), timeouts, secret-safe
+failures, redaction, disabled-by-default request-content logging, and
+latency/token/cost telemetry. No vendor dependency in core.
+**Acceptance:** shared contract suite covering malformed JSON, unknown enums,
+out-of-range confidence, oversized rationale, timeouts, HTTP failures and
+secret-bearing upstream errors; no online credentials in mandatory CI.
+
+## OC-019 — AI management chat
+
+**Depends on:** OC-006, OC-007, OC-008, OC-009, OC-016, OC-017, OC-018. **Status:** Planned.
+Conversational Supervisor over read tools (inspect classifiers/ontology/runs/
+unknowns/reviews/candidates/evaluations), proposal tools (propose class/alias/
+definition/instruction/schema change, request evaluation) and guarded
+human-approved actions. The model never receives SQL, credentials or repository
+mutation; "approved" from a model has zero authority.
+**Acceptance:** chat can produce candidates through the candidate service — never
+direct ontology writes — and ungated activation is structurally impossible.
+
+## OC-020 — Continuous audit policy
+
+**Depends on:** OC-018, OC-019. **Status:** Planned.
+Policy-driven review triggers: unknown/uncertain review, suspicious known results,
+configurable random sampling of confident known results, statistical anomaly
+review, summarized batch review, budgets and drift-triggered audits. No per-request
+LLM dependency in the classification path.
+**Acceptance:** sampling rates are configuration, never hard-coded; confident
+systematic misclassification is discoverable without reviewing every run;
+review volume and cost are observable.

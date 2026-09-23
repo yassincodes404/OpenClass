@@ -21,6 +21,11 @@ unknown detection, persistence, and the client/server boundary. Discovery,
 clustering, evaluation, and human-reviewed promotion are planned, not implemented.
 There is no public release or installer yet.
 
+Development branch / unreleased: supervisor reviews can independently inspect
+persisted classification runs and produce advisory findings, including disagreement
+with a confident known result. Reviews do not change classifications or ontology
+state; only the deterministic mock supervisor is registered.
+
 ## Quick start
 
 Requires Docker with Compose. No model account or API key is needed.

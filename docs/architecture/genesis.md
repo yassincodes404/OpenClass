@@ -36,14 +36,22 @@ It is not the Discovery milestone.
    Durable resumable SSE and provider-failure telemetry are still planned.
 10. **No public deployment by default.** Compose binds host services to 127.0.0.1.
     Actor is `local-user`, not authenticated identity. No auth/RBAC claims are made.
+11. **Reviews are advisory evidence (OC-016).** A `SupervisorProvider` re-examines a
+    persisted run with the ontology version that run actually used and returns a
+    bounded, structured finding. Reviews persist append-only beside the run they
+    reviewed; they never rewrite runs, ontology, or the unknown pool, and no
+    apply/promote route exists. Only the deterministic mock supervisor is registered.
 
 ## Known limits
 
 No discovery, clustering, promotion, evaluation, rollback, TUI, Jev/remote providers,
-installer, package publication, or benchmark results. Lists of classifiers/versions
-are unpaginated for the initial local workspace; unknown and event history are bounded.
-Python SDK responses are typed dictionaries of JSON values; fully generated SDK models
-and protocol compatibility checks are planned. No automatic schema creation occurs.
+installer, package publication, or benchmark results. Supervisor reviews are
+manual-trigger only with the simulated mock; no reasoning model, automatic
+sampling, or batch audit exists yet (OC-018/OC-020). Lists of classifiers/versions
+are unpaginated for the initial local workspace; run, review, unknown and event
+history are bounded. Python SDK responses are typed dictionaries of JSON values;
+fully generated SDK models and protocol compatibility checks are planned. No
+automatic schema creation occurs.
 
 ## Invariants
 
@@ -53,4 +61,6 @@ and protocol compatibility checks are planned. No automatic schema creation occu
 - Duplicate slugs conflict and never overwrite a classifier.
 - Unknown observations, runs and events commit atomically.
 - Existing ontology versions and audit records cannot be updated or deleted by SQL DML.
+- A supervisor review never modifies the run, ontology, or unknown pool it examined;
+  reviews are append-only and a provider finding is never ground truth.
 - No model output becomes ground truth, and no new class is automatically activated.
