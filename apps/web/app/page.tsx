@@ -1,6 +1,11 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
-import { OpenClass, type Classifier, type ClassificationResult } from "@openclass/sdk";
+import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
+import {
+  OpenClass,
+  type Classifier,
+  type ClassificationResult,
+  type SupervisorReview,
+} from "@openclass/sdk";
 const client = new OpenClass("");
 
 export default function Home() {
@@ -8,9 +13,12 @@ export default function Home() {
   const [classifier, setClassifier] = useState("");
   const [observation, setObservation] = useState("I was charged twice");
   const [result, setResult] = useState<ClassificationResult | null>(null);
+  const [review, setReview] = useState<SupervisorReview | null>(null);
   const [status, setStatus] = useState("Connecting");
   const [error, setError] = useState("");
+  const [reviewError, setReviewError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -34,12 +42,29 @@ export default function Home() {
     setBusy(true);
     setError("");
     setResult(null);
+    setReview(null);
+    setReviewError("");
     try {
       setResult(await client.classify({ classifier, observation }));
     } catch (error) {
       setError(error instanceof Error ? error.message : "Classification failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function requestReview(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (!result) return;
+    setReviewBusy(true);
+    setReviewError("");
+    setReview(null);
+    try {
+      setReview(await client.reviewRun({ classifier, runId: result.id }));
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : "Review failed");
+    } finally {
+      setReviewBusy(false);
     }
   }
 
@@ -82,6 +107,8 @@ export default function Home() {
             onChange={(e) => {
               setClassifier(e.target.value);
               setResult(null);
+              setReview(null);
+              setReviewError("");
             }}
             disabled={busy || !classifiers.length}
           >
@@ -137,6 +164,38 @@ export default function Home() {
               <p className="hint">
                 {result.novelty.reasons.map((reason) => reason.replaceAll("_", " ")).join(" · ")}
               </p>
+              <div className="review">
+                <p className="eyebrow">03 / REVIEW</p>
+                <button type="button" onClick={requestReview} disabled={reviewBusy || !result.id}>
+                  {reviewBusy ? "Reviewing…" : "Review with Supervisor ↗"}
+                </button>
+                {reviewError && <p role="alert">{reviewError}</p>}
+                {review && (
+                  <div className="review-result">
+                    <span className={`finding ${review.result.finding}`}>
+                      {review.result.finding.replaceAll("_", " ")}
+                    </span>
+                    <dl>
+                      <dt>Supervisor</dt>
+                      <dd>{review.result.provider}</dd>
+                      <dt>Confidence</dt>
+                      <dd>{review.result.confidence.toFixed(2)}</dd>
+                      <dt>Recommendation</dt>
+                      <dd>{review.result.recommendation.replaceAll("_", " ")}</dd>
+                      {review.result.suspected_class && (
+                        <>
+                          <dt>Suspected class</dt>
+                          <dd>{review.result.suspected_class}</dd>
+                        </>
+                      )}
+                    </dl>
+                    <p>{review.result.rationale}</p>
+                    <p className="hint">
+                      Simulated advisory finding · a review never changes the classification
+                    </p>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <div className="empty">
