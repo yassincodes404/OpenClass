@@ -1,11 +1,13 @@
 from uuid import UUID
 
 from openclass_core.models import (
+    ClassificationRecord,
     ClassificationResult,
     Classifier,
     DomainEvent,
     Observation,
     OntologyVersion,
+    SupervisorReview,
     UnknownEvent,
 )
 from openclass_core.repositories import ConflictError, NotFoundError
@@ -18,6 +20,7 @@ from openclass_server.persistence.tables import (
     EventRow,
     ObservationRow,
     OntologyRow,
+    ReviewRow,
     RunRow,
     UnknownRow,
 )
@@ -128,6 +131,73 @@ class SQLRepository:
                 .limit(limit)
             )
             return [UnknownEvent.model_validate(row.payload) for row in rows]
+
+    async def get_classification(self, classifier_id: UUID, run_id: UUID) -> ClassificationRecord:
+        async with self.sessions() as session:
+            row = await session.scalar(
+                select(RunRow).where(
+                    RunRow.id == str(run_id), RunRow.classifier_id == str(classifier_id)
+                )
+            )
+            if row is None:
+                raise NotFoundError("Classification run not found")
+            observation_row = await session.get(ObservationRow, row.observation_id)
+            if observation_row is None:
+                raise NotFoundError("Observation not found")
+            return ClassificationRecord(
+                observation=Observation.model_validate(observation_row.payload),
+                result=ClassificationResult.model_validate(row.payload),
+            )
+
+    async def list_classifications(
+        self, classifier_id: UUID, limit: int, offset: int
+    ) -> list[ClassificationRecord]:
+        async with self.sessions() as session:
+            run_rows = await session.scalars(
+                select(RunRow)
+                .where(RunRow.classifier_id == str(classifier_id))
+                .order_by(RunRow.id)
+                .offset(offset)
+                .limit(limit)
+            )
+            records: list[ClassificationRecord] = []
+            for run_row in run_rows:
+                observation_row = await session.get(ObservationRow, run_row.observation_id)
+                if observation_row is None:
+                    raise NotFoundError("Observation not found")
+                records.append(
+                    ClassificationRecord(
+                        observation=Observation.model_validate(observation_row.payload),
+                        result=ClassificationResult.model_validate(run_row.payload),
+                    )
+                )
+            return records
+
+    async def save_supervisor_review(self, review: SupervisorReview, event: DomainEvent) -> None:
+        async with self.sessions.begin() as session:
+            session.add(
+                ReviewRow(
+                    id=str(review.id),
+                    classifier_id=str(review.classifier_id),
+                    run_id=str(review.classification_run_id),
+                    ontology_version_id=str(review.ontology_version_id),
+                    payload=review.model_dump(mode="json"),
+                )
+            )
+            session.add(self._event(event))
+
+    async def supervisor_reviews(
+        self, classifier_id: UUID, limit: int, offset: int
+    ) -> list[SupervisorReview]:
+        async with self.sessions() as session:
+            rows = await session.scalars(
+                select(ReviewRow)
+                .where(ReviewRow.classifier_id == str(classifier_id))
+                .order_by(ReviewRow.id)
+                .offset(offset)
+                .limit(limit)
+            )
+            return [SupervisorReview.model_validate(row.payload) for row in rows]
 
     async def events(
         self, classifier_id: UUID, after: int, limit: int

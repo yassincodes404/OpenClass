@@ -60,3 +60,12 @@ class EventRow(Base):
     id: Mapped[str] = mapped_column(String(36), unique=True)
     classifier_id: Mapped[str] = mapped_column(ForeignKey("classifiers.id"), index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class ReviewRow(Base):
+    __tablename__ = "supervisor_reviews"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    classifier_id: Mapped[str] = mapped_column(ForeignKey("classifiers.id"), index=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("classification_runs.id"), index=True)
+    ontology_version_id: Mapped[str] = mapped_column(ForeignKey("ontology_versions.id"))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
