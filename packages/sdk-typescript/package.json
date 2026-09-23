@@ -11,7 +11,7 @@
     "test": "tsx --test src/index.test.ts"
   },
   "devDependencies": {
-    "typescript": "^5.8.0",
+    "typescript": "^7.0.2",
     "tsx": "^4.20.0",
     "@types/node": "^22.0.0"
   }
