@@ -59,3 +59,66 @@ test("empty workspace explains setup and cannot submit", async ({ page }) => {
   await expect(page.getByText(/Create your first classifier/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Classify observation" })).toBeDisabled();
 });
+
+test("supervisor review stays advisory and recoverable", async ({ page }) => {
+  await page.route("**/health/ready", (route) => route.fulfill({ json: { status: "ready" } }));
+  await page.route("**/api/v1/classifiers", (route) =>
+    route.fulfill({ json: [{ id: "fixture", slug: "support-intent", name: "Support intent" }] }),
+  );
+  await page.route("**/api/v1/classifiers/support-intent/classify", (route) =>
+    route.fulfill({
+      json: {
+        id: "run-1",
+        ontology_version_id: "v1",
+        selected_class: null,
+        decision: {
+          provider: "mock",
+          model: "lexical-demo-v1",
+          probabilities: {},
+          unknown_probability: 0.95,
+        },
+        novelty: { state: "likely_novel", score: 0.95, reasons: ["strong_unknown_probability"] },
+      },
+    }),
+  );
+  let reviews = 0;
+  await page.route("**/api/v1/classifiers/support-intent/runs/run-1/reviews", async (route) => {
+    reviews++;
+    if (reviews === 2)
+      return route.fulfill({ status: 502, json: { detail: "Supervisor provider failed" } });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return route.fulfill({
+      json: {
+        id: "review-1",
+        classifier_id: "fixture",
+        classification_run_id: "run-1",
+        ontology_version_id: "v1",
+        trigger: "manual",
+        created_at: "2026-01-01T00:00:00Z",
+        result: {
+          provider: "mock-supervisor",
+          model: "advisory-demo-v1",
+          finding: "possible_missing_class",
+          confidence: 0.82,
+          recommendation: "collect_more_evidence",
+          rationale: "Simulated advisory review: the run selected no class.",
+          suspected_class: null,
+          proposed_class: null,
+          proposed_instruction: null,
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Classify observation" }).click();
+  await expect(page.getByRole("heading", { name: "UNKNOWN", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Review with Supervisor" }).click();
+  await expect(page.getByRole("button", { name: "Reviewing…" })).toBeDisabled();
+  await expect(page.getByText("possible missing class", { exact: true })).toBeVisible();
+  await expect(page.getByText("collect more evidence", { exact: true })).toBeVisible();
+  await expect(page.getByText(/never changes the classification/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "UNKNOWN", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Review with Supervisor" }).click();
+  await expect(page.getByRole("main").getByRole("alert")).toContainText("502");
+  await expect(page.getByRole("button", { name: "Review with Supervisor" })).toBeEnabled();
+});

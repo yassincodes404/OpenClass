@@ -17,9 +17,13 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 def test_sqlite_history_rejects_mutations(
     client: TestClient, database_url: str, classifier_body: dict
 ) -> None:
-    client.post("/api/v1/classifiers", json=classifier_body).raise_for_status()
+    created = client.post("/api/v1/classifiers", json=classifier_body)
+    assert created.status_code == 201
+    base = f"/api/v1/classifiers/{created.json()['id']}"
+    run = client.post(f"{base}/classify", json={"observation": "charged twice"}).json()
+    assert client.post(f"{base}/runs/{run['id']}/reviews").status_code == 201
     with sqlite3.connect(database_url.removeprefix("sqlite+aiosqlite:///")) as db:
-        for table in ("ontology_versions", "ontology_events"):
+        for table in ("ontology_versions", "ontology_events", "supervisor_reviews"):
             for sql in (f"UPDATE {table} SET payload = '{{}}'", f"DELETE FROM {table}"):
                 with pytest.raises(sqlite3.IntegrityError, match="append-only"):
                     db.execute(sql)
@@ -70,7 +74,13 @@ async def test_postgres_append_only_and_atomic_rollback(postgres_url: str) -> No
         actor="test",
     )
     result = await service.classify(classifier.slug, Observation(content="billing"))
-    for table in ("ontology_versions", "ontology_events"):
+    from openclass_core.supervisor import SupervisorService
+    from openclass_provider_mock import MockSupervisorProvider
+
+    await SupervisorService(repository, MockSupervisorProvider()).review_run(
+        classifier.slug, result.id, "test"
+    )
+    for table in ("ontology_versions", "ontology_events", "supervisor_reviews"):
         async with engine.connect() as connection:
             with pytest.raises(DBAPIError, match="append-only"):
                 await connection.execute(
