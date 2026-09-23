@@ -31,7 +31,7 @@ PostgreSQL-marked tests ran against a disposable host-networked pgvector
 container at `localhost:5432`. Browser tests used the local Chromium through
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
 
-## OC-016 review fixes — local validation
+## OC-016 review fixes — validation
 
 Validated on 2026-09-23 after the PR review:
 
@@ -47,7 +47,8 @@ Validated on 2026-09-23 after the PR review:
 
 The Python environment was repaired with uv. Browser checks used local Chromium;
 the disposable database used loopback port 55432 and was removed after testing.
-These are local results; the remote CI evidence below is for the earlier PR head.
+The remote CI evidence below also verifies the reviewed fixes at head
+`1a7491dd6b86701293fc1e7241778bd1e2c39795`.
 No real model calls or model-quality claims are included.
 
 ## Genesis
@@ -71,10 +72,10 @@ No real model calls or model-quality claims are included.
 
 Follow [development.md](development.md). `make check`, `make test`,
 `npm run test:web`, `npm run build`, `uv build --all-packages`, and the optional
-Compose test profile cover these checks. CI repeats the portable checks. [PR #12 CI run](https://github.com/yassincodes404/OpenClass/actions/runs/35888789372)
+Compose test profile cover these checks. CI repeats the portable checks. [PR #12 CI run](https://github.com/yassincodes404/OpenClass/actions/runs/35917368955)
 passed Python, web, Compose and security jobs on 2026-09-23 at head
-`18d953446e346d629d4d75a3f6bb9f732fceca8e`. This evidence predates the review fixes;
-it does not certify subsequent changes.
+`1a7491dd6b86701293fc1e7241778bd1e2c39795`, including the OC-016 review fixes.
+This records the tested code head; later commits receive their own CI runs.
 
 ## Local environment qualifications
 
