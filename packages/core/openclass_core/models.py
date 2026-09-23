@@ -164,6 +164,73 @@ class UnknownEvent(Model):
     candidate_id: UUID | None = None
 
 
+class ClassificationRecord(Model):
+    """Historical run plus the observation it classified; reviews are advisory."""
+
+    observation: Observation
+    result: ClassificationResult
+
+
+class SupervisorFinding(StrEnum):
+    NO_ISSUE = "no_issue"
+    POSSIBLE_MISCLASSIFICATION = "possible_misclassification"
+    POSSIBLE_MISSING_CLASS = "possible_missing_class"
+    CLASS_DEFINITION_ISSUE = "class_definition_issue"
+    INSTRUCTION_ISSUE = "instruction_issue"
+    SCHEMA_ISSUE = "schema_issue"
+    OUT_OF_DOMAIN = "out_of_domain"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+
+
+class ReviewRecommendation(StrEnum):
+    NONE = "none"
+    CHECK_CLASSIFICATION = "check_classification"
+    PROPOSE_CLASS = "propose_class"
+    ADD_ALIAS = "add_alias"
+    REVISE_CLASS_DEFINITION = "revise_class_definition"
+    REVISE_INSTRUCTION = "revise_instruction"
+    REVIEW_SCHEMA = "review_schema"
+    MARK_OUT_OF_DOMAIN = "mark_out_of_domain"
+    COLLECT_MORE_EVIDENCE = "collect_more_evidence"
+
+
+class ReviewRequest(Model):
+    """Historical context for one review; it is the run's ontology, not the active one."""
+
+    observation: Observation
+    classification: ClassificationResult
+    ontology: OntologyVersion
+
+
+class ReviewResult(Model):
+    """Advisory provider output. It is evidence, never ground truth or authority."""
+
+    provider: str
+    model: str
+    finding: SupervisorFinding
+    confidence: Probability
+    recommendation: ReviewRecommendation
+    rationale: str = Field(min_length=1, max_length=4000)
+    suspected_class: str | None = Field(default=None, min_length=1, max_length=200)
+    proposed_class: str | None = Field(default=None, min_length=1, max_length=200)
+    proposed_instruction: str | None = Field(default=None, min_length=1, max_length=4000)
+    provider_metadata: dict[str, Any] = Field(default_factory=dict)
+    latency_ms: float = Field(default=0, ge=0, allow_inf_nan=False)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    estimated_cost: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+
+class SupervisorReview(Model):
+    id: UUID = Field(default_factory=uuid4)
+    classifier_id: UUID
+    classification_run_id: UUID
+    ontology_version_id: UUID
+    trigger: Literal["manual"] = "manual"
+    result: ReviewResult
+    created_at: datetime = Field(default_factory=now)
+
+
 class DomainEvent(Model):
     id: UUID = Field(default_factory=uuid4)
     classifier_id: UUID
