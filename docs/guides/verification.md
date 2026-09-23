@@ -31,6 +31,25 @@ PostgreSQL-marked tests ran against a disposable host-networked pgvector
 container at `localhost:5432`. Browser tests used the local Chromium through
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
 
+## OC-016 review fixes — local validation
+
+Validated on 2026-09-23 after the PR review:
+
+- `make check`: lint, formatting, strict Python/TypeScript checks and four SDK tests passed.
+- `make test`: 65 passed, three PostgreSQL checks skipped without the opt-in URL.
+- Full suite against a disposable migrated PostgreSQL 17/pgvector database: 68 passed.
+- Browser regressions: 10 passed across desktop/mobile, including delayed review
+  locking, forced classifier changes during review, stale responses and simulation labels.
+- `npm run build` and `uv build --all-packages`: passed.
+- Full HTTP response bytes for run, ontology versions and unknown pool match before
+  and after the confident-misclassification review.
+- Repository coherence and review/event rollback passed on SQLite and PostgreSQL.
+
+The Python environment was repaired with uv. Browser checks used local Chromium;
+the disposable database used loopback port 55432 and was removed after testing.
+These are local results; the remote CI evidence below is for the earlier PR head.
+No real model calls or model-quality claims are included.
+
 ## Genesis
 
 | Check                                       | Result                                        |
@@ -52,8 +71,10 @@ container at `localhost:5432`. Browser tests used the local Chromium through
 
 Follow [development.md](development.md). `make check`, `make test`,
 `npm run test:web`, `npm run build`, `uv build --all-packages`, and the optional
-Compose test profile cover these checks. CI repeats the portable checks; a remote
-GitHub Actions run has not been performed by this local implementation session.
+Compose test profile cover these checks. CI repeats the portable checks. [PR #12 CI run](https://github.com/yassincodes404/OpenClass/actions/runs/35888789372)
+passed Python, web, Compose and security jobs on 2026-09-23 at head
+`18d953446e346d629d4d75a3f6bb9f732fceca8e`. This evidence predates the review fixes;
+it does not certify subsequent changes.
 
 ## Local environment qualifications
 

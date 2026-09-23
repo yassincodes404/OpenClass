@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Probability = Annotated[float, Field(ge=0, le=1, allow_inf_nan=False)]
 Name = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,79}$")]
@@ -170,6 +170,12 @@ class ClassificationRecord(Model):
     observation: Observation
     result: ClassificationResult
 
+    @model_validator(mode="after")
+    def coherent_observation(self) -> "ClassificationRecord":
+        if self.observation.id != self.result.observation_id:
+            raise ValueError("observation must match the classification observation")
+        return self
+
 
 class SupervisorFinding(StrEnum):
     NO_ISSUE = "no_issue"
@@ -201,6 +207,16 @@ class ReviewRequest(Model):
     classification: ClassificationResult
     ontology: OntologyVersion
 
+    @model_validator(mode="after")
+    def coherent_context(self) -> "ReviewRequest":
+        if self.observation.id != self.classification.observation_id:
+            raise ValueError("observation must match the classification observation")
+        if self.ontology.id != self.classification.ontology_version_id:
+            raise ValueError("ontology must match the classification ontology version")
+        if self.ontology.classifier_id != self.classification.classifier_id:
+            raise ValueError("ontology must belong to the classification classifier")
+        return self
+
 
 class ReviewResult(Model):
     """Advisory provider output. It is evidence, never ground truth or authority."""
@@ -219,6 +235,16 @@ class ReviewResult(Model):
     input_tokens: int | None = Field(default=None, ge=0)
     output_tokens: int | None = Field(default=None, ge=0)
     estimated_cost: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+    @field_validator("rationale", "suspected_class", "proposed_class", "proposed_instruction")
+    @classmethod
+    def nonblank_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("review text must be nonblank")
+        return value
 
 
 class SupervisorReview(Model):

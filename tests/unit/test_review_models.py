@@ -83,3 +83,32 @@ def test_review_output_is_immutable() -> None:
     result = review_result()
     with pytest.raises(ValidationError):
         result.rationale = "rewritten"
+
+
+@pytest.mark.parametrize(
+    "field", ["rationale", "suspected_class", "proposed_class", "proposed_instruction"]
+)
+def test_review_text_is_nonblank_and_trimmed(field: str) -> None:
+    with pytest.raises(ValidationError, match="nonblank"):
+        review_result(**{field: " \t\n "})
+    assert getattr(review_result(**{field: "  evidence  "}), field) == "evidence"
+
+
+def test_historical_context_rejects_mismatched_identifiers(ontology) -> None:
+    from openclass_core.models import ClassificationRecord, Observation, ReviewRequest
+
+    from tests.contract.test_supervisor_provider import classification_for
+
+    classification = classification_for(ontology, known=True)
+    observation = Observation(id=classification.observation_id, content="charged twice")
+    record = ClassificationRecord(observation=observation, result=classification)
+    request = ReviewRequest(
+        observation=observation, classification=classification, ontology=ontology
+    )
+    assert record.result == request.classification
+    with pytest.raises(ValidationError, match="observation"):
+        ClassificationRecord(observation=Observation(content="other"), result=classification)
+    for field in ("observation_id", "ontology_version_id", "classifier_id"):
+        mismatched = classification.model_copy(update={field: uuid4()})
+        with pytest.raises(ValidationError):
+            ReviewRequest(observation=observation, classification=mismatched, ontology=ontology)

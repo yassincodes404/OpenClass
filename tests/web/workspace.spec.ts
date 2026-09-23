@@ -105,6 +105,7 @@ test("supervisor review stays advisory and recoverable", async ({ page }) => {
           suspected_class: null,
           proposed_class: null,
           proposed_instruction: null,
+          provider_metadata: { simulated: true },
         },
       },
     });
@@ -122,3 +123,116 @@ test("supervisor review stays advisory and recoverable", async ({ page }) => {
   await expect(page.getByRole("main").getByRole("alert")).toContainText("502");
   await expect(page.getByRole("button", { name: "Review with Supervisor" })).toBeEnabled();
 });
+
+for (const simulated of [true, false]) {
+  test(`delayed review locks its run and labels simulation=${simulated}`, async ({ page }) => {
+    await page.route("**/health/ready", (route) => route.fulfill({ json: { status: "ready" } }));
+    await page.route("**/api/v1/classifiers", (route) =>
+      route.fulfill({
+        json: [
+          { id: "fixture", slug: "support-intent", name: "Support intent" },
+          { id: "other", slug: "other", name: "Other" },
+        ],
+      }),
+    );
+    let runs = 0;
+    await page.route("**/classify", (route) =>
+      route.fulfill({
+        json: {
+          id: `run-${++runs}`,
+          ontology_version_id: "v1",
+          selected_class: "billing",
+          decision: { provider: "mock" },
+          novelty: { state: "known", score: 0.05, reasons: [] },
+        },
+      }),
+    );
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/runs/run-1/reviews", async (route) => {
+      await gate;
+      await route.fulfill({
+        json: {
+          id: "review-1",
+          classification_run_id: "run-1",
+          result: {
+            provider: "test-supervisor",
+            finding: "no_issue",
+            confidence: 0.8,
+            recommendation: "none",
+            rationale: "Review for run A",
+            provider_metadata: { simulated },
+          },
+        },
+      });
+    });
+    await page.goto("/");
+    const classify = page.getByRole("button", { name: "Classify observation" });
+    await classify.click();
+    await page.getByRole("button", { name: "Review with Supervisor" }).click();
+    await expect(page.getByRole("button", { name: "Reviewing…" })).toBeDisabled();
+    await expect(page.getByLabel("Classifier", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Observation", { exact: true })).toBeDisabled();
+    await expect(classify).toBeDisabled();
+    release();
+    await expect(page.getByText("Review for run A")).toBeVisible();
+    await expect(
+      page.getByText(
+        simulated
+          ? "Simulated advisory finding · a review never changes the classification"
+          : "Advisory finding · a review never changes the classification",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await page.getByLabel("Observation", { exact: true }).fill("second observation");
+    await classify.click();
+    await expect(page.getByRole("button", { name: "Review with Supervisor" })).toBeEnabled();
+    await expect(page.getByText("Review for run A")).toHaveCount(0);
+    // Even an incorrectly associated response must not appear under run B.
+    await page.route("**/runs/run-2/reviews", (route) =>
+      route.fulfill({
+        json: {
+          classification_run_id: "run-1",
+          result: { rationale: "Stale finding" },
+        },
+      }),
+    );
+    await page.getByRole("button", { name: "Review with Supervisor" }).click();
+    await expect(page.getByRole("button", { name: "Review with Supervisor" })).toBeEnabled();
+    await expect(page.getByText("Stale finding")).toHaveCount(0);
+    let releaseLate!: () => void;
+    const lateGate = new Promise<void>((resolve) => {
+      releaseLate = resolve;
+    });
+    await page.route("**/runs/run-2/reviews", async (route) => {
+      await lateGate;
+      await route.fulfill({
+        json: {
+          classification_run_id: "run-2",
+          result: {
+            finding: "no_issue",
+            confidence: 0.8,
+            recommendation: "none",
+            rationale: "Late run B finding",
+            provider_metadata: { simulated },
+          },
+        },
+      });
+    });
+    await page.getByRole("button", { name: "Review with Supervisor" }).click();
+    await expect(page.getByRole("button", { name: "Reviewing…" })).toBeDisabled();
+    // Bypass the interaction lock to exercise stale-response protection independently.
+    const selector = page.getByLabel("Classifier", { exact: true });
+    await selector.evaluate((element: HTMLSelectElement) => {
+      element.disabled = false;
+    });
+    await selector.selectOption("other");
+    releaseLate();
+    await expect(classify).toBeEnabled();
+    await classify.click();
+    await expect(page.getByRole("button", { name: "Review with Supervisor" })).toBeEnabled();
+    await expect(page.getByText("Late run B finding")).toHaveCount(0);
+  });
+}

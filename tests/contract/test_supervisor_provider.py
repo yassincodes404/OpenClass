@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID
 
 import pytest
 from openclass_core.models import (
@@ -36,7 +36,7 @@ def classification_for(ontology, *, known: bool) -> ClassificationResult:
     selected = next(c for c in ontology.classes if c.canonical_name == "billing") if known else None
     return ClassificationResult(
         classifier_id=ontology.classifier_id,
-        observation_id=uuid4(),
+        observation_id=UUID(int=1),
         ontology_version_id=ontology.id,
         selected_class_id=selected.stable_class_id if selected else None,
         selected_class=selected.canonical_name if selected else None,
@@ -56,7 +56,7 @@ async def test_review_contract(supervisor: SupervisorProvider, ontology) -> None
     original = ontology.model_dump_json()
     known = classification_for(ontology, known=True)
     request = ReviewRequest(
-        observation=Observation(content="charged twice"),
+        observation=Observation(id=UUID(int=1), content="charged twice"),
         classification=known,
         ontology=ontology,
     )
@@ -77,7 +77,7 @@ async def test_mock_reports_run_shape_without_semantic_claims(ontology) -> None:
     provider = MockSupervisorProvider()
     known = await provider.review(
         ReviewRequest(
-            observation=Observation(content="charged twice"),
+            observation=Observation(id=UUID(int=1), content="charged twice"),
             classification=classification_for(ontology, known=True),
             ontology=ontology,
         )
@@ -88,7 +88,7 @@ async def test_mock_reports_run_shape_without_semantic_claims(ontology) -> None:
     )
     unknown = await provider.review(
         ReviewRequest(
-            observation=Observation(content="cancel my plan"),
+            observation=Observation(id=UUID(int=1), content="cancel my plan"),
             classification=classification_for(ontology, known=False),
             ontology=ontology,
         )

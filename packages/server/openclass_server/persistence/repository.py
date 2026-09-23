@@ -175,6 +175,13 @@ class SQLRepository:
 
     async def save_supervisor_review(self, review: SupervisorReview, event: DomainEvent) -> None:
         async with self.sessions.begin() as session:
+            run = await session.get(RunRow, str(review.classification_run_id))
+            if run is None:
+                raise NotFoundError("Classification run not found")
+            if run.classifier_id != str(review.classifier_id) or run.ontology_version_id != str(
+                review.ontology_version_id
+            ):
+                raise ConflictError("Review context does not match the classification run")
             session.add(
                 ReviewRow(
                     id=str(review.id),
@@ -184,6 +191,7 @@ class SQLRepository:
                     payload=review.model_dump(mode="json"),
                 )
             )
+            await session.flush()
             session.add(self._event(event))
 
     async def supervisor_reviews(

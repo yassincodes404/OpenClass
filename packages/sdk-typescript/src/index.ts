@@ -22,7 +22,13 @@ export interface ClassificationResult {
 }
 
 export interface ClassificationRecord {
-  observation: { id: string; content: string; content_type: "text"; created_at: string };
+  observation: {
+    id: string;
+    content: string;
+    content_type: "text";
+    metadata: Record<string, unknown>;
+    created_at: string;
+  };
   result: ClassificationResult;
 }
 
@@ -57,6 +63,11 @@ export interface ReviewResult {
   suspected_class: string | null;
   proposed_class: string | null;
   proposed_instruction: string | null;
+  provider_metadata: Record<string, unknown>;
+  latency_ms: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  estimated_cost: number | null;
 }
 
 export interface SupervisorReview {

@@ -142,7 +142,7 @@ or default activation is authorized by this ticket.
 
 ## OC-016 — Supervisor review foundation
 
-**Depends on:** OC-001. **Status:** Implemented on `oc-016-supervisor-review-foundation`;
+**Depends on:** OC-001. **Status:** Implemented; unreleased;
 release administration remains OC-002.
 **Scope:** `SupervisorProvider` port, structured review models (`SupervisorFinding`,
 `ReviewRecommendation`, `ReviewRequest`, `ReviewResult`, `SupervisorReview`),

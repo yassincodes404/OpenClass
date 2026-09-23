@@ -58,3 +58,10 @@ provider failures return 502 with a generic message.
 The target API in the architecture specification also includes candidates, evaluation,
 promotion, merge, observation batch ingest, diffs and provider testing; these routes
 are deliberately absent until their lifecycle rules are implemented.
+
+Supervisor review context must refer to the same observation, classifier and ontology
+version as the historical run. Repository writes reject a missing run or conflicting
+review references before inserting audit history; review and completion event commit
+atomically. Review text fields reject whitespace-only values and trim surrounding
+whitespace. TypeScript review results expose provider metadata and latency, token and
+cost telemetry; unavailable token/cost values are null.

@@ -89,10 +89,13 @@ def test_confident_mistake_is_flagged_without_rewriting_history(database_url: st
         # UNKNOWN detection sees a confident known result; it cannot audit correctness.
         assert result["selected_class"] == "phone"
         assert result["novelty"]["state"] == "known"
+        paths = [f"{base}/runs/{result['id']}", f"{base}/ontology/versions", f"{base}/unknowns"]
+        before = [client.get(path).content for path in paths]
         review = client.post(f"{base}/runs/{result['id']}/reviews").json()
         assert review["result"]["finding"] == "possible_misclassification"
         assert review["result"]["suspected_class"] == "tablet"
         assert review["result"]["recommendation"] == "check_classification"
+        assert [client.get(path).content for path in paths] == before
         # The historical run, the ontology and the unknown pool remain exactly as before.
         assert (
             client.get(f"{base}/runs/{result['id']}").json()["result"]["selected_class"] == "phone"

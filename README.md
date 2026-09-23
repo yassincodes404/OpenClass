@@ -21,7 +21,7 @@ unknown detection, persistence, and the client/server boundary. Discovery,
 clustering, evaluation, and human-reviewed promotion are planned, not implemented.
 There is no public release or installer yet.
 
-Development branch / unreleased: supervisor reviews can independently inspect
+Unreleased: supervisor reviews can independently inspect
 persisted classification runs and produce advisory findings, including disagreement
 with a confident known result. Reviews do not change classifications or ontology
 state; only the deterministic mock supervisor is registered.
@@ -115,6 +115,9 @@ SQLite tests, PostgreSQL tests, migrations, and builds. See the
 
 Dependencies flow inward: clients → public HTTP protocol → server → core.
 Providers implement core interfaces. No UI owns classification or learning rules.
+
+For real-provider readiness and the first measured experiment, see the
+[live-testing guide](docs/guides/live-testing.md).
 
 ## Toward Discovery
 
