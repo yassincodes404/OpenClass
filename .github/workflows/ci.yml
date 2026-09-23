@@ -26,7 +26,7 @@ jobs:
       OPENCLASS_TEST_DATABASE_URL: postgresql+asyncpg://openclass:openclass@localhost:5432/openclass_test
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.0"
           python-version: "3.12"
@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.0"
           python-version: "3.12"
