@@ -594,7 +594,7 @@ requires-dist = [
     { name = "openclass-core", editable = "packages/core" },
     { name = "openclass-provider-mock", editable = "providers/mock" },
     { name = "pydantic-settings", specifier = ">=2.8,<3" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.38,<3" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.54,<3" },
     { name = "uvicorn", specifier = ">=0.34,<1" },
 ]
 
