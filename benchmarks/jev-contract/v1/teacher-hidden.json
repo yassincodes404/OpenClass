@@ -1,0 +1,1152 @@
+{
+  "authored-state": {
+    "operator": "ADD_STATE_FEATURE",
+    "target_id": "service_state",
+    "payload_checks": [
+      {
+        "pointer": "/feature/id",
+        "expected": "exit_code"
+      },
+      {
+        "pointer": "/feature/kind",
+        "expected": "integer"
+      },
+      {
+        "pointer": "/feature/sensor_field",
+        "expected": "exit_code"
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-space": {
+    "operator": "ADD_CHOICE",
+    "target_id": "route",
+    "payload_checks": [
+      {
+        "pointer": "/choice/id",
+        "expected": "permission"
+      },
+      {
+        "pointer": "/choice/target_kind",
+        "expected": "terminal"
+      },
+      {
+        "pointer": "/choice/target_id",
+        "expected": null
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-routing": {
+    "operator": "GENERALIZE_CHOICE",
+    "target_id": "route",
+    "payload_checks": [
+      {
+        "pointer": "/choice/id",
+        "expected": "port"
+      },
+      {
+        "pointer": "/choice/target_kind",
+        "expected": "macro"
+      },
+      {
+        "pointer": "/choice/target_id",
+        "expected": "recover"
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-procedure": {
+    "operator": "REPLACE_PROCEDURE",
+    "target_id": "recover",
+    "payload_checks": [
+      {
+        "pointer": "/steps/1/arguments/name",
+        "expected": "SERVICE_TEST_PORT"
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": [
+      {
+        "macro_id": "recover",
+        "expected_env_name": "SERVICE_TEST_PORT",
+        "expected_pass": true,
+        "facts": {
+          "attempted": true,
+          "authorized": true
+        }
+      },
+      {
+        "macro_id": "recover",
+        "expected_env_name": "SERVICE_TEST_PORT",
+        "expected_pass": false,
+        "facts": {
+          "attempted": true,
+          "authorized": false
+        }
+      }
+    ]
+  },
+  "authored-precondition": {
+    "operator": "CHANGE_PRECONDITION",
+    "target_id": "recover",
+    "payload_checks": [
+      {
+        "pointer": "/predicates",
+        "expected": [
+          {
+            "field": "attempted",
+            "equals": true
+          },
+          {
+            "field": "inspected",
+            "equals": true
+          }
+        ]
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-postcondition": {
+    "operator": "CHANGE_POSTCONDITION",
+    "target_id": "recover",
+    "payload_checks": [
+      {
+        "pointer": "/predicates",
+        "expected": [
+          {
+            "field": "tests_passed",
+            "equals": true
+          },
+          {
+            "field": "report_written",
+            "equals": true
+          },
+          {
+            "field": "inspected",
+            "equals": true
+          }
+        ]
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-safety": {
+    "operator": "NO_CHANGE",
+    "target_id": "",
+    "payload_checks": [],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-missing": {
+    "operator": "MISSING_CAPABILITY",
+    "target_id": "",
+    "payload_checks": [],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-insufficient": {
+    "operator": "INSUFFICIENT_EVIDENCE",
+    "target_id": "",
+    "payload_checks": [],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "authored-infrastructure": {
+    "operator": "NO_CHANGE",
+    "target_id": "",
+    "payload_checks": [],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "frozen-teacher-d2": {
+    "operator": "REPLACE_PROCEDURE",
+    "target_id": "recover",
+    "payload_checks": [
+      {
+        "pointer": "/steps/1/arguments/name",
+        "expected": "SERVICE_TEST_PORT"
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": [
+      {
+        "macro_id": "recover",
+        "expected_env_name": "SERVICE_TEST_PORT",
+        "expected_pass": true,
+        "facts": {
+          "attempted": true,
+          "authorized": true
+        }
+      },
+      {
+        "macro_id": "recover",
+        "expected_env_name": "SERVICE_TEST_PORT",
+        "expected_pass": false,
+        "facts": {
+          "attempted": true,
+          "authorized": false
+        }
+      }
+    ]
+  },
+  "frozen-teacher-d2b": {
+    "operator": "INSUFFICIENT_EVIDENCE",
+    "target_id": "",
+    "payload_checks": [],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes",
+        "expected": [
+          {
+            "id": "route",
+            "question": "Which failure recovery fits?",
+            "choices": [
+              {
+                "id": "port",
+                "meaning": "Test listener cannot bind an occupied port.",
+                "target_kind": "macro",
+                "target_id": "recover"
+              }
+            ],
+            "risk": "ordinary",
+            "decomposition_reason": null
+          }
+        ]
+      },
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "pointer": "/state_schema",
+        "expected": {
+          "id": "service_state",
+          "version": 1,
+          "features": [
+            {
+              "id": "attempted",
+              "kind": "boolean",
+              "sensor_field": "attempted",
+              "required": true
+            }
+          ]
+        }
+      }
+    ],
+    "macro_fixtures": []
+  },
+  "frozen-teacher-e2b": {
+    "operator": "ADD_CHOICE",
+    "target_id": "incident_commander",
+    "payload_checks": [
+      {
+        "pointer": "/choice/target_kind",
+        "expected": "macro"
+      },
+      {
+        "pointer": "/choice/target_id",
+        "expected": "restart_dependency_macro"
+      }
+    ],
+    "graph_checks": [],
+    "regressions": [
+      {
+        "pointer": "/nodes/0/choices/0",
+        "expected": {
+          "id": "execute_recovery",
+          "meaning": "Recover an occupied test port",
+          "target_kind": "macro",
+          "target_id": "recover_from_port_conflict"
+        }
+      },
+      {
+        "pointer": "/macros",
+        "expected": [
+          {
+            "id": "recover_from_port_conflict",
+            "purpose": "Recover a test port conflict",
+            "steps": [
+              {
+                "capability": "choose_available_test_port",
+                "arguments": {
+                  "preferred": 3000
+                }
+              },
+              {
+                "capability": "set_environment",
+                "arguments": {
+                  "name": "TEST_PORT"
+                }
+              },
+              {
+                "capability": "run_tests",
+                "arguments": {}
+              },
+              {
+                "capability": "inspect_result",
+                "arguments": {}
+              },
+              {
+                "capability": "write_report",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "attempted",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "tests_passed",
+                "equals": true
+              },
+              {
+                "field": "report_written",
+                "equals": true
+              }
+            ]
+          },
+          {
+            "id": "restart_dependency_macro",
+            "purpose": "Restart an observed failed dependency",
+            "steps": [
+              {
+                "capability": "restart_dependency",
+                "arguments": {}
+              }
+            ],
+            "preconditions": [
+              {
+                "field": "dependency_down",
+                "equals": true
+              }
+            ],
+            "safety_guards": [
+              {
+                "field": "authorized",
+                "equals": true
+              }
+            ],
+            "postconditions": [
+              {
+                "field": "dependency_recovered",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "macro_fixtures": []
+  }
+}

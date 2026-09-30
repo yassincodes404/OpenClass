@@ -1,0 +1,299 @@
+{
+  "model": "google/gemini-2.5-flash",
+  "temperature": 0,
+  "max_tokens": 4096,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are the OpenClass Teacher. Your role is to improve versioned decision knowledge used by a bounded semantic decision provider called Jev. Jev is not a general planner, shell generator, safety authority, or source of ground truth. Jev chooses among a bounded set of semantic alternatives supplied by OpenClass. Measured characterization: Jev classifies robustly up to at least 32 concrete choices; it is degraded by abstract group descriptions, by anaphoric references to earlier decisions, and at the borderline between a plausible class and UNKNOWN. OpenClass executes only registered capabilities and independently verifies outcomes. A supplied failure diagnosis names the layer that failed. Do not change a working procedure to repair a routing problem. Do not change routing to hide an execution failure. Prefer the smallest reusable change supported by the evidence. Do not add literal aliases merely to memorize observations when the evidence supports a stable semantic concept; do not generalize beyond the evidence merely because abstraction seems elegant. Preserve known-good behavior. A candidate that gains coverage by regressing verified previous behavior will normally fail evaluation. Never invent executable shell, Python, paths, environment variables, credentials, or primitive names. You may only compose the registered primitives listed in the evidence. If the required operation is unavailable, return MISSING_CAPABILITY. Never assume model output is ground truth. Never activate your own proposal. Never claim human approval. Hidden evaluation cases are unavailable to you. If the evidence is insufficient, return INSUFFICIENT_EVIDENCE. Output only the supplied typed candidate schema."
+    },
+    {
+      "role": "user",
+      "content": "{\"diagnosis\": \"PROCEDURE\", \"question\": \"Register the routing choice for the newly registered macro on node 'incident_commander'. Set target_id to the node id.\", \"registered_primitives\": [\"choose_available_test_port\", \"set_environment\", \"run_tests\", \"inspect_result\", \"write_report\"], \"primitive_signatures\": {\"choose_available_test_port\": {\"preferred\": \"int\"}, \"set_environment\": {\"name\": \"string\"}, \"run_tests\": {}, \"inspect_result\": {}, \"write_report\": {}}, \"failing_step_evidence\": [\"fixture reads SERVICE_TEST_PORT: required environment variable is not set\"], \"macro_v1\": {\"id\": \"recover_from_port_conflict\", \"semantic_purpose\": \"Recover when tests fail because their required network port is already occupied: select a free port, reconfigure the fixture, rerun tests, verify and report.\", \"preconditions\": [{\"field\": \"port_conflict\", \"equals\": true}], \"safety_guards\": [], \"procedure\": [{\"primitive\": \"choose_available_test_port\", \"args\": {\"preferred\": 3000}}, {\"primitive\": \"set_environment\", \"args\": {\"name\": \"TEST_PORT\"}}, {\"primitive\": \"run_tests\", \"args\": {}}, {\"primitive\": \"inspect_result\", \"args\": {}}, {\"primitive\": \"write_report\", \"args\": {}}], \"postconditions\": [{\"field\": \"tests_passing\", \"equals\": true}, {\"field\": \"report_written\", \"equals\": true}]}, \"state_at_failure\": {\"service\": \"drifted-fixture\", \"free_port\": 3001, \"expected_env_var\": \"SERVICE_TEST_PORT\", \"configured_port\": 3001, \"conflict_resolved\": true, \"env_var\": \"TEST_PORT\", \"env_set\": true, \"test_attempted\": true, \"last_output\": \"fixture reads SERVICE_TEST_PORT: required environment variable is not set\", \"tests_passing\": false}, \"allowed_operators\": [\"ADD_CHOICE\", \"GENERALIZE_CHOICE\", \"SPLIT_CHOICE\", \"MERGE_CHOICES\", \"ADD_DECISION_NODE\", \"RESTRUCTURE_NODE\", \"ADD_MACRO\", \"ADD_MACRO_BRANCH\", \"DEPRECATE_MACRO\", \"ADD_STATE_FEATURE\", \"ADD_NORMALIZER\", \"CHANGE_PRECONDITION\", \"CHANGE_POSTCONDITION\", \"MISSING_CAPABILITY\", \"NO_CHANGE\", \"INSUFFICIENT_EVIDENCE\"], \"id_convention\": \"Macro ids are unique across the graph and versions are append-only; a new macro version must use a new unique id.\", \"empty_args_note\": \"Empty procedure arguments fall back to built-in defaults; the prior candidate was rejected because its arguments did not adapt to the failing step's evidence. Set every argument explicitly.\", \"base_policy_id\": \"decision-graph-proof\", \"registered_macros\": [\"recover_from_port_conflict\", \"recover_from_port_conflict_v2\"], \"graph_context\": {\"entry_node_id\": \"incident_commander\", \"node_ids\": [\"incident_commander\", \"result_reader\"]}}"
+    }
+  ],
+  "response_format": {
+    "type": "json_schema",
+    "json_schema": {
+      "name": "teacher_candidate",
+      "strict": true,
+      "schema": {
+        "$defs": {
+          "Choice": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                "title": "Id",
+                "type": "string"
+              },
+              "semantic_name": {
+                "maxLength": 200,
+                "minLength": 1,
+                "title": "Semantic Name",
+                "type": "string"
+              },
+              "description": {
+                "maxLength": 2000,
+                "minLength": 1,
+                "title": "Description",
+                "type": "string"
+              },
+              "target_node": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Target Node"
+              },
+              "target_macro": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Target Macro"
+              }
+            },
+            "required": [
+              "id",
+              "semantic_name",
+              "description"
+            ],
+            "title": "Choice",
+            "type": "object"
+          },
+          "Macro": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                "title": "Id",
+                "type": "string"
+              },
+              "semantic_purpose": {
+                "maxLength": 2000,
+                "minLength": 1,
+                "title": "Semantic Purpose",
+                "type": "string"
+              },
+              "preconditions": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/Predicate"
+                },
+                "title": "Preconditions",
+                "type": "array"
+              },
+              "safety_guards": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/Predicate"
+                },
+                "title": "Safety Guards",
+                "type": "array"
+              },
+              "procedure": {
+                "items": {
+                  "$ref": "#/$defs/MacroStep"
+                },
+                "maxItems": 32,
+                "minItems": 1,
+                "title": "Procedure",
+                "type": "array"
+              },
+              "postconditions": {
+                "default": [],
+                "items": {
+                  "$ref": "#/$defs/Predicate"
+                },
+                "title": "Postconditions",
+                "type": "array"
+              }
+            },
+            "required": [
+              "id",
+              "semantic_purpose",
+              "procedure"
+            ],
+            "title": "Macro",
+            "type": "object"
+          },
+          "MacroStep": {
+            "additionalProperties": false,
+            "properties": {
+              "primitive": {
+                "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                "title": "Primitive",
+                "type": "string"
+              },
+              "args": {
+                "type": "object",
+                "properties": {
+                  "preferred": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "name": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "preferred",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "primitive"
+            ],
+            "title": "MacroStep",
+            "type": "object"
+          },
+          "Predicate": {
+            "additionalProperties": false,
+            "description": "Deterministic state predicate; never model-evaluated.",
+            "properties": {
+              "field": {
+                "maxLength": 200,
+                "minLength": 1,
+                "title": "Field",
+                "type": "string"
+              },
+              "equals": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Equals"
+              }
+            },
+            "required": [
+              "field",
+              "equals"
+            ],
+            "title": "Predicate",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Typed evolution envelope; sections must match the declared operator.",
+        "properties": {
+          "candidate_type": {
+            "enum": [
+              "ADD_CHOICE",
+              "GENERALIZE_CHOICE",
+              "SPLIT_CHOICE",
+              "MERGE_CHOICES",
+              "ADD_DECISION_NODE",
+              "RESTRUCTURE_NODE",
+              "ADD_MACRO",
+              "ADD_MACRO_BRANCH",
+              "DEPRECATE_MACRO",
+              "ADD_STATE_FEATURE",
+              "ADD_NORMALIZER",
+              "CHANGE_PRECONDITION",
+              "CHANGE_POSTCONDITION",
+              "MISSING_CAPABILITY",
+              "NO_CHANGE",
+              "INSUFFICIENT_EVIDENCE"
+            ],
+            "title": "Candidate Type",
+            "type": "string"
+          },
+          "target_id": {
+            "default": "",
+            "title": "Target Id",
+            "type": "string"
+          },
+          "macro": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Macro"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "choice": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Choice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "semantic_description": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Semantic Description",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "confidence": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "base_policy_id": {
+            "title": "Base Policy Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "candidate_type",
+          "semantic_description",
+          "rationale",
+          "confidence",
+          "base_policy_id"
+        ],
+        "title": "TeacherCandidate",
+        "type": "object"
+      }
+    }
+  }
+}

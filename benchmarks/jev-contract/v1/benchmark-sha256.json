@@ -1,0 +1,13 @@
+{
+  "calibration-cases.json": "8a362bfea44a115dddbcaa926adf945d93907b3c5597903708dcfa4b50b732ce",
+  "calibration-labels.json": "1a29d3bbe7a1adecf75aebaf218544c6ea9183965d15b2e78e928adc8757c5d0",
+  "frozen-teacher-evidence/teacher-d2.artifact": "de2dcdb30f4df9a8c394056d70a1d40c78f5b4081b834b208c30666668aeaaa4",
+  "frozen-teacher-evidence/teacher-d2b.artifact": "2980ae767210f5a18aa0c4a1ad3f1614114f1fbd964dca5fdbef67fb1d609beb",
+  "frozen-teacher-evidence/teacher-e2b.artifact": "407124b042140948568dfa2ea6abb826a3fd570e80dbb1bfaf8664960e922d3b",
+  "knowledge.json": "b32648ad6b0f6de16ba082e80d118dda0ee601d1a89cca547d4391a6d347cb42",
+  "profile.json": "38b8562654e0b915d75f6fc9d3a35d9b87ca24359b1768912f5a7899875c1a03",
+  "protocol.json": "ba7a2f161e518b56db6dd3c7802dda68832cdbcbc63866518886de7574cc1489",
+  "teacher-hidden.json": "38eb74a339e296f25ab677b657428da5a695bafa1b2d991ffcfff7cc28252f6f",
+  "teacher-packages.json": "d0cb8ede119e5e9f1bf0569a2887705658bff697225379870e594d9f34af5a3f",
+  "teacher-packets.json": "6e3e6b23d2d15b31456dcd24b073c0887d4ff5076f899525e7b33f9df7a21eee"
+}

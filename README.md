@@ -16,10 +16,12 @@ OpenClass treats a classifier’s label space as versioned system knowledge.
 It gives observations a persistent UNKNOWN state, so missing concepts can become
 researchable evidence instead of forced, incorrect labels.
 
-**Status: v0.0.1 — Genesis foundation.** This repository implements classification,
-unknown detection, persistence, and the client/server boundary. Discovery,
-clustering, evaluation, and human-reviewed promotion are planned, not implemented.
-There is no public release or installer yet.
+**Status: v0.0.1 — unreleased Genesis foundation.** The local working tree adds
+projects, ingestion, decision services, evidence review and inactive Teacher
+proposals. Verified replay evaluation and immutable activation are still required;
+their routes reject requests rather than returning prototype scores. There is no
+public release or installer yet. See [current implementation status](docs/architecture/implementation-status.md)
+and the [documentation index](docs/README.md) for implemented versus planned behavior.
 
 Unreleased: supervisor reviews can independently inspect
 persisted classification runs and produce advisory findings, including disagreement
@@ -28,12 +30,13 @@ state; only the deterministic mock supervisor is registered.
 
 ## Quick start
 
-Requires Docker with Compose. No model account or API key is needed.
+Requires Docker with Compose. For the deterministic no-key example, explicitly
+select the simulated mock provider:
 
 ```bash
 git clone https://github.com/yassincodes404/OpenClass.git
 cd OpenClass
-docker compose up --build -d --wait
+OPENCLASS_DECISION_PROVIDER=mock docker compose up --build -d --wait
 curl http://localhost:7331/health/ready
 
 docker compose exec server openclass init examples/support-intents/classifier.json
@@ -61,8 +64,10 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). The initial observation workspace
-lists classifiers and displays real API results; it does not simulate discoveries.
+Open [localhost:3000](http://localhost:3000). The project workspace uses public
+HTTP SDKs for persisted projects, events, decision runs, evidence and integrations.
+Provider outputs carry simulated/real provenance. Unsupported evaluation and
+activation controls are disabled.
 
 ## Python development
 
@@ -108,7 +113,7 @@ SQLite tests, PostgreSQL tests, migrations, and builds. See the
 | `packages/cli`                                   | HTTP commands and local server lifecycle                             |
 | `packages/sdk-python`, `packages/sdk-typescript` | Public HTTP clients                                                  |
 | `packages/tui`, `apps/web`                       | Planned TUI and initial web workspace                                |
-| `providers`                                      | Isolated provider adapters; only mock is implemented                 |
+| `providers`                                      | Isolated mock, Jev, Laya and discovery provider adapters             |
 | `benchmarks`, `examples`                         | Reproducible scenarios and classifier configurations                 |
 | `docs`                                           | Architecture, concepts, guides, research, and scoped tickets         |
 | `tests`                                          | Unit, provider contract, integration, and end-to-end checks          |

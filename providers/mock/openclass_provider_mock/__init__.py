@@ -1,15 +1,49 @@
 """Deterministic lexical demo provider. Scores are fixtures, not calibrated probabilities."""
 
 import re
+from typing import Any
 
+from openclass_core.evidence import DiagnosisCategory, DiagnosisResult
 from openclass_core.models import (
     ChoiceRequest,
     ChoiceResult,
+    DiscoveryProposalType,
+    DiscoveryRequest,
+    DiscoveryResult,
     ReviewRecommendation,
     ReviewRequest,
     ReviewResult,
     SupervisorFinding,
 )
+from openclass_core.project_evolution import ChoiceProposal, ProposalKind
+from openclass_core.projects import DecisionRun, DecisionService
+
+
+class MockChoiceTeacher:
+    """Explicitly simulated proposal fixture for offline lifecycle tests."""
+
+    async def propose(
+        self, service: DecisionService, runs: tuple[DecisionRun, ...]
+    ) -> ChoiceProposal:
+        text = " ".join(str(run.input_snapshot.get("content", "")) for run in runs).casefold()
+        if "pause" in text:
+            return ChoiceProposal(
+                kind=ProposalKind.NEW_CHOICE,
+                key="SUBSCRIPTION_PAUSE",
+                label="Subscription pause",
+                description="Requests to pause a subscription temporarily.",
+                rationale="Simulated fixture recognized recurring pause wording.",
+                provider="mock-teacher",
+                model="fixture-v1",
+                simulated=True,
+            )
+        return ChoiceProposal(
+            kind=ProposalKind.INSUFFICIENT_EVIDENCE,
+            rationale="Simulated fixture found no supported recurring pattern.",
+            provider="mock-teacher",
+            model="fixture-v1",
+            simulated=True,
+        )
 
 
 class MockDecisionProvider:
@@ -74,4 +108,55 @@ class MockSupervisorProvider:
             rationale=rationale,
             provider_metadata={"simulated": True},
             estimated_cost=0.0,
+        )
+
+
+class MockDiscoveryProvider:
+    """Deterministic discovery fixture for credential-free tests."""
+
+    async def discover(self, request: DiscoveryRequest) -> DiscoveryResult:
+        return DiscoveryResult(
+            provider="mock-discovery",
+            model="discovery-demo-v1",
+            proposal_type=DiscoveryProposalType.NEW_CLASS,
+            canonical_name="tablet",
+            display_name="Tablet",
+            description=(
+                "Portable touchscreen computing devices primarily operated through a touch display."
+            ),
+            confidence=0.9,
+            rationale=(
+                "Simulated discovery fixture; selected evidence is treated as tablet evidence."
+            ),
+            provider_metadata={"simulated": True},
+            estimated_cost=0.0,
+        )
+
+
+class MockDiagnosisProvider:
+    """Explicitly simulated failure diagnosis for offline tests."""
+
+    async def diagnose(self, context: dict[str, Any]) -> DiagnosisResult:
+        obs = str(context.get("observation", "")).lower()
+        if "workspace" in obs or "sso" in obs or "feature" in obs:
+            return DiagnosisResult(
+                diagnosis=DiagnosisCategory.DECISION_SPACE,
+                rationale=(
+                    "Simulated diagnosis: customer inquiry requests an unrepresented "
+                    "feature/capability."
+                ),
+                confidence=0.95,
+                recommended_action="Expand decision service choices to include feature requests.",
+                provider="mock-diagnostician",
+                model="fixture-v1",
+                simulated=True,
+            )
+        return DiagnosisResult(
+            diagnosis=DiagnosisCategory.AMBIGUOUS_OR_INSUFFICIENT,
+            rationale="Simulated diagnosis: input lacks sufficient context to determine intent.",
+            confidence=0.8,
+            recommended_action="Request clarification from customer.",
+            provider="mock-diagnostician",
+            model="fixture-v1",
+            simulated=True,
         )

@@ -1,0 +1,17 @@
+{
+  "slug": "jev-device-pilot",
+  "name": "Jev device pilot",
+  "description": "Classify the primary device described; accessories, tablets and ambiguous inputs are UNKNOWN.",
+  "classes": [
+    {
+      "canonical_name": "phone",
+      "display_name": "Phone",
+      "description": "A handheld mobile telephone or smartphone. Includes folding smartphones. Excludes tablets, watches, accessories and cordless landline handsets."
+    },
+    {
+      "canonical_name": "laptop",
+      "display_name": "Laptop",
+      "description": "A portable personal computer with a permanently attached keyboard, including convertible laptops. Excludes tablets with detachable keyboards, desktops and accessories."
+    }
+  ]
+}

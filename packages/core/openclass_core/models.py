@@ -16,7 +16,7 @@ def now() -> datetime:
 
 
 class Model(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", hide_input_in_errors=True)
 
 
 class ClassifierType(StrEnum):
@@ -33,6 +33,15 @@ class CandidateStatus(StrEnum):
     REJECTED = "rejected"
     MERGED = "merged"
     DEPRECATED = "deprecated"
+
+
+class DiscoveryProposalType(StrEnum):
+    NEW_CLASS = "new_class"
+    EXISTING_CLASS = "existing_class"
+    ALIAS = "alias"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"
+    OUT_OF_DOMAIN = "out_of_domain"
+    SCHEMA_ISSUE = "schema_issue"
 
 
 class OntologyClass(Model):
@@ -162,6 +171,65 @@ class UnknownEvent(Model):
     review_state: Literal["pending"] = "pending"
     cluster_id: UUID | None = None
     candidate_id: UUID | None = None
+
+
+class DiscoveryRequest(Model):
+    classifier: Classifier
+    ontology: OntologyVersion
+    unknowns: tuple[UnknownEvent, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def coherent(self) -> "DiscoveryRequest":
+        if self.ontology.classifier_id != self.classifier.id:
+            raise ValueError("ontology must belong to classifier")
+        if any(u.classifier_id != self.classifier.id for u in self.unknowns):
+            raise ValueError("unknown evidence must belong to classifier")
+        return self
+
+
+class DiscoveryResult(Model):
+    provider: str
+    model: str
+    proposal_type: DiscoveryProposalType
+    canonical_name: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_]{0,79}$")
+    display_name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=4000)
+    confidence: Probability
+    rationale: str = Field(min_length=1, max_length=4000)
+    provider_metadata: dict[str, Any] = Field(default_factory=dict)
+    latency_ms: float = Field(default=0, ge=0, allow_inf_nan=False)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    estimated_cost: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def valid_proposal(self) -> "DiscoveryResult":
+        if self.proposal_type == DiscoveryProposalType.NEW_CLASS and not (
+            self.canonical_name and self.display_name and self.description
+        ):
+            raise ValueError(
+                "new class proposals require canonical name, display name, and description"
+            )
+        return self
+
+
+class Candidate(Model):
+    id: UUID = Field(default_factory=uuid4)
+    classifier_id: UUID
+    base_ontology_version_id: UUID
+    proposal_type: DiscoveryProposalType
+    canonical_name: str | None = None
+    display_name: str | None = None
+    description: str | None = None
+    confidence: Probability
+    rationale: str = Field(min_length=1, max_length=4000)
+    status: Literal["candidate", "approved", "rejected"] = "candidate"
+    evaluation_passed: bool = False
+    rejection_reason: str | None = Field(default=None, min_length=1, max_length=1000)
+    discovery_provider: str
+    discovery_model: str
+    evidence_ids: tuple[UUID, ...] = Field(min_length=1)
+    created_at: datetime = Field(default_factory=now)
 
 
 class ClassificationRecord(Model):

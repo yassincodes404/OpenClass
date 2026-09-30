@@ -1,7 +1,9 @@
 # Provider development
 
-Only `providers/mock` is implemented in Genesis. It matches whole terms from
-canonical names, aliases, and positive examples. Scores are deterministic fixtures.
+`providers/mock` is the default in Genesis. It matches whole terms from canonical
+names, aliases, and positive examples. Scores are deterministic fixtures.
+The optional [Jev adapter](../../providers/jev/README.md) implements remote choice;
+the supervisor remains a deterministic mock.
 
 Implement `openclass_core.providers.DecisionProvider.choice` with a ChoiceRequest
 and ChoiceResult. Include every active canonical class, plus unknown_probability;

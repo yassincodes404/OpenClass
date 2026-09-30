@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from openclass_core.models import (
+    Candidate,
     ClassificationRecord,
     ClassificationResult,
     Classifier,
@@ -16,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from openclass_server.persistence.tables import (
+    CandidateRow,
     ClassifierRow,
     EventRow,
     ObservationRow,
@@ -55,6 +57,16 @@ class SQLRepository:
                 session.add(self._event(event))
         except IntegrityError as exc:
             raise ConflictError("Classifier slug or identifier already exists") from exc
+
+    async def record_provider_failure(self, classifier_id: UUID, ontology_version_id: UUID) -> None:
+        event = DomainEvent(
+            classifier_id=classifier_id,
+            type="provider.error",
+            actor="system",
+            payload={"operation": "choice", "ontology_version_id": str(ontology_version_id)},
+        )
+        async with self.sessions.begin() as session:
+            session.add(self._event(event))
 
     async def get_classifier(self, identifier: str) -> Classifier:
         async with self.sessions() as session:
@@ -206,6 +218,117 @@ class SQLRepository:
                 .limit(limit)
             )
             return [SupervisorReview.model_validate(row.payload) for row in rows]
+
+    async def save_candidate(
+        self, candidate: Candidate, evidence: tuple[UUID, ...], event: DomainEvent
+    ) -> None:
+        async with self.sessions.begin() as session:
+            for unknown_id in evidence:
+                unknown = await session.get(UnknownRow, str(unknown_id))
+                if unknown is None or unknown.classifier_id != str(candidate.classifier_id):
+                    raise NotFoundError("Unknown evidence not found")
+            session.add(
+                CandidateRow(
+                    id=str(candidate.id),
+                    classifier_id=str(candidate.classifier_id),
+                    base_ontology_version_id=str(candidate.base_ontology_version_id),
+                    payload=candidate.model_dump(mode="json"),
+                )
+            )
+            await session.flush()
+            session.add(self._event(event))
+
+    async def candidates(self, classifier_id: UUID, limit: int, offset: int) -> list[Candidate]:
+        async with self.sessions() as session:
+            rows = await session.scalars(
+                select(CandidateRow)
+                .where(CandidateRow.classifier_id == str(classifier_id))
+                .order_by(CandidateRow.id)
+                .offset(offset)
+                .limit(limit)
+            )
+            return [Candidate.model_validate(row.payload) for row in rows]
+
+    async def get_candidate(self, classifier_id: UUID, candidate_id: UUID) -> Candidate:
+        async with self.sessions() as session:
+            row = await session.scalar(
+                select(CandidateRow).where(
+                    CandidateRow.id == str(candidate_id),
+                    CandidateRow.classifier_id == str(classifier_id),
+                )
+            )
+            if row is None:
+                raise NotFoundError("Candidate not found")
+            return Candidate.model_validate(row.payload)
+
+    async def reject_candidate(
+        self, candidate: Candidate, reason: str, event: DomainEvent
+    ) -> Candidate:
+        async with self.sessions.begin() as session:
+            row = await session.scalar(
+                select(CandidateRow)
+                .where(
+                    CandidateRow.id == str(candidate.id),
+                    CandidateRow.classifier_id == str(candidate.classifier_id),
+                )
+                .with_for_update()
+            )
+            if row is None:
+                raise NotFoundError("Candidate not found")
+            stored = Candidate.model_validate(row.payload)
+            if stored.status != "candidate":
+                raise ConflictError("Only pending candidates can be rejected")
+            updated = stored.model_copy(update={"status": "rejected", "rejection_reason": reason})
+            row.payload = updated.model_dump(mode="json")
+            session.add(self._event(event))
+            return updated
+
+    async def mark_candidate_evaluated(self, candidate: Candidate, event: DomainEvent) -> Candidate:
+        async with self.sessions.begin() as session:
+            row = await session.get(CandidateRow, str(candidate.id))
+            if row is None:
+                raise NotFoundError("Candidate not found")
+            updated = candidate.model_copy(update={"evaluation_passed": True})
+            row.payload = updated.model_dump(mode="json")
+            session.add(self._event(event))
+            return updated
+
+    async def approve_candidate(
+        self,
+        candidate: Candidate,
+        ontology: OntologyVersion,
+        classifier: Classifier,
+        events: tuple[DomainEvent, ...],
+    ) -> None:
+        async with self.sessions.begin() as session:
+            current = await session.get(ClassifierRow, str(classifier.id))
+            stored = await session.get(CandidateRow, str(candidate.id))
+            if current is None or stored is None:
+                raise NotFoundError("Candidate not found")
+            current_classifier = Classifier.model_validate(current.payload)
+            if current_classifier.active_ontology_version_id != candidate.base_ontology_version_id:
+                raise ConflictError("Candidate base ontology is stale")
+            if candidate.status != "candidate":
+                raise ConflictError("Candidate is not pending approval")
+            if not candidate.evaluation_passed:
+                raise ConflictError("Candidate evaluation has not passed")
+            session.add(
+                OntologyRow(
+                    id=str(ontology.id),
+                    classifier_id=str(ontology.classifier_id),
+                    version_number=ontology.version_number,
+                    parent_version_id=str(ontology.parent_version_id),
+                    payload=ontology.model_dump(mode="json"),
+                )
+            )
+            updated_classifier = classifier.model_copy(
+                update={"active_ontology_version_id": ontology.id}
+            )
+            current.payload = updated_classifier.model_dump(mode="json")
+            stored.payload = candidate.model_copy(update={"status": "approved"}).model_dump(
+                mode="json"
+            )
+            session.add_all(self._event(event) for event in events)
 
     async def events(
         self, classifier_id: UUID, after: int, limit: int

@@ -9,6 +9,9 @@ COPY packages/server packages/server
 COPY packages/cli packages/cli
 COPY packages/sdk-python packages/sdk-python
 COPY providers/mock providers/mock
+COPY providers/jev providers/jev
+COPY providers/glm providers/glm
+COPY providers/laya providers/laya
 RUN uv sync --frozen --all-packages --no-dev
 COPY alembic.ini LICENSE ./
 COPY examples examples
@@ -18,6 +21,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 FROM base AS test
 RUN uv sync --frozen --all-packages
 COPY tests tests
+COPY scripts scripts
 USER openclass
 CMD ["pytest", "-q", "-p", "no:cacheprovider", "--tb=short"]
 

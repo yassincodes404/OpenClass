@@ -1,0 +1,828 @@
+{
+  "id": "jev-contract-consolidation-v1",
+  "authored_at": "2026-09-25",
+  "calibration_cases": 48,
+  "calibration_split": 24,
+  "held_out_validation_split": 24,
+  "calibration_rules": [
+    {
+      "family": "probability_only",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.1,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.2,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.3,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.4,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.5,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.6,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.7,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.8,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 0.9,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "probability_only",
+      "min_top": 1.0,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.0,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.1,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.2,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.3,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.4,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.5,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.6,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.7,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.8,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 0.9,
+      "max_unknown": 1.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.0
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.1
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.2
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.3
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.4
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.5
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.6
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.7
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.8
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 0.9
+    },
+    {
+      "family": "margin_unknown",
+      "min_top": 0.0,
+      "min_margin": 1.0,
+      "max_unknown": 1.0
+    }
+  ],
+  "selection": "Calibration only: require >=12 semantic responses and >=0.5 correct-known coverage; minimize false-known count, then total errors, maximize coverage; lexicographic rule tie-break. Freeze before held-out scoring.",
+  "teacher_packages": 13,
+  "teacher_models": ["google/gemini-2.5-flash", "google/gemini-2.5-pro"],
+  "stronger_model_status": "Listed on gateway model endpoint 2026-09-25; higher-tier candidate, not yet measured here. Budget authorization pending.",
+  "teacher_design": "One independent first response per package/model, identical packets. No cross-model answers or hidden evaluations disclosed. No automatic retry of schema-invalid candidates. Counterbalance model order by package.",
+  "teacher_metric_scope": "Deterministic target/payload/structural/macro fixture evaluation. Semantic Jev replay is a separate future measured stage.",
+  "authorized_new_live_calls": 0,
+  "budget_reason": "Historical D/E reports sum to 16 accepted discovery calls against 10 declared total. Counts may omit early failed rounds. Reconcile before more paid use. Remaining characterization allowance is benchmark-scoped.",
+  "activation_authorized": false,
+  "fg_status": "Blocked pending review of steps 1-7",
+  "no_safety_critical_claim": true,
+  "label_status": "agent_authored_pending_human_review",
+  "packet_hashes": {
+    "authored-state": "2b10d0b5dc9f79fe53ea5ada48891d591a395d49c6d559a48e3089fe86159d35",
+    "authored-space": "ed06e0acb95c4f9fb4112797fe3ba1db05b95962e5b4abf9021bfa7bf64a2a69",
+    "authored-routing": "97a9f441a3ee824766582187cae54b0fdc9a662172ce03a4f9a0c9b4598f6014",
+    "authored-procedure": "8c88acd18365df7640504dfb8418f0b5f69e46b6d578edec7bf1a2b49b70536f",
+    "authored-precondition": "874f50c42925f0f236a7fcb90d3f53cf8e9c42f7185bbd6f333bced6963220ae",
+    "authored-postcondition": "93384b0aa35c08a664301240b14fb7be9cee19813fa2861044b40e0dc077c4bb",
+    "authored-safety": "7fbb9933908d1bc089c6d9e5ab966f29287611bcbff557569a3f581cdd890cd3",
+    "authored-missing": "63c32fd75747572a7c843c71dc327884bbbc2c603950edc1367aa61b9659a94a",
+    "authored-insufficient": "98e84f957277e2204e506d68491fa0a5ccab4812bb621f44472a0ee89d3bddab",
+    "authored-infrastructure": "5d19ad2d34a45e4729b65fa6895390d1dcb45c456e6fb22478a76ae924da61b1",
+    "frozen-teacher-d2": "bb8f57a0d12a635fbf8373d69e469e0efd36b314410fe88af2b68c736b1af1d4",
+    "frozen-teacher-d2b": "b3b59606522c287071076261b9b9f936ac386d3000abc2e3f9c7e8c1b81710f6",
+    "frozen-teacher-e2b": "df48d94d03bf137d06918ba7523b93d6cc7577780fc74bcd072752e6df0dccca"
+  }
+}

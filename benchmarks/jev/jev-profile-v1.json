@@ -1,0 +1,149 @@
+{
+  "jev_profile": {
+    "profile_version": 1,
+    "provider": "typesafe-jev via Vercel AI gateway",
+    "tested_model": "typesafe-ai/jev",
+    "tested_at": "20260924T140824Z",
+    "source_run": "build/jev-characterization/20260924T140824Z",
+    "source_summary_sha256": "6f11ae4625e392352f95901eb3433e3b6341089617f5356a54e7b2fc030fd9e9",
+    "case_count": 176,
+    "accepted_inferences": 174,
+    "observed": {
+      "overall_accuracy": 0.9597701149425287,
+      "accuracy_by_choice_space_size": {
+        "16": 1.0,
+        "2": 1.0,
+        "32": 1.0,
+        "4": 1.0,
+        "8": 1.0
+      },
+      "accuracy_by_choice_similarity": {
+        "adjacent": 1.0,
+        "distinct": 1.0,
+        "overlapping": 1.0
+      },
+      "accuracy_by_choice_representation": {
+        "opaque": 1.0,
+        "rich": 1.0,
+        "semantic": 1.0,
+        "short_names": 1.0
+      },
+      "accuracy_by_input_representation": {
+        "raw_text": 1.0,
+        "structured": 1.0,
+        "structured_evidence": 1.0,
+        "structured_noisy": 1.0
+      },
+      "paraphrase_disagreement_rate": 0.0,
+      "order_stability_rate": 1.0,
+      "unknown_behavior": {
+        "precision": 0.75,
+        "recall": 0.8571,
+        "false_known_rate": 0.1429,
+        "false_unknown_rate": 0.025,
+        "selections_by_grade": {
+          "borderline": {
+            "accuracy": 0.6666666666666666,
+            "selected": {
+              "UNKNOWN": 2,
+              "clear_cache": 1
+            }
+          },
+          "known": {
+            "accuracy": 1.0,
+            "selected": {
+              "clear_cache": 1,
+              "restart_service": 1,
+              "scale_deployment": 1
+            }
+          },
+          "near_known": {
+            "accuracy": 1.0,
+            "selected": {
+              "UNKNOWN": 3
+            }
+          },
+          "obvious": {
+            "accuracy": 1.0,
+            "selected": {
+              "UNKNOWN": 3
+            }
+          }
+        }
+      },
+      "repeatability": [
+        {
+          "group": 1,
+          "distinct_selections": 1,
+          "selected_probability_spread": 0.0
+        },
+        {
+          "group": 2,
+          "distinct_selections": 1,
+          "selected_probability_spread": 0.0
+        },
+        {
+          "group": 3,
+          "distinct_selections": 1,
+          "selected_probability_spread": 0.0
+        }
+      ],
+      "flat_vs_hierarchical": {
+        "flat_accuracy": 1.0,
+        "hierarchy_stage1_accuracy": 0.875,
+        "hierarchy_stage2_accuracy": 1.0,
+        "hierarchy_path_accuracy": 0.875
+      },
+      "path_success_by_depth": {
+        "depth_1": 1.0,
+        "depth_2": 1.0,
+        "depth_3": 0.5,
+        "depth_4": 0.0
+      },
+      "wording_robustness": {
+        "positive_wording_accuracy": 1.0,
+        "in_set_negative_accuracy": 1.0,
+        "out_of_set_control": {
+          "expected": "UNKNOWN",
+          "selected": ["UNKNOWN"]
+        }
+      },
+      "accuracy_by_distractor_level": {
+        "heavy": 1.0,
+        "light": 1.0,
+        "none": 1.0
+      },
+      "reobservation": {
+        "step_accuracy": {
+          "1": 1.0,
+          "2": 0.75
+        },
+        "both_steps_correct_rate": 0.75
+      },
+      "margin_mean_when_correct": 0.889,
+      "margin_mean_when_wrong": 0.4029,
+      "latency_p50_ms": 499.46728099894244,
+      "latency_p95_ms": 3747.785292000117,
+      "mean_input_tokens": 795.5,
+      "mean_output_tokens": 88.9,
+      "gateway_reported_cost_total": 0,
+      "gateway_cost_note": "gateway reported no cost figures for these calls; currency and price remain unrecorded",
+      "infrastructure_failures": 2
+    },
+    "guidance": {
+      "use_probabilities_for": "ranking and supervision flagging; mean margin separated correct (0.889) from wrong (0.403) decisions in this run",
+      "do_not_assume_calibration": true,
+      "recommended_choice_description_style": "semantic names plus one-line descriptions; opaque identifiers and bare names also scored 1.0 but descriptions carry auditability",
+      "recommended_max_choices_per_node": 32,
+      "max_choices_note": "no accuracy degradation measured from 2 up to 32 choices; 32 is the measured ceiling, not a demonstrated limit",
+      "routing_shape": "flat routing preferred; the 4-to-4 hierarchy measured lower path accuracy (87.5%) than flat 16-way routing (100%) because the abstract group-level stage lost leaf-level signal",
+      "state_propagation": "downstream decision nodes must receive the resolved prior decision verbatim in the state; anaphoric references such as 'the chosen response' produced UNKNOWN answers",
+      "supervision": "treat committed choices on borderline-ambiguous input as provisional: the two false-known errors were borderline cases committed with ~0.75 top probability; review low-margin and high-unknown_probability decisions",
+      "budget_ledger": {
+        "limit": 250,
+        "used_including_this_run": 222,
+        "counts": "accepted (2xx) inferences across characterization runs"
+      }
+    }
+  }
+}

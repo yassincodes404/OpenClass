@@ -1,5 +1,9 @@
 # OpenClass — canonical implementation specification
 
+The 2026-09-24 platform direction and experiment-to-product reconciliation are
+recorded in [Discovery productionization](../architecture/discovery-productionization.md).
+The expanded roadmap is proposed; Genesis and existing ticket IDs remain intact.
+
 Initial architecture, supplied by the project founder. This checked-in implementation
 reference captures the requirements of the founding specification; it is not a claim
 that all features below exist. The original specification's section numbers are

@@ -2,7 +2,14 @@
 
 from typing import Protocol
 
-from openclass_core.models import ChoiceRequest, ChoiceResult, ReviewRequest, ReviewResult
+from openclass_core.models import (
+    ChoiceRequest,
+    ChoiceResult,
+    DiscoveryRequest,
+    DiscoveryResult,
+    ReviewRequest,
+    ReviewResult,
+)
 
 
 class ProviderError(Exception):
@@ -17,3 +24,7 @@ class SupervisorProvider(Protocol):
     """Slow advisory reasoning over a historical run; it never mutates any state."""
 
     async def review(self, request: ReviewRequest) -> ReviewResult: ...
+
+
+class DiscoveryProvider(Protocol):
+    async def discover(self, request: DiscoveryRequest) -> DiscoveryResult: ...

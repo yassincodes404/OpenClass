@@ -1,8 +1,16 @@
 # Initial development tickets
 
+The 2026-09-24 platform direction and experiment-to-product reconciliation are
+recorded in [Discovery productionization](../architecture/discovery-productionization.md).
+The expanded roadmap is proposed; Genesis and existing ticket IDs remain intact.
+
 This file is the reviewable, local backlog derived from founding specification
 §§37, 45, 56, 57. These are not already-created GitHub issues. IDs are stable so
 maintainers can copy each ticket into GitHub without losing dependencies.
+
+Current working-tree status is tracked in
+[implementation status](../architecture/implementation-status.md). Product targets
+and experimental endpoints are not proof that release gates have passed.
 
 ## OC-001 — Genesis repository and executable kernel
 
@@ -203,3 +211,20 @@ LLM dependency in the classification path.
 **Acceptance:** sampling rates are configuration, never hard-coded; confident
 systematic misclassification is discoverable without reviewing every run;
 review volume and cost are observable.
+
+## OC-033 — Foundation structure and authenticated ingestion
+
+**Authorization:** founder's 2026-09-30 request to clean up structure and build real
+core/integration behavior. **Status:** implemented locally; unreleased.
+**Scope:** typed API route modules, separate integration adapters/repository,
+environment-backed webhook authentication, scoped event identity, atomic observation/
+audit/receipt persistence, migration `0010_webhook_receipts`, accurate health reports,
+HTTP SDK support, honest UI, and implementation/documentation index.
+**Core correction:** project evaluation and promotion fail closed until OC-008/009/017
+provide independently verified replay and immutable activation. Evidence counts and
+predictions cannot produce passing evaluation scores. Proposals/rejection remain usable.
+**Acceptance:** concurrent identical deliveries commit once; changed payload conflicts;
+missing/bad credentials cannot ingest; retries survive restart; project lookup prevents
+cross-project access; source/audit/receipt history rejects UPDATE/DELETE; failures roll
+back all ingestion writes; unsupported adapters cannot invent connected capabilities;
+blocked activation leaves service/candidate/evidence/run/audit snapshots unchanged.

@@ -11,10 +11,34 @@ import pytest
     [
         (
             "packages/core",
-            {"openclass_server", "openclass_sdk", "openclass_cli", "openclass_provider_mock"},
+            {
+                "openclass_server",
+                "openclass_sdk",
+                "openclass_cli",
+                "openclass_provider_mock",
+                "openclass_provider_jev",
+                "openclass_provider_laya",
+                "openclass_provider_glm",
+                "fastapi",
+                "httpx",
+                "sqlalchemy",
+            },
         ),
-        ("packages/sdk-python", {"openclass_server", "openclass_core", "openclass_provider_mock"}),
+        (
+            "packages/sdk-python",
+            {
+                "openclass_server",
+                "openclass_core",
+                "openclass_provider_mock",
+                "openclass_provider_jev",
+                "openclass_provider_laya",
+                "openclass_provider_glm",
+            },
+        ),
+        ("providers/jev", {"openclass_server", "openclass_sdk", "openclass_cli"}),
         ("providers/mock", {"openclass_server", "openclass_sdk", "openclass_cli"}),
+        ("providers/laya", {"openclass_server", "openclass_sdk", "openclass_cli"}),
+        ("providers/glm", {"openclass_server", "openclass_sdk", "openclass_cli"}),
     ],
 )
 def test_dependency_direction(directory: str, forbidden: set[str]) -> None:

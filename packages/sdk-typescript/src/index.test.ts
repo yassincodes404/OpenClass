@@ -2,6 +2,26 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { OpenClass, OpenClassError } from "./index.ts";
 
+test("webhook retries retain external event identity and send credentials only in headers", async () => {
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, "http://local/api/v1/projects/a%2Fb/integrations/i%2Fd/webhook");
+    assert.equal(init?.method, "POST");
+    assert.equal(new Headers(init?.headers).get("X-OpenClass-Token"), "test-token");
+    assert.equal(JSON.parse(init?.body as string).event_key, "ticket:revision:1");
+    assert.ok(!(init?.body as string).includes("test-token"));
+    return Response.json({ status: "duplicate", event_id: "original-event" });
+  };
+  const client = new OpenClass("http://local", fetcher);
+  const result = await client.ingestIntegrationWebhook({
+    project: "a/b",
+    integrationId: "i/d",
+    eventKey: "ticket:revision:1",
+    content: "Customer message",
+    token: "test-token",
+  });
+  assert.equal(result.status, "duplicate");
+});
+
 test("classification uses public protocol and escapes identifiers", async () => {
   const fetcher: typeof fetch = async (url, init) => {
     assert.equal(url, "http://local/api/v1/classifiers/a%2Fb/classify");
@@ -48,6 +68,22 @@ test("review requests the run's review route with a manual trigger", async () =>
   assert.equal(review.classification_run_id, "run-1");
 });
 
+test("candidate rejection uses the scoped public route", async () => {
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, "http://local/api/v1/classifiers/a%2Fb/candidates/candidate-1/reject");
+    assert.equal(init?.method, "POST");
+    assert.deepEqual(JSON.parse(init?.body as string), { reason: "Wrong concept" });
+    return Response.json({ id: "candidate-1", status: "rejected" });
+  };
+  const client = new OpenClass("http://local", fetcher);
+  const result = await client.rejectCandidate({
+    classifier: "a/b",
+    candidateId: "candidate-1",
+    reason: "Wrong concept",
+  });
+  assert.equal(result.status, "rejected");
+});
+
 test("runs and reviews are read over GET without bodies", async () => {
   const seen: string[] = [];
   const fetcher: typeof fetch = async (url, init) => {
@@ -63,4 +99,505 @@ test("runs and reviews are read over GET without bodies", async () => {
     "GET http://local/api/v1/classifiers/support-intent/runs/run-1",
     "GET http://local/api/v1/classifiers/support-intent/reviews",
   ]);
+});
+
+test("projects create posts the public contract and reads back by slug", async () => {
+  const requests: Array<{ url: string; method?: string; body?: unknown }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    if (method === "POST" && String(url).endsWith("/projects")) {
+      requests.push({ url: String(url), method, body });
+      return Response.json({
+        id: "p1",
+        slug: "gymholic-intelligence",
+        name: body.name,
+        description: body.description,
+        status: "active",
+        owner_id: null,
+        created_at: "2026-09-25T00:00:00Z",
+        updated_at: "2026-09-25T00:00:00Z",
+      });
+    }
+    return Response.json([
+      { id: "p1", slug: "gymholic-intelligence", name: "GymHolic Intelligence" },
+    ]);
+  };
+  const client = new OpenClass("http://local/", fetcher);
+  const created = await client.createProject({
+    name: "GymHolic Intelligence",
+    description: "Customer intelligence experiment",
+  });
+  assert.equal(created.slug, "gymholic-intelligence");
+  const listed = await client.projects();
+  assert.equal(listed.length, 1);
+  assert.equal(requests[0]?.url, "http://local/api/v1/projects");
+});
+
+test("project update issues PATCH with only the changed fields", async () => {
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(init?.method, "PATCH");
+    assert.deepEqual(JSON.parse(init?.body as string), { description: "updated" });
+    return Response.json({
+      id: "p1",
+      slug: "p",
+      name: "P",
+      description: "updated",
+      status: "active",
+    });
+  };
+  const client = new OpenClass("http://local/", fetcher);
+  const updated = await client.updateProject("p", { description: "updated" });
+  assert.equal(updated.description, "updated");
+});
+
+test("raw events ingestion and retrieval work through public routes", async () => {
+  const seen: Array<{ url: string; method: string; body?: unknown }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    seen.push({ url: String(url), method, body });
+    if (String(url).endsWith("/events") && method === "POST") {
+      return Response.json({ id: "evt-1", ...body });
+    }
+    if (String(url).endsWith("/events/batch") && method === "POST") {
+      return Response.json([{ id: "evt-2" }, { id: "evt-3" }]);
+    }
+    if (String(url).includes("/events?") || String(url).endsWith("/events")) {
+      return Response.json([{ id: "evt-1" }]);
+    }
+    if (String(url).endsWith("/events/evt-1")) {
+      return Response.json({ id: "evt-1", content: "hello" });
+    }
+    if (String(url).endsWith("/providers/status")) {
+      return Response.json({ default_provider: "laya", laya: { status: "ready" } });
+    }
+    return Response.json({});
+  };
+  const client = new OpenClass("http://local/", fetcher);
+  const single = await client.createEvent({ project: "proj-1", content: "test event" });
+  assert.equal(single.id, "evt-1");
+  const batch = await client.createEventsBatch({
+    project: "proj-1",
+    items: [{ content: "a" }, { content: "b" }],
+  });
+  assert.equal(batch.length, 2);
+  const list = await client.events("proj-1", { limit: 10, offset: 0 });
+  assert.equal(list.length, 1);
+  const fetched = await client.event({ project: "proj-1", eventId: "evt-1" });
+  assert.equal(fetched.content, "hello");
+  const status = await client.providerStatus();
+  assert.equal(status.default_provider, "laya");
+});
+
+test("decision services and decision runs work through public routes", async () => {
+  const seen: Array<{ url: string; method: string; body?: unknown }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    seen.push({ url: String(url), method, body });
+    if (String(url).endsWith("/decision-services") && method === "POST") {
+      return Response.json({
+        id: "svc-1",
+        project_id: "p1",
+        slug: "lead-routing",
+        name: (body as any).name,
+        description: (body as any).description,
+        instructions: (body as any).instructions,
+        nodes: [{ id: "n1", name: "default", choices: (body as any).choices }],
+        status: "active",
+        provider_override: null,
+        created_at: "2026-09-26T00:00:00Z",
+        updated_at: "2026-09-26T00:00:00Z",
+      });
+    }
+    if (String(url).endsWith("/decision-services") && method === "GET") {
+      return Response.json([{ id: "svc-1", name: "Lead Routing" }]);
+    }
+    if (String(url).endsWith("/decision-services/svc-1") && method === "GET") {
+      return Response.json({ id: "svc-1", name: "Lead Routing" });
+    }
+    if (String(url).endsWith("/decision-services/svc-1") && method === "PATCH") {
+      return Response.json({ id: "svc-1", name: "Lead Routing Updated" });
+    }
+    if (String(url).endsWith("/runs") && method === "POST") {
+      return Response.json([
+        {
+          id: "run-1",
+          project_id: "p1",
+          raw_event_id: "evt-1",
+          decision_service_id: "svc-1",
+          provider: "laya",
+          selected_choice: "ENTERPRISE",
+          supervision_outcome: "REVIEW",
+        },
+      ]);
+    }
+    if (String(url).includes("/runs?") || String(url).endsWith("/runs")) {
+      return Response.json([{ id: "run-1", selected_choice: "ENTERPRISE" }]);
+    }
+    if (String(url).endsWith("/runs/run-1")) {
+      return Response.json({ id: "run-1", selected_choice: "ENTERPRISE" });
+    }
+    return Response.json({});
+  };
+  const client = new OpenClass("http://local/", fetcher);
+  const svc = await client.createDecisionService({
+    project: "p1",
+    name: "Lead Routing",
+    instructions: "Route incoming lead",
+    choices: [
+      { key: "ENTERPRISE", label: "Enterprise" },
+      { key: "SMB", label: "SMB" },
+    ],
+  });
+  assert.equal(svc.id, "svc-1");
+  const list = await client.decisionServices("p1");
+  assert.equal(list.length, 1);
+  const single = await client.decisionService({ project: "p1", serviceId: "svc-1" });
+  assert.equal(single.id, "svc-1");
+  const updated = await client.updateDecisionService({
+    project: "p1",
+    serviceId: "svc-1",
+    changes: { name: "Lead Routing Updated" },
+  });
+  assert.equal(updated.name, "Lead Routing Updated");
+  const runs = await client.executeDecisionRuns({
+    project: "p1",
+    serviceId: "svc-1",
+    rawEventIds: ["evt-1"],
+  });
+  assert.equal(runs[0]?.selected_choice, "ENTERPRISE");
+  assert.equal(runs[0]?.supervision_outcome, "REVIEW");
+  const runList = await client.decisionRuns("p1", { limit: 10 });
+  assert.equal(runList.length, 1);
+  const run = await client.decisionRun({ project: "p1", runId: "run-1" });
+  assert.equal(run.id, "run-1");
+});
+
+test("evidence and evolution client routes communicate over public HTTP contract", async () => {
+  const requests: Array<{ url: string; method: string; body?: unknown }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    const urlStr = String(url);
+    requests.push({ url: urlStr, method, body });
+
+    if ((urlStr.includes("/evidence?") || urlStr.endsWith("/evidence")) && method === "GET") {
+      return Response.json([{ id: "ev-1", status: "pending" }]);
+    }
+    if (urlStr.endsWith("/evidence/ev-1") && method === "GET") {
+      return Response.json({ id: "ev-1", status: "pending" });
+    }
+    if (urlStr.endsWith("/evidence/ev-1/triage") && method === "PATCH") {
+      return Response.json({ id: "ev-1", status: "triaged", ...body });
+    }
+    if (urlStr.endsWith("/evidence/ev-1/transition") && method === "POST") {
+      return Response.json({ id: "ev-1", status: body.target_status });
+    }
+    if (urlStr.endsWith("/evidence/ev-1/ai-diagnose") && method === "POST") {
+      return Response.json({
+        diagnosis: "decision_space",
+        rationale: "Missing enterprise option",
+        confidence: 0.95,
+        recommended_action: "Add choice",
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        simulated: false,
+      });
+    }
+    if (urlStr.endsWith("/runs/run-1/feedback") && method === "POST") {
+      return Response.json({ id: "fb-1", ...body });
+    }
+    if (urlStr.endsWith("/runs/run-1/feedback") && method === "GET") {
+      return Response.json([{ id: "fb-1", action: "confirm" }]);
+    }
+    if (urlStr.endsWith("/evidence-cases") && method === "POST") {
+      return Response.json({ id: "case-1", ...body });
+    }
+    if (
+      (urlStr.includes("/evidence-cases?") || urlStr.endsWith("/evidence-cases")) &&
+      method === "GET"
+    ) {
+      return Response.json([{ id: "case-1", title: "Enterprise Gaps" }]);
+    }
+    if (urlStr.endsWith("/evidence-cases/case-1") && method === "GET") {
+      return Response.json({ id: "case-1", title: "Enterprise Gaps" });
+    }
+    if (urlStr.endsWith("/evidence-cases/case-1/evidence") && method === "GET") {
+      return Response.json([{ id: "ev-1", status: "ready_for_evolution" }]);
+    }
+    if (urlStr.endsWith("/evidence-cases/case-1/evidence") && method === "POST") {
+      return Response.json({ id: "case-1", title: "Enterprise Gaps" });
+    }
+    if (urlStr.endsWith("/evolution/summary") && method === "GET") {
+      return Response.json({
+        project_id: "p1",
+        pending_evidence: 1,
+        triaged_evidence: 0,
+        ready_for_evolution: 1,
+        resolved_evidence: 0,
+        dismissed_evidence: 0,
+        total_evidence: 2,
+        open_cases: 1,
+        total_cases: 1,
+      });
+    }
+    return Response.json({});
+  };
+
+  const client = new OpenClass("http://local/", fetcher);
+
+  const evList = await client.evidence("p1", { status: "pending" });
+  assert.equal(evList.length, 1);
+  assert.equal(evList[0]?.id, "ev-1");
+
+  const evItem = await client.evidenceItem({ project: "p1", evidenceId: "ev-1" });
+  assert.equal(evItem.id, "ev-1");
+
+  const triaged = await client.triageEvidence({
+    project: "p1",
+    evidenceId: "ev-1",
+    diagnosis: "decision_space",
+    rationale: "Need enterprise tier",
+  });
+  assert.equal(triaged.status, "triaged");
+
+  const transitioned = await client.transitionEvidence({
+    project: "p1",
+    evidenceId: "ev-1",
+    targetStatus: "ready_for_evolution",
+  });
+  assert.equal(transitioned.status, "ready_for_evolution");
+
+  const aiDiag = await client.aiDiagnoseEvidence({ project: "p1", evidenceId: "ev-1" });
+  assert.equal(aiDiag.diagnosis, "decision_space");
+  assert.equal(aiDiag.confidence, 0.95);
+
+  const fb = await client.submitRunFeedback({
+    project: "p1",
+    runId: "run-1",
+    action: "confirm",
+  });
+  assert.equal(fb.id, "fb-1");
+
+  const fbList = await client.runFeedback({ project: "p1", runId: "run-1" });
+  assert.equal(fbList.length, 1);
+
+  const c = await client.createEvidenceCase({
+    project: "p1",
+    title: "Enterprise Gaps",
+    evidenceIds: ["ev-1"],
+  });
+  assert.equal(c.id, "case-1");
+
+  const cList = await client.evidenceCases("p1");
+  assert.equal(cList.length, 1);
+
+  const singleC = await client.evidenceCase({ project: "p1", caseId: "case-1" });
+  assert.equal(singleC.id, "case-1");
+
+  const cEv = await client.caseEvidence({ project: "p1", caseId: "case-1" });
+  assert.equal(cEv.length, 1);
+
+  const summary = await client.evolutionSummary("p1");
+  assert.equal(summary.ready_for_evolution, 1);
+  assert.equal(summary.open_cases, 1);
+});
+
+test("candidate evolution, evaluation replay, and promotion work over public HTTP contract", async () => {
+  const requests: Array<{ url: string; method: string; body?: unknown }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    const urlStr = String(url);
+    requests.push({ url: urlStr, method, body });
+
+    if (urlStr.endsWith("/candidates") && method === "GET") {
+      return Response.json([{ id: "cand-1", status: "candidate" }]);
+    }
+    if (urlStr.endsWith("/candidates/cand-1") && method === "GET") {
+      return Response.json({ id: "cand-1", status: "candidate" });
+    }
+    if (urlStr.endsWith("/decision-services/svc-1/candidates") && method === "POST") {
+      return Response.json({
+        id: "cand-1",
+        status: "candidate",
+        evidence_run_ids: body.run_ids,
+      });
+    }
+    if (urlStr.endsWith("/evolution/propose") && method === "POST") {
+      return Response.json({
+        id: "cand-2",
+        status: "candidate",
+        proposal: { kind: "new_choice", key: "ENTERPRISE", label: "Enterprise" },
+      });
+    }
+    if (urlStr.endsWith("/candidates/cand-1/evaluate") && method === "POST") {
+      return Response.json({
+        candidate_id: "cand-1",
+        decision_service_id: "svc-1",
+        passed: true,
+        accuracy_on_knowns: 1.0,
+        disambiguation_rate: 1.0,
+        regressions: [],
+      });
+    }
+    if (urlStr.endsWith("/candidates/cand-1/promote") && method === "POST") {
+      return Response.json({
+        candidate: { id: "cand-1", status: "promoted" },
+        decision_service: { id: "svc-1", status: "active" },
+      });
+    }
+    if (urlStr.endsWith("/candidates/cand-1/reject") && method === "POST") {
+      return Response.json({
+        id: "cand-1",
+        status: "rejected",
+        rejection_reason: body.reason,
+      });
+    }
+    return new Response(null, { status: 404 });
+  };
+
+  const client = new OpenClass("http://localhost:7331", fetcher);
+
+  const cands = await client.projectCandidates("p1");
+  assert.equal(cands.length, 1);
+
+  const cand = await client.projectCandidate({ project: "p1", candidateId: "cand-1" });
+  assert.equal(cand.id, "cand-1");
+
+  const proposed = await client.proposeProjectChoice({
+    project: "p1",
+    serviceId: "svc-1",
+    runIds: ["r1", "r2", "r3"],
+  });
+  assert.equal(proposed.id, "cand-1");
+
+  const fromEvidence = await client.proposeFromEvidence({
+    project: "p1",
+    serviceId: "svc-1",
+    evidenceIds: ["ev-1", "ev-2", "ev-3"],
+  });
+  assert.equal(fromEvidence.id, "cand-2");
+
+  const evalResult = await client.evaluateProjectCandidate({
+    project: "p1",
+    candidateId: "cand-1",
+  });
+  assert.equal(evalResult.passed, true);
+  assert.equal(evalResult.accuracy_on_knowns, 1.0);
+
+  const promoted = await client.promoteProjectCandidate({
+    project: "p1",
+    candidateId: "cand-1",
+    note: "Approved by lead architect",
+  });
+  assert.equal(promoted.candidate.status, "promoted");
+  assert.equal(promoted.decision_service.status, "active");
+
+  const rejected = await client.rejectProjectChoice({
+    project: "p1",
+    candidateId: "cand-1",
+    reason: "Not viable",
+  });
+  assert.equal(rejected.status, "rejected");
+});
+
+test("project integrations and system health operate over public HTTP contract", async () => {
+  const requests: Array<{ url: string; method: string; body?: unknown }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    const urlStr = String(url);
+    requests.push({ url: urlStr, method, body });
+
+    if (urlStr.endsWith("/api/v1/system/health")) {
+      return Response.json({
+        status: "healthy",
+        database: { connected: true, latency_ms: 1.2 },
+        decision_provider: "laya",
+        discovery_provider: "mock",
+        version: "0.1.0",
+      });
+    }
+    if (urlStr.endsWith("/integrations") && method === "GET") {
+      return Response.json([
+        {
+          id: "int-1",
+          name: "Stripe Webhook",
+          type: "webhook",
+          status: "connected",
+          capabilities: ["event_ingestion"],
+        },
+      ]);
+    }
+    if (urlStr.endsWith("/integrations") && method === "POST") {
+      return Response.json({ id: "int-1", status: "pending", ...body }, { status: 201 });
+    }
+    if (urlStr.endsWith("/integrations/int-1") && method === "GET") {
+      return Response.json({
+        id: "int-1",
+        name: "Stripe Webhook",
+        type: "webhook",
+        status: "connected",
+        capabilities: ["event_ingestion"],
+      });
+    }
+    if (urlStr.endsWith("/integrations/int-1") && method === "PATCH") {
+      return Response.json({ id: "int-1", ...body });
+    }
+    if (urlStr.endsWith("/integrations/int-1") && method === "DELETE") {
+      return new Response(null, { status: 204 });
+    }
+    if (urlStr.endsWith("/integrations/int-1/test") && method === "POST") {
+      return Response.json({
+        integration_id: "int-1",
+        status: "connected",
+        latency_ms: 15.4,
+        capabilities: ["event_ingestion"],
+        error_message: null,
+      });
+    }
+
+    return new Response("Not found", { status: 404 });
+  };
+
+  const client = new OpenClass("http://example.internal", fetcher);
+
+  const health = await client.systemHealth();
+  assert.equal(health.status, "healthy");
+  assert.equal(health.database.connected, true);
+
+  const created = await client.createProjectIntegration({
+    project: "p1",
+    name: "Stripe Webhook",
+    type: "webhook",
+    capabilities: ["event_ingestion"],
+  });
+  assert.equal(created.id, "int-1");
+
+  const list = await client.projectIntegrations("p1");
+  assert.equal(list.length, 1);
+  assert.equal(list[0].name, "Stripe Webhook");
+
+  const detail = await client.projectIntegration({ project: "p1", integrationId: "int-1" });
+  assert.equal(detail.id, "int-1");
+
+  const updated = await client.updateProjectIntegration({
+    project: "p1",
+    integrationId: "int-1",
+    changes: { name: "Updated Webhook" },
+  });
+  assert.equal(updated.name, "Updated Webhook");
+
+  const tested = await client.testProjectIntegration({ project: "p1", integrationId: "int-1" });
+  assert.equal(tested.status, "connected");
+  assert.equal(tested.latency_ms, 15.4);
+
+  await client.deleteProjectIntegration({ project: "p1", integrationId: "int-1" });
+  assert.equal(
+    requests.some((r) => r.method === "DELETE"),
+    true,
+  );
 });

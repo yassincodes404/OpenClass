@@ -62,12 +62,18 @@ class ClassificationService:
     async def classify(self, identifier: str, observation: Observation) -> ClassificationResult:
         classifier = await self.repository.get_classifier(identifier)
         ontology = await self.repository.get_ontology(classifier.active_ontology_version_id)
-        decision = await self.provider.choice(
-            ChoiceRequest(observation=observation, ontology=ontology)
-        )
-        expected = {c.canonical_name for c in ontology.classes}
-        if set(decision.probabilities) != expected:
-            raise ProviderError("Provider returned a distribution that does not match the ontology")
+        try:
+            decision = await self.provider.choice(
+                ChoiceRequest(observation=observation, ontology=ontology)
+            )
+            expected = {c.canonical_name for c in ontology.classes}
+            if set(decision.probabilities) != expected:
+                raise ProviderError(
+                    "Provider returned a distribution that does not match the ontology"
+                )
+        except ProviderError:
+            await self.repository.record_provider_failure(classifier.id, ontology.id)
+            raise ProviderError("Decision provider failed") from None
         signals = signals_from(decision)
         novelty = assess(signals, self.policy)
         selected = None

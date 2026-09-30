@@ -4,6 +4,12 @@ This is an executable foundation for the founding specification's §§37, 45, 56
 It includes Phase 0, the classification kernel, and initial novelty persistence.
 It is not the Discovery milestone.
 
+This document records the original foundation decisions. See
+[current implementation status](implementation-status.md) for the newer local
+project/runtime work, and [foundation hardening](foundation-hardening.md) for the
+2026-09-30 corrections. In particular, Laya is now the configured local default;
+use explicit `decision_provider=mock` for a deterministic simulated demo.
+
 1. **uv workspace, hatchling packages.** Each Python component has its own installable
    distribution. One lockfile resolves the workspace. The root is virtual. See
    [uv workspace documentation](https://docs.astral.sh/uv/concepts/projects/workspaces/).
@@ -25,15 +31,19 @@ It is not the Discovery milestone.
 6. **PostgreSQL is primary.** pgvector is installed by migration, but no fabricated
    embeddings are stored. SQLite is a fast development/test convenience, not a promise
    of identical concurrency semantics or a production replacement.
-7. **No remote inference.** Only the deterministic mock is registered. Its dictionary
-   matching is useful for contracts and developer examples, not accuracy claims.
+7. **Explicit remote inference.** Genesis used the deterministic mock default;
+   current local runtime uses Laya unless overridden. Jev
+   choice is opt-in through environment configuration. Mock dictionary matching
+   is useful for contracts and developer examples, not accuracy claims.
    Only choice is defined now; boolean/score and discovery/embedding ports land with
    implementations and contract tests.
 8. **Explicit configuration.** Novelty settings are environment configurable through
-   nested Pydantic settings. Project YAML, encrypted credential storage and redaction
-   will land before remote integrations. Genesis persists raw text locally.
+   nested Pydantic settings. Jev credentials are environment supplied; adapter errors
+   are sanitized and configured credentials rejected from submitted content. Project
+   YAML and encrypted credential storage remain planned. Genesis persists raw text locally.
 9. **Audit polling first.** Ordered, cursor-based event history is available over JSON.
-   Durable resumable SSE and provider-failure telemetry are still planned.
+   Decision failures append sanitized provider.error events. Durable resumable SSE
+   and broader provider telemetry remain planned.
 10. **No public deployment by default.** Compose binds host services to 127.0.0.1.
     Actor is `local-user`, not authenticated identity. No auth/RBAC claims are made.
 11. **Reviews are advisory evidence (OC-016).** A `SupervisorProvider` re-examines a
@@ -44,8 +54,9 @@ It is not the Discovery milestone.
 
 ## Known limits
 
-No discovery, clustering, promotion, evaluation, rollback, TUI, Jev/remote providers,
-installer, package publication, or benchmark results. Supervisor reviews are
+No discovery, clustering, promotion, evaluation, rollback, TUI, installer, package
+publication, or benchmark results. Jev has offline contracts and an opt-in live
+pilot; passing offline checks does not establish live model quality. Supervisor reviews are
 manual-trigger only with the simulated mock; no reasoning model, automatic
 sampling, or batch audit exists yet (OC-018/OC-020). Lists of classifiers/versions
 are unpaginated for the initial local workspace; run, review, unknown and event
