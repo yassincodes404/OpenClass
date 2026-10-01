@@ -2,6 +2,33 @@
 
 Validated locally on 2026-09-23. This is implementation evidence, not a public release certification.
 
+## OC-033 — Foundation hardening (2026-09-30)
+
+These results describe the local unreleased tree, not the committed baseline or a
+production certification. See [scope and findings](../architecture/foundation-hardening.md).
+
+| Check                                             | Result                                                                                                                   |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `make check`                                      | Passed: Ruff, formatting, strict mypy, Prettier, TypeScript and 13 SDK contracts                                         |
+| `make test` with a disposable PostgreSQL database | 357 passed, 3 opt-in live-provider tests skipped                                                                         |
+| Full Playwright suite using installed Chromium    | 50 passed across desktop and mobile                                                                                      |
+| `npm run build`                                   | Production web build passed                                                                                              |
+| `uv build --all-packages`                         | All workspace wheels and sdists built; nothing published                                                                 |
+| Alembic schema comparison                         | No new upgrade operations detected against migrated PostgreSQL                                                           |
+| Concurrent webhook retry                          | Six requests: one 201, five 200, one persisted event/audit; original identity survives restart                           |
+| Reused identity with changed content              | 409; original observation preserved                                                                                      |
+| Authentication and credential handling            | Missing/misconfigured secrets fail closed; invalid/ref-name tokens rejected; escaped/unicode credential content rejected |
+| Isolation and atomicity                           | Cross-project IDs rejected; failing audit rolls back observation and receipt                                             |
+| Append-only history                               | Receipt, source and project audit UPDATE/DELETE rejected                                                                 |
+| Evaluation/activation correction                  | 409 and unchanged service/candidate/evidence/run/audit snapshots, including after PostgreSQL restart                     |
+| Running local API                                 | Ready at `0010_webhook_receipts`, healthy schema, version `0.0.1`                                                        |
+
+Browser checks use public HTTP fixtures; backend tests use real SQLite/PostgreSQL
+persistence. REST adapter contracts use HTTP transport fixtures. No Zendesk, Stripe,
+MCP or other external account was exercised, and no live connector-quality claim
+is made. Existing Laya calibration and Starlette deprecation warnings remain;
+this work does not establish production model calibration.
+
 ## OC-016 — Supervisor review foundation
 
 Validated locally on 2026-09-23 on branch `oc-016-supervisor-review-foundation`,

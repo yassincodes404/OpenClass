@@ -26,7 +26,7 @@ def test_readiness_and_validation(client: TestClient, classifier_body: dict) -> 
 def test_openapi_documents_result_and_has_no_unguarded_promotion(client: TestClient) -> None:
     schema = client.get("/openapi.json").json()
     assert "ClassificationResult" in schema["components"]["schemas"]
-    assert not any("promote" in path for path in schema["paths"])
+    assert not any("promote" in path for path in schema["paths"] if "classifiers" in path)
 
 
 def test_unmigrated_database_is_not_ready(tmp_path) -> None:
@@ -66,4 +66,9 @@ def test_provider_errors_are_safe_and_do_not_persist_runs(
             assert response.status_code == 502
             assert "sensitive" not in response.text
             events = client.get(f"/api/v1/classifiers/test-{index}/events").json()
-            assert len(events) == 1  # Initial ontology only; no fabricated completed run.
+            assert [row["event"]["type"] for row in events] == [
+                "ontology.version_created",
+                "provider.error",
+            ]
+            assert "sensitive" not in str(events)
+            assert client.get(f"/api/v1/classifiers/test-{index}/runs").json() == []

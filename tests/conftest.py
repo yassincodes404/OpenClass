@@ -51,7 +51,15 @@ def database_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 @pytest.fixture
 def client(database_url: str) -> Iterator[TestClient]:
-    with TestClient(create_app(Settings(database_url=database_url))) as client:
+    settings = Settings(database_url=database_url, laya_allow_fallback=True)
+    with TestClient(create_app(settings)) as client:
+        yield client
+
+
+@pytest.fixture
+def mock_client(database_url: str) -> Iterator[TestClient]:
+    settings = Settings(database_url=database_url, decision_provider="mock")
+    with TestClient(create_app(settings)) as client:
         yield client
 
 

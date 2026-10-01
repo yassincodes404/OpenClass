@@ -1,0 +1,4244 @@
+{
+  "authored-state": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Sensor field exit_code (integer) is recorded but omitted by state schema. Add required feature exit_code from that sensor field; semantic choices and macro work unchanged.\"], \"evidence_refs\": [], \"failed_layer\": \"STATE_REPRESENTATION\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-state\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"ADD_STATE_FEATURE\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-space": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Verified permission-denied file access has no offered choice. Add terminal choice permission for explicit permission failures; do not execute a port recovery.\"], \"evidence_refs\": [], \"failed_layer\": \"DECISION_SPACE\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-space\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"ADD_CHOICE\", \"MISSING_CAPABILITY\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-routing": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Verified UDP port allocation collision fits existing choice port, but description only mentions a test listener. Generalize port to occupied network-port binding/allocation conflicts while preserving its recover macro target.\"], \"evidence_refs\": [], \"failed_layer\": \"SEMANTIC_ROUTING\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-routing\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"GENERALIZE_CHOICE\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-procedure": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Routing to recover was correct. Step set_environment used TEST_PORT; fixture now reads SERVICE_TEST_PORT. Replace only that argument, preserving all five steps.\"], \"evidence_refs\": [], \"failed_layer\": \"PROCEDURE\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-procedure\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"REPLACE_PROCEDURE\", \"MISSING_CAPABILITY\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-precondition": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Attempted alone is insufficient: deterministic replay shows recover must require inspected=true as well as attempted=true before execution.\"], \"evidence_refs\": [], \"failed_layer\": \"PRECONDITION\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-precondition\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"CHANGE_PRECONDITION\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-postcondition": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Recorded tests and report can pass while inspection was omitted. Verifier must require inspected=true in addition to tests_passed=true and report_written=true.\"], \"evidence_refs\": [], \"failed_layer\": \"POSTCONDITION\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-postcondition\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"CHANGE_POSTCONDITION\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-safety": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Authorization sensor is false and existing safety guard refused execution correctly. There is no evidence of a policy defect. Do not relax the guard.\"], \"evidence_refs\": [], \"failed_layer\": \"SAFETY_GUARD\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-safety\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"CHANGE_SAFETY_GUARD\", \"NO_CHANGE\", \"MISSING_CAPABILITY\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-missing": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Verified dependency restart is required, but no restart capability exists in catalog. Do not compose unrelated primitives or invent restart_dependency.\"], \"evidence_refs\": [], \"failed_layer\": \"MISSING_CAPABILITY\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-missing\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"MISSING_CAPABILITY\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-insufficient": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Only an UNKNOWN decision was recorded; raw failure and step results are absent. A missing semantic choice has not been established.\"], \"evidence_refs\": [], \"failed_layer\": \"INSUFFICIENT_EVIDENCE\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-insufficient\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "authored-infrastructure": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Gateway returned HTTP 502 before any distribution. No semantic decision or macro ran. Do not change policy using this incident.\"], \"evidence_refs\": [], \"failed_layer\": \"INFRASTRUCTURE\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"authored-infrastructure\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"NO_CHANGE\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "frozen-teacher-d2": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Routing to recover was correct. Step set_environment used TEST_PORT; fixture now reads SERVICE_TEST_PORT. Replace only that argument, preserving all five steps.\", \"Frozen D failing-step evidence: fixture reads SERVICE_TEST_PORT; the old schema/target problems must not be confused with Jev routing.\"], \"evidence_refs\": [{\"format\": \"json\", \"path\": \"benchmarks/jev-contract/v1/frozen-teacher-evidence/teacher-d2.artifact\", \"pointer\": \"\", \"sha256\": \"de2dcdb30f4df9a8c394056d70a1d40c78f5b4081b834b208c30666668aeaaa4\"}], \"failed_layer\": \"PROCEDURE\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"frozen-teacher-d2\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"REPLACE_PROCEDURE\", \"MISSING_CAPABILITY\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "frozen-teacher-d2b": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Only an UNKNOWN decision was recorded; raw failure and step results are absent. A missing semantic choice has not been established.\", \"Frozen D request diagnosed PROCEDURE but asked for routing. That contradictory package cannot justify a cross-layer change; request new deterministic diagnosis evidence.\"], \"evidence_refs\": [{\"format\": \"json\", \"path\": \"benchmarks/jev-contract/v1/frozen-teacher-evidence/teacher-d2b.artifact\", \"pointer\": \"\", \"sha256\": \"2980ae767210f5a18aa0c4a1ad3f1614114f1fbd964dca5fdbef67fb1d609beb\"}], \"failed_layer\": \"INSUFFICIENT_EVIDENCE\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"route\", \"id\": \"precision_policy\", \"macros\": [{\"id\": \"recover\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"port\", \"meaning\": \"Test listener cannot bind an occupied port.\", \"target_id\": \"recover\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"route\", \"question\": \"Which failure recovery fits?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"frozen-teacher-d2b\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  },
+  "frozen-teacher-e2b": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are the OpenClass Teacher, an engineer proposing the smallest change to a\nversioned decision system. Output only the supplied typed candidate schema. Never activate\ncandidates or claim approval. The failed layer is deterministic evidence, not your choice.\nNever change procedures to solve routing, or routing to hide procedure failures. A layer\nchange requires new deterministic evidence and a new request. Never delegate deterministic\nsafety to Jev. Do not encode exact environment strings as semantic aliases where semantic\nrouting handles the concept; literal distinctions require specific evidence. Procedure\narguments may use literal registered values grounded in failing-step evidence. Prefer\nconcrete, self-contained choices and explicit resolved state; avoid unnecessary hierarchy.\nUse the supplied empirical profile, whose recommendations are bounded inferences. If the\npolicy cannot fit the measured profile, return PROVIDER_COMPATIBILITY. Never infer hidden\nevaluation cases. Feedback, if present, is only predeclared bounded aggregate counts.\nUse only the registered capability catalog with exact argument names/types/domains.\nReturn MISSING_CAPABILITY for nonexistent primitives, or INSUFFICIENT_EVIDENCE when facts\ncannot support a change. UNKNOWN alone never proves that a new choice is necessary.\nNon-change answers use an empty target_id and all-null payload fields.\nNo shell, code, paths, credentials, hidden labels, or activation authority are supplied.\n"
+      },
+      {
+        "role": "user",
+        "content": "{\"candidate_history\": [], \"capabilities\": [{\"arguments\": {\"preferred\": \"integer\"}, \"id\": \"choose_available_test_port\", \"permitted_values\": {\"preferred\": [3000, 8000]}}, {\"arguments\": {\"name\": \"string\"}, \"id\": \"set_environment\", \"permitted_values\": {\"name\": [\"TEST_PORT\", \"SERVICE_TEST_PORT\"]}}, {\"arguments\": {}, \"id\": \"run_tests\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"inspect_result\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"write_report\", \"permitted_values\": {}}, {\"arguments\": {}, \"id\": \"restart_dependency\", \"permitted_values\": {}}], \"deterministic_evidence\": [\"Frozen E requires a choice for the registered restart_dependency_macro on incident_commander. The recorded dependency is down; existing port-conflict routing does not fit. This is a canonicalized relevant slice of that failure.\", \"Observed state: dependency_down=true; port_conflict=false. Preserve the existing choice. Add a concrete choice for the registered dependency macro.\"], \"evidence_refs\": [{\"format\": \"json\", \"path\": \"benchmarks/jev-contract/v1/frozen-teacher-evidence/teacher-e2b.artifact\", \"pointer\": \"\", \"sha256\": \"407124b042140948568dfa2ea6abb826a3fd570e80dbb1bfaf8664960e922d3b\"}], \"failed_layer\": \"DECISION_SPACE\", \"feedback\": null, \"feedback_protocol\": null, \"graph_slice\": {\"entry_node\": \"incident_commander\", \"id\": \"frozen_e_slice\", \"macros\": [{\"id\": \"recover_from_port_conflict\", \"postconditions\": [{\"equals\": true, \"field\": \"tests_passed\"}, {\"equals\": true, \"field\": \"report_written\"}], \"preconditions\": [{\"equals\": true, \"field\": \"attempted\"}], \"purpose\": \"Recover a test port conflict\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {\"preferred\": 3000}, \"capability\": \"choose_available_test_port\"}, {\"arguments\": {\"name\": \"TEST_PORT\"}, \"capability\": \"set_environment\"}, {\"arguments\": {}, \"capability\": \"run_tests\"}, {\"arguments\": {}, \"capability\": \"inspect_result\"}, {\"arguments\": {}, \"capability\": \"write_report\"}]}, {\"id\": \"restart_dependency_macro\", \"postconditions\": [{\"equals\": true, \"field\": \"dependency_recovered\"}], \"preconditions\": [{\"equals\": true, \"field\": \"dependency_down\"}], \"purpose\": \"Restart an observed failed dependency\", \"safety_guards\": [{\"equals\": true, \"field\": \"authorized\"}], \"steps\": [{\"arguments\": {}, \"capability\": \"restart_dependency\"}]}], \"nodes\": [{\"choices\": [{\"id\": \"execute_recovery\", \"meaning\": \"Recover an occupied test port\", \"target_id\": \"recover_from_port_conflict\", \"target_kind\": \"macro\"}], \"decomposition_reason\": null, \"id\": \"incident_commander\", \"question\": \"Which registered recovery fits this failure?\", \"risk\": \"ordinary\"}], \"parent_hash\": null, \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}, \"version\": 1}, \"id\": \"frozen-teacher-e2b\", \"jev_operating_manual\": \"JEV OPERATING PROFILE (experimental, not an accuracy guarantee)\\nProfile: jev-operating-profile v1; measured 2026-09-24\\nProvider/model: jev / typesafe-ai/jev\\nImmutable revision: not reported\\nMax tested flat known choices: 32; UNKNOWN additional\\nRecommendation (inferred): Prefer flat concrete self-contained choices within the measured bound.\\nRecommendation (inferred): Explicitly propagate resolved prior decisions; avoid anaphoric references.\\nRecommendation (inferred): Retain relevant raw semantic evidence alongside sensor facts.\\nRecommendation (inferred): Always offer UNKNOWN; use deterministic safety, execution and postcondition checks.\\nRecommendation (inferred): Use few semantic decisions around verified deterministic macros.\\nRecommendation (inferred): Treat borderline known selections as provisional; calibrate margin and UNKNOWN jointly.\\nRecommendation (inferred): Use hierarchy only for genuine domain decomposition, retaining leaf semantics.\\nLimit: Authored bounded benchmark; no universal Jev accuracy claim.\\nLimit: Above 32 known choices untested; 32 is not a maximum capability.\\nLimit: Top probability is not demonstrated calibrated correctness.\\nLimit: Margin association does not establish a supervision threshold or causation.\\nLimit: Long-term and model-version stability unproven; immutable model revision not reported.\\nLimit: Complex real-world domains remain uncharacterized; no safety-critical claim.\\nLimit: Missing reported cost is unknown, not proof of free inference.\", \"permitted_operators\": [\"ADD_CHOICE\", \"MISSING_CAPABILITY\", \"INSUFFICIENT_EVIDENCE\", \"PROVIDER_COMPATIBILITY\"], \"profile_hash\": \"f82f0ea9e603d3e982c8c5be79cce20c877f24148ecc48c5491833346931bc2b\", \"state_schema\": {\"features\": [{\"id\": \"attempted\", \"kind\": \"boolean\", \"required\": true, \"sensor_field\": \"attempted\"}], \"id\": \"service_state\", \"version\": 1}}"
+      }
+    ],
+    "temperature": 0,
+    "max_tokens": 4096,
+    "response_schema": {
+      "$defs": {
+        "Choice": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "meaning": {
+              "maxLength": 2000,
+              "minLength": 1,
+              "title": "Meaning",
+              "type": "string"
+            },
+            "target_kind": {
+              "enum": ["node", "macro", "terminal"],
+              "title": "Target Kind",
+              "type": "string"
+            },
+            "target_id": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z][a-z0-9_]{0,79}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          "required": ["id", "meaning", "target_kind", "target_id"],
+          "title": "Choice",
+          "type": "object"
+        },
+        "Payload": {
+          "additionalProperties": false,
+          "properties": {
+            "choice": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Choice"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "steps": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Step"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Steps"
+            },
+            "feature": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/StateFeature"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "predicates": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/Predicate"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Predicates"
+            }
+          },
+          "title": "Payload",
+          "type": "object",
+          "required": ["choice", "steps", "feature", "predicates"]
+        },
+        "Predicate": {
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Field",
+              "type": "string"
+            },
+            "equals": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equals"
+            }
+          },
+          "required": ["field", "equals"],
+          "title": "Predicate",
+          "type": "object"
+        },
+        "StateFeature": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "pattern": "^[a-z][a-z0-9_]{0,79}$",
+              "title": "Id",
+              "type": "string"
+            },
+            "kind": {
+              "enum": ["string", "integer", "boolean"],
+              "title": "Kind",
+              "type": "string"
+            },
+            "sensor_field": {
+              "title": "Sensor Field",
+              "type": "string"
+            },
+            "required": {
+              "title": "Required",
+              "type": "boolean"
+            }
+          },
+          "required": ["id", "kind", "sensor_field", "required"],
+          "title": "StateFeature",
+          "type": "object"
+        },
+        "Step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["choose_available_test_port"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "preferred": {
+                      "type": "integer",
+                      "enum": [3000, 8000]
+                    }
+                  },
+                  "required": ["preferred"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["set_environment"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "enum": ["TEST_PORT", "SERVICE_TEST_PORT"]
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["run_tests"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["inspect_result"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["write_report"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "capability": {
+                  "type": "string",
+                  "enum": ["restart_dependency"]
+                },
+                "arguments": {
+                  "type": "object",
+                  "properties": {},
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["capability", "arguments"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "operator": {
+          "enum": [
+            "ADD_CHOICE",
+            "GENERALIZE_CHOICE",
+            "REPLACE_PROCEDURE",
+            "ADD_STATE_FEATURE",
+            "CHANGE_PRECONDITION",
+            "CHANGE_POSTCONDITION",
+            "CHANGE_SAFETY_GUARD",
+            "MISSING_CAPABILITY",
+            "INSUFFICIENT_EVIDENCE",
+            "NO_CHANGE",
+            "PROVIDER_COMPATIBILITY"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "target_id": {
+          "title": "Target Id",
+          "type": "string"
+        },
+        "payload": {
+          "$ref": "#/$defs/Payload"
+        },
+        "base_policy_hash": {
+          "title": "Base Policy Hash",
+          "type": "string"
+        },
+        "semantic_description": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Semantic Description",
+          "type": "string"
+        },
+        "rationale": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "operator",
+        "target_id",
+        "payload",
+        "base_policy_hash",
+        "semantic_description",
+        "rationale",
+        "confidence"
+      ],
+      "title": "TeacherCandidate",
+      "type": "object"
+    }
+  }
+}

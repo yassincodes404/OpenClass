@@ -1,0 +1,33 @@
+id,group,observation
+clear-01,clear_known,iPhone smartphone
+clear-02,clear_known,MacBook laptop
+clear-03,clear_known,A smartphone used for mobile calls and messages
+clear-04,clear_known,A handheld mobile phone with a touchscreen
+clear-05,clear_known,A notebook computer with a permanently attached keyboard
+clear-06,clear_known,A portable laptop computer for writing documents
+clear-07,clear_known,An Android mobile telephone
+clear-08,clear_known,A clamshell laptop computer
+hard-01,difficult_known,A folding smartphone that opens to a large screen
+hard-02,difficult_known,A smartphone connected to an external monitor for desktop mode
+hard-03,difficult_known,A convertible laptop whose permanently attached keyboard folds behind its touchscreen
+hard-04,difficult_known,A laptop with a broken permanently attached keyboard
+hard-05,difficult_known,A mobile phone with no SIM card currently installed
+hard-06,difficult_known,A laptop sold without its battery but with its permanently attached keyboard
+hard-07,difficult_known,A smartphone used only as a camera
+hard-08,difficult_known,A laptop running Android with a permanently attached keyboard
+outside-01,outside_ontology,Galaxy Tab tablet
+outside-02,outside_ontology,Apple Watch
+outside-03,outside_ontology,A tablet with a detachable keyboard case
+outside-04,outside_ontology,A desktop tower computer
+outside-05,outside_ontology,A protective case for a smartphone
+outside-06,outside_ontology,A replacement laptop charger
+outside-07,outside_ontology,A cordless landline handset
+outside-08,outside_ontology,A paper notebook
+ambiguous-01,ambiguous,Surface Pro
+ambiguous-02,ambiguous,An Apple device
+ambiguous-03,ambiguous,A portable screen with a keyboard of unspecified type
+ambiguous-04,ambiguous,A device used for calling and writing documents
+ambiguous-05,ambiguous,A computer
+ambiguous-06,ambiguous,A phone and a laptop sold together without a primary item
+ambiguous-07,ambiguous,It folds and has a touchscreen
+ambiguous-08,ambiguous,An electronic device with no further description

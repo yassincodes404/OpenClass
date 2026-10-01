@@ -26,6 +26,7 @@ services:
   server:
     build: .
     environment:
+      OPENCLASS_DECISION_PROVIDER: ${OPENCLASS_DECISION_PROVIDER:-laya}
       OPENCLASS_DATABASE_URL: postgresql+asyncpg://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
     ports:
       - "127.0.0.1:${OPENCLASS_PORT:-7331}:7331"

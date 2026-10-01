@@ -1,0 +1,143 @@
+"""Runtime adapters for integration secrets and supported health checks."""
+
+import hmac
+import os
+import time
+from collections.abc import Mapping
+from urllib.parse import urlsplit
+
+import httpx
+from openclass_core.integrations import (
+    IntegrationConfig,
+    IntegrationHealthReport,
+    IntegrationStatus,
+    IntegrationType,
+)
+
+from .security import contains_secret
+
+
+class WebhookAuthenticationError(Exception):
+    """Invalid caller credentials; message never includes supplied values."""
+
+
+class IntegrationConfigurationError(Exception):
+    """A secret reference cannot be resolved; no insecure fallback."""
+
+
+class EnvironmentSecrets:
+    def resolve(self, reference: str | None) -> str:
+        if reference is None:
+            raise IntegrationConfigurationError("Webhook authentication is not configured")
+        secret = os.environ.get(reference, "")
+        if not secret.strip():
+            raise IntegrationConfigurationError("Integration credential is unavailable")
+        return secret
+
+    def authenticate(self, integration: IntegrationConfig, headers: Mapping[str, str]) -> None:
+        expected = self.resolve(integration.secret_ref)
+        token = headers.get("x-openclass-token", "")
+        authorization = headers.get("authorization", "")
+        if authorization:
+            scheme, separator, value = authorization.partition(" ")
+            if scheme.casefold() != "bearer" or not separator:
+                raise WebhookAuthenticationError("Invalid webhook token")
+            if token and token != value:
+                raise WebhookAuthenticationError("Conflicting webhook credentials")
+            token = value
+        if not token or not hmac.compare_digest(token.encode(), expected.encode()):
+            raise WebhookAuthenticationError("Invalid webhook token")
+
+    def reject_secret_content(self, integration: IntegrationConfig, value: object) -> None:
+        if contains_secret(value, self.resolve(integration.secret_ref)):
+            raise ValueError("Input contains an integration credential")
+
+    def reject_configured_content(self, reference: str | None, value: object) -> None:
+        if reference is None:
+            return
+        try:
+            secret = self.resolve(reference)
+        except IntegrationConfigurationError:
+            # Configuration may be registered before the operator supplies its credential.
+            return
+        if contains_secret(value, secret):
+            raise ValueError("Input contains an integration credential")
+
+
+class HTTPIntegrationProbe:
+    def __init__(
+        self,
+        secrets: EnvironmentSecrets,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self.secrets = secrets
+        self.transport = transport
+
+    async def check(self, integration: IntegrationConfig) -> IntegrationHealthReport:
+        started = time.perf_counter()
+        status = IntegrationStatus.PENDING
+        error: str | None = "Connectivity checks for this integration type are not implemented"
+        capabilities: tuple[str, ...] = ()
+        if integration.type == IntegrationType.WEBHOOK:
+            try:
+                self.secrets.resolve(integration.secret_ref)
+                status, error = IntegrationStatus.CONNECTED, None
+                capabilities = ("event_ingestion", "token_authentication", "idempotent_ingestion")
+            except IntegrationConfigurationError:
+                status = IntegrationStatus.DISCONNECTED
+                error = "Webhook authentication credential is unavailable"
+        elif integration.type == IntegrationType.REST_API:
+            endpoint = integration.endpoint or ""
+            try:
+                parsed = urlsplit(endpoint)
+            except ValueError:
+                parsed = urlsplit("")
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+            ):
+                status = IntegrationStatus.DISCONNECTED
+                error = "A credential-free HTTP endpoint is required"
+            else:
+                try:
+                    headers = {}
+                    if integration.secret_ref:
+                        headers["Authorization"] = (
+                            f"Bearer {self.secrets.resolve(integration.secret_ref)}"
+                        )
+                    async with httpx.AsyncClient(
+                        timeout=5,
+                        follow_redirects=False,
+                        transport=self.transport,
+                        trust_env=False,
+                    ) as client:
+                        response = await client.get(endpoint, headers=headers)
+                    status = (
+                        IntegrationStatus.CONNECTED
+                        if 200 <= response.status_code < 300
+                        else IntegrationStatus.DEGRADED
+                    )
+                    error = (
+                        None
+                        if status == IntegrationStatus.CONNECTED
+                        else f"HTTP {response.status_code}"
+                    )
+                except IntegrationConfigurationError:
+                    status, error = (
+                        IntegrationStatus.DISCONNECTED,
+                        "Integration credential is unavailable",
+                    )
+                except (httpx.HTTPError, ValueError):
+                    status, error = (
+                        IntegrationStatus.DISCONNECTED,
+                        "Integration endpoint could not be reached",
+                    )
+        return IntegrationHealthReport(
+            integration_id=integration.id,
+            status=status,
+            latency_ms=round((time.perf_counter() - started) * 1000, 2),
+            capabilities=capabilities,
+            error_message=error,
+        )

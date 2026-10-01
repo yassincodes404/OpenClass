@@ -152,7 +152,7 @@ export default function Home() {
           <button disabled={busy || reviewBusy || !classifier || !observation.trim()}>
             {busy ? "Classifying…" : "Classify observation ↗"}
           </button>
-          <p className="hint">Mock provider · deterministic lexical matching · no API key</p>
+          <p className="hint">Decision provider configured on the server</p>
         </form>
         <section className="result" aria-live="polite">
           <p className="eyebrow">02 / UNDERSTAND</p>

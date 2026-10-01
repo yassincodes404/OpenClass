@@ -14,7 +14,7 @@ from openclass_server.settings import Settings
 
 
 def test_reviews_survive_restart(database_url: str, classifier_body: dict) -> None:
-    settings = Settings(database_url=database_url)
+    settings = Settings(database_url=database_url, decision_provider="mock")
     with TestClient(create_app(settings)) as client:
         created = client.post("/api/v1/classifiers", json=classifier_body)
         assert created.status_code == 201

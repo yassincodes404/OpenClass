@@ -4,9 +4,20 @@ Snapshot internals can become normalized tables through future explicit migratio
 No provider-specific fields are required by this schema.
 """
 
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -69,3 +80,188 @@ class ReviewRow(Base):
     run_id: Mapped[str] = mapped_column(ForeignKey("classification_runs.id"), index=True)
     ontology_version_id: Mapped[str] = mapped_column(ForeignKey("ontology_versions.id"))
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class CandidateRow(Base):
+    __tablename__ = "candidates"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    classifier_id: Mapped[str] = mapped_column(ForeignKey("classifiers.id"), index=True)
+    base_ontology_version_id: Mapped[str] = mapped_column(ForeignKey("ontology_versions.id"))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class ProjectRow(Base):
+    __tablename__ = "projects"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    slug: Mapped[str] = mapped_column(String(80), unique=True)
+    owner_id: Mapped[str | None] = mapped_column(String(80), index=True)
+    status: Mapped[str] = mapped_column(String(16))
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(String(2000), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class AuditEventRow(Base):
+    __tablename__ = "audit_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id"), index=True)
+    event_type: Mapped[str] = mapped_column(String(50))
+    actor: Mapped[str] = mapped_column(String(80))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class RawEventRow(Base):
+    __tablename__ = "raw_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    source_type: Mapped[str] = mapped_column(String(32), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class DecisionServiceRow(Base):
+    __tablename__ = "decision_services"
+    __table_args__ = (
+        UniqueConstraint("project_id", "slug", name="uq_decision_services_project_id_slug"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    slug: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class DecisionRunRow(Base):
+    __tablename__ = "decision_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+    )
+    raw_event_id: Mapped[str] = mapped_column(
+        ForeignKey("raw_events.id", ondelete="CASCADE"), index=True
+    )
+    decision_service_id: Mapped[str] = mapped_column(
+        ForeignKey("decision_services.id", ondelete="CASCADE"), index=True
+    )
+    decision_node_id: Mapped[str] = mapped_column(String(36))
+    provider: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(100))
+    execution_mode: Mapped[str] = mapped_column(String(50))
+    real_inference: Mapped[bool] = mapped_column(Boolean)
+    selected_choice: Mapped[str] = mapped_column(String(100))
+    supervision_outcome: Mapped[str] = mapped_column(String(20))
+    top_probability: Mapped[float] = mapped_column(Float)
+    margin: Mapped[float] = mapped_column(Float)
+    unknown_probability: Mapped[float] = mapped_column(Float)
+    latency_ms: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class ProjectChoiceCandidateRow(Base):
+    __tablename__ = "project_choice_candidates"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    decision_service_id: Mapped[str] = mapped_column(ForeignKey("decision_services.id"), index=True)
+    status: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class EvidenceCaseRow(Base):
+    __tablename__ = "evidence_cases"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    decision_service_id: Mapped[str | None] = mapped_column(
+        ForeignKey("decision_services.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(30), index=True)
+    diagnosis: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    diagnosis_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class EvidenceItemRow(Base):
+    __tablename__ = "evidence_items"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    raw_event_id: Mapped[str | None] = mapped_column(ForeignKey("raw_events.id"), nullable=True)
+    decision_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("decision_runs.id"), nullable=True, index=True
+    )
+    decision_service_id: Mapped[str | None] = mapped_column(
+        ForeignKey("decision_services.id"), nullable=True
+    )
+    evidence_case_id: Mapped[str | None] = mapped_column(
+        ForeignKey("evidence_cases.id"), nullable=True, index=True
+    )
+    trigger_type: Mapped[str] = mapped_column(String(50), index=True)
+    status: Mapped[str] = mapped_column(String(30), index=True)
+    diagnosis: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    diagnosis_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    selected_choice: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    supervision_outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="automatic")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class RunFeedbackRow(Base):
+    __tablename__ = "run_feedback"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    decision_run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), index=True)
+    action: Mapped[str] = mapped_column(String(30))
+    corrected_choice: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class ProjectIntegrationRow(Base):
+    __tablename__ = "project_integrations"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    type: Mapped[str] = mapped_column(String(50), index=True)
+    status: Mapped[str] = mapped_column(String(50), index=True)
+    endpoint: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    secret_ref: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    capabilities: Mapped[list[str]] = mapped_column(JSON)
+    latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_health_check: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class WebhookReceiptRow(Base):
+    __tablename__ = "webhook_receipts"
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    # Retain identity after deleting configuration; receipt history is immutable.
+    integration_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    event_key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    event_id: Mapped[str] = mapped_column(ForeignKey("raw_events.id"), unique=True)
+    source: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
