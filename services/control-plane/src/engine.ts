@@ -225,6 +225,20 @@ export class EngineClient {
     return this.request("POST", `/api/v1/projects/${engineProjectId}/unknowns/${runId}/transition`, { to }, 200);
   }
 
+  async runClustering(engineProjectId: string, threshold?: number): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/unknowns/cluster`, {
+      ...(threshold !== undefined ? { threshold } : {}),
+    });
+  }
+
+  async listClusters(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/unknowns/clusters`);
+  }
+
+  async clusterDetail(engineProjectId: string, clusterId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/unknowns/clusters/${clusterId}`);
+  }
+
   private async requestStatus(
     method: string,
     path: string,

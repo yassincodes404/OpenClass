@@ -70,6 +70,49 @@ export class UnknownController {
     return this.engine.unknownStats(project.engine_project_id);
   }
 
+  @Post("cluster")
+  async cluster(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const threshold = typeof (body as { threshold?: number })?.threshold === "number"
+      ? (body as { threshold: number }).threshold
+      : undefined;
+    const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
+    const result = await this.engine.runClustering(project.engine_project_id, threshold);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "clusters.rebuilt",
+      target: `threshold:${threshold ?? "default"}`,
+    });
+    return result;
+  }
+
+  @Get("clusters")
+  async clusters(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    return this.engine.listClusters(project.engine_project_id);
+  }
+
+  @Get("clusters/:clusterId")
+  async clusterDetail(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("clusterId") clusterId: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    return this.engine.clusterDetail(project.engine_project_id, clusterId);
+  }
+
   @Get(":runId")
   async detail(
     @Req() request: RequestWithPrincipal,

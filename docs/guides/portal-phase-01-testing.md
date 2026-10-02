@@ -203,3 +203,25 @@ Triage states: needs_evidence → triaged → dismissed (dismissed is terminal).
 Categories are advisory only (truly_novel/ambiguous/out_of_scope/missing_info/
 schema_problem). Viewer+ reads; reviewer+ triages. Run immutability is
 preserved — triage state lives in its own table.
+
+## Phase 9 embeddings & clustering testing
+
+Engine migration `0015_embeddings_clusters`. Seeder: `pnpm seed:portal-phase-9`
+(embeds the UNKNOWN pool with the deterministic hash-lexical embedder — labeled
+simulated — and clusters it; reruns are idempotent).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Open `/projects/:id/unknowns/clusters`, click Run clustering | New cluster set; cancel texts grouped |
+| 2 | Open a cluster | Members + per-member similarity + provenance footer |
+| 3 | Re-run at the same threshold | Same cluster count (idempotent replace, no duplicates) |
+
+Embedding port lives in core (`EmbeddingProvider`); the local adapter is a
+deterministic lexical encoder (`hash-lexical-v1`, 256-dim, simulated badge).
+The optional sentence-transformers adapter requires the `embeddings` extra and
+raises a safe unsupported error when absent — vectors are never fabricated.
+Grouping is greedy cosine first-fit over id-sorted items (threshold default
+0.82; the demo seeds use 0.5 for lexical vectors). Clusters are observation
+groupings only — never classes.
