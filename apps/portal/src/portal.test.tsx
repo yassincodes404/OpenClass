@@ -20,8 +20,21 @@ const workspaces = [
   { id: "w-1", slug: "acme-support", name: "Acme Support", role: "owner" },
 ];
 
+function jsonResponse(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
 function stubFetch(status: number, body: unknown) {
-  return vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
+  return vi.fn(async () => jsonResponse(status, body));
+}
+
+/** Control-plane stub: workspaces → given payload; nested project lists → empty. */
+function stubControl(workspacesBody: unknown, status = 200) {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.includes("/projects")) return jsonResponse(status === 200 ? 200 : status, []);
+    return jsonResponse(status, workspacesBody);
+  });
 }
 
 function renderPortal(route = "/projects") {
@@ -39,7 +52,7 @@ function renderPortal(route = "/projects") {
 
 beforeEach(() => {
   vi.unstubAllGlobals();
-  vi.stubGlobal("fetch", stubFetch(200, workspaces));
+  vi.stubGlobal("fetch", stubControl(workspaces));
 });
 
 afterEach(() => {
@@ -49,7 +62,7 @@ afterEach(() => {
 
 describe("portal auth gate", () => {
   it("shows the sign-in gate for anonymous visitors with no workspace data leak", async () => {
-    const fetchMock = stubFetch(200, workspaces);
+    const fetchMock = stubControl(workspaces);
     vi.stubGlobal("fetch", fetchMock);
     keycloak.init.mockResolvedValue(false);
     renderPortal();
@@ -65,7 +78,7 @@ describe("portal auth gate", () => {
   });
 
   it("lists workspaces with bearer token once authenticated", async () => {
-    const fetchMock = stubFetch(200, workspaces);
+    const fetchMock = stubControl(workspaces);
     vi.stubGlobal("fetch", fetchMock);
     keycloak.init.mockResolvedValue(true);
     renderPortal();
@@ -85,7 +98,7 @@ describe("portal auth gate", () => {
   });
 
   it("recovers to the gate without crashing when the session 401s", async () => {
-    vi.stubGlobal("fetch", stubFetch(401, { message: "Authentication required" }));
+    vi.stubGlobal("fetch", stubControl({ message: "Authentication required" }, 401));
     keycloak.init.mockResolvedValue(true);
     renderPortal();
     expect(await screen.findByText("Sign in to your workspace.", {}, { timeout: 3000 })).toBeTruthy();
