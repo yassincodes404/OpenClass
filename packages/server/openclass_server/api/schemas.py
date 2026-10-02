@@ -175,7 +175,15 @@ class DecisionServiceUpdateSchema(Model):
 
 
 class ExecuteDecisionRunRequest(Model):
-    raw_event_ids: list[str] = Field(min_length=1, max_length=100)
+    raw_event_ids: list[str] = Field(default_factory=list, max_length=100)
+    # Alternative input: raw text is ingested as an observation first.
+    content: str | None = Field(default=None, min_length=1, max_length=10_000)
+
+    @model_validator(mode="after")
+    def has_input(self) -> "ExecuteDecisionRunRequest":
+        if not self.raw_event_ids and not self.content:
+            raise ValueError("raw_event_ids or content is required")
+        return self
 
 
 class DecisionServiceResponse(Model):

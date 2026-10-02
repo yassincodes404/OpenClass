@@ -15,6 +15,7 @@ from openclass_core.projects import (
 )
 from openclass_core.projects import ProjectService as ProjectDomainService
 from openclass_core.providers import DecisionProvider
+from openclass_core.repositories import NotFoundError
 
 from openclass_server.api.schemas import (
     DecisionServiceCreate,
@@ -101,13 +102,20 @@ def decisions_router(
             exec_provider = default_decision_provider
         executor = DecisionExecutor(exec_provider)
         runs: list[DecisionRun] = []
+        event_ids: list[UUID] = []
+        if body.content:
+            event, deduped = await projects.ingest_event(
+                identifier=identifier, content=body.content, source_type="text"
+            )
+            event_ids.append(event.id)
         for raw_id_str in body.raw_event_ids:
+            event_ids.append(UUID(raw_id_str))
+        for run_event_id in event_ids:
             try:
-                event_id = UUID(raw_id_str)
-            except ValueError as err:
-                msg = f"Invalid event UUID: {raw_id_str}"
-                raise HTTPException(status_code=422, detail=msg) from err
-            event = await projects.get_event(identifier, event_id)
+                event = await projects.get_event(identifier, run_event_id)
+            except NotFoundError as err:
+                msg = f"Event not found: {run_event_id}"
+                raise HTTPException(status_code=404, detail=msg) from err
             run = await executor.execute(event, service)
             await projects.record_decision_run(run)
             runs.append(run)
