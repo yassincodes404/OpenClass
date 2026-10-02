@@ -13,6 +13,7 @@ import { ProjectController, ProjectResolveController } from "./project.controlle
 import { ProjectService } from "./project.service.js";
 import { RateLimitService } from "./rate-limit.service.js";
 import { SecurityController } from "./security.controller.js";
+import { UnknownController } from "./unknown.controller.js";
 import { WorkspaceController } from "./workspace.controller.js";
 import { WorkspaceService } from "./workspace.service.js";
 
@@ -25,6 +26,7 @@ import { WorkspaceService } from "./workspace.service.js";
     SecurityController,
     IngestionController,
     DecisionController,
+    UnknownController,
   ],
   providers: [
     KeycloakGuard,
