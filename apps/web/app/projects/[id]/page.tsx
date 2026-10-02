@@ -64,27 +64,28 @@ export default function ProjectOverview({ params }: { params: Promise<{ id: stri
 
   return (
     <ProjectShell project={project} active="overview">
-      <section className="panel">
-        <h2 className="section-heading">Overview</h2>
-        <p className="lede">{project.description || "No description yet."}</p>
-        <dl className="project-meta">
-          <div>
-            <dt>Slug</dt>
-            <dd>{project.slug}</dd>
+      <section className="project-hero" aria-labelledby="project-overview-title">
+        <div className="project-hero-copy">
+          <p className="eyebrow">PROJECT / CONTROL ROOM</p>
+          <h2 id="project-overview-title">A governed view of what the system knows.</h2>
+          <p>{project.description || "No description yet. Add context in Settings to orient reviewers."}</p>
+          <div className="project-actions">
+            <Link className="primary-link" href={`/projects/${project.slug}/data`}>Ingest observations <span aria-hidden="true">↗</span></Link>
+            <Link className="quiet-link" href={`/projects/${project.slug}/decisions`}>Configure decisions</Link>
           </div>
-          <div>
-            <dt>Created</dt>
-            <dd>{new Date(project.created_at).toLocaleDateString()}</dd>
-          </div>
-          <div>
-            <dt>Status</dt>
-            <dd>{project.status}</dd>
-          </div>
+        </div>
+        <dl className="project-facts">
+          <div><dt>Workspace ID</dt><dd><code>{project.slug}</code></dd></div>
+          <div><dt>Established</dt><dd>{new Date(project.created_at).toLocaleDateString()}</dd></div>
+          <div><dt>Lifecycle</dt><dd><span className="status-dot" />{project.status}</dd></div>
         </dl>
       </section>
 
-      <section className="panel">
-        <h2 className="section-heading">Activity</h2>
+      <section className="project-activity" aria-labelledby="project-activity-title">
+        <div className="project-section-heading">
+          <div><p className="eyebrow">LIVE PROJECT SIGNAL</p><h2 id="project-activity-title">Activity at a glance</h2></div>
+          <p>Scoped, persisted counters—not samples.</p>
+        </div>
         <ul className="counter-grid">
           {counters.map(([label, value]) => (
             <li key={label}>
@@ -93,10 +94,6 @@ export default function ProjectOverview({ params }: { params: Promise<{ id: stri
             </li>
           ))}
         </ul>
-        <p className="hint">
-          Counters reflect project-scoped data that arrives with later slices; they are real server
-          values, not samples.
-        </p>
       </section>
     </ProjectShell>
   );
