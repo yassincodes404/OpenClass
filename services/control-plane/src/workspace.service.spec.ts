@@ -1,6 +1,8 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { Pool, PoolClient } from "pg";
 import { describe, expect, it, vi } from "vitest";
+
+const auditStub = { record: vi.fn(async () => undefined), list: vi.fn(async () => ({ items: [], next_cursor: null })) } as unknown as import("./audit.service.js").AuditService;
 import { WorkspaceService, type Role } from "./workspace.service.js";
 
 type Row = Record<string, unknown>;
@@ -33,7 +35,7 @@ describe("WorkspaceService", () => {
     const pool = fakePool(async () =>
       resultOf([{ id: workspaceId, slug: "acme", name: "Acme", role: "owner" }]),
     );
-    const workspaces = await new WorkspaceService(pool).mine(owner);
+    const workspaces = await new WorkspaceService(pool, auditStub).mine(owner);
     expect(workspaces).toEqual([{ id: workspaceId, slug: "acme", name: "Acme", role: "owner" }]);
   });
 
@@ -47,7 +49,7 @@ describe("WorkspaceService", () => {
       }
       return resultOf([]);
     });
-    const created = await new WorkspaceService(pool).create(owner, "Acme Support");
+    const created = await new WorkspaceService(pool, auditStub).create(owner, "Acme Support");
     expect(created).toMatchObject({ slug: "acme-support", role: "owner" });
     expect(statements.some((s) => s === "BEGIN")).toBe(true);
     expect(statements.some((s) => s === "COMMIT")).toBe(true);
@@ -62,13 +64,13 @@ describe("WorkspaceService", () => {
       }
       return resultOf([]);
     });
-    const created = await new WorkspaceService(pool).create(owner, "Acme");
+    const created = await new WorkspaceService(pool, auditStub).create(owner, "Acme");
     expect(created.slug).toBe("acme-3");
   });
 
   it("members of an unknown workspace → 404 without enumeration", async () => {
     const pool = fakePool(async () => resultOf([]));
-    await expect(new WorkspaceService(pool).members(owner, workspaceId)).rejects.toThrow(
+    await expect(new WorkspaceService(pool, auditStub).members(owner, workspaceId)).rejects.toThrow(
       new NotFoundException("Workspace not found"),
     );
   });
@@ -80,14 +82,14 @@ describe("WorkspaceService", () => {
       }
       return resultOf([{ subject: "owner-sub", role: "owner", created_at: new Date("2026-10-02T00:00:00Z") }]);
     });
-    const members = await new WorkspaceService(pool).members({ subject: "viewer-sub" }, workspaceId);
+    const members = await new WorkspaceService(pool, auditStub).members({ subject: "viewer-sub" }, workspaceId);
     expect(members).toHaveLength(1);
     expect(members[0].role).toBe("owner");
   });
 
   it("invite by a reviewer → 403", async () => {
     const pool = fakePool(async () => resultOf([{ role: "reviewer" }]));
-    await expect(new WorkspaceService(pool).invite(reviewer, workspaceId, "new-sub", "viewer" as Role)).rejects.toThrow(
+    await expect(new WorkspaceService(pool, auditStub).invite(reviewer, workspaceId, "new-sub", "viewer" as Role)).rejects.toThrow(
       new ForbiddenException("Workspace role cannot manage members"),
     );
   });
@@ -99,7 +101,7 @@ describe("WorkspaceService", () => {
       }
       return resultOf([{ role: "admin" }]);
     });
-    const member = await new WorkspaceService(pool).invite({ subject: "admin-sub" }, workspaceId, "new-sub", "reviewer");
+    const member = await new WorkspaceService(pool, auditStub).invite({ subject: "admin-sub" }, workspaceId, "new-sub", "reviewer");
     expect(member).toEqual({ subject: "new-sub", role: "reviewer" });
   });
 });

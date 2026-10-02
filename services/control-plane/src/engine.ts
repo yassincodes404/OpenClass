@@ -48,6 +48,14 @@ export class EngineClient {
     return this.request<EngineOntology>("GET", `/api/v1/classifiers/${encodeURIComponent(identifier)}/ontology`);
   }
 
+  async providers(): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", "/api/v1/providers");
+  }
+
+  async providerStatus(): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>("GET", "/api/v1/providers/status");
+  }
+
   async request<T>(method: string, path: string, body?: unknown, expectedStatus = 200): Promise<T> {
     let response: Response;
     try {

@@ -27,6 +27,8 @@ export const sectionLinks = [
   { label: "Observations", path: "/observations" },
   { label: "Unknowns", path: "/unknowns" },
   { label: "Discoveries", path: "/discoveries" },
+  { label: "Providers", path: "/providers" },
+  { label: "Audit", path: "/audit" },
   { label: "Settings", path: "/settings" },
 ];
 
@@ -200,7 +202,7 @@ export function ProjectOverview() {
   );
 }
 
-function ProjectShell({ project, active, children }: { project: Project; active: string; children: ReactNode }) {
+export function ProjectShell({ project, active, children }: { project: Project; active: string; children: ReactNode }) {
   return (
     <>
       <div className="project-kicker">

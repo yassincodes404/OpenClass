@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query, Response
+from fastapi.responses import JSONResponse
 from openclass_core.analytics import ProjectAnalytics, summarize_project_runs
 from openclass_core.projects import (
     Project,
@@ -23,12 +24,18 @@ from openclass_server.api.schemas import (
     RawEventCreate,
     UpdateProject,
 )
+from openclass_server.persistence.idempotency import IdempotencyStore
 from openclass_server.provider_config import reject_credentials
 from openclass_server.settings import Settings
 
+IdempotencyKeyHeader = Annotated[str | None, Header(alias="Idempotency-Key", max_length=200)]
+
 
 def projects_router(
-    config: Settings, projects: ProjectDomainService, project_repository: ProjectRepository
+    config: Settings,
+    projects: ProjectDomainService,
+    project_repository: ProjectRepository,
+    idempotency: IdempotencyStore | None = None,
 ) -> APIRouter:
     router = APIRouter(tags=["projects"])
 
@@ -71,8 +78,33 @@ def projects_router(
         return [event.model_dump(mode="json") for event in await projects.audit(identifier)]
 
     @router.post("/api/v1/projects/{identifier}/events", response_model=RawEvent, status_code=201)
-    async def ingest_event(identifier: str, body: RawEventCreate) -> RawEvent:
+    async def ingest_event(
+        identifier: str,
+        body: RawEventCreate,
+        idempotency_key: IdempotencyKeyHeader = None,
+    ) -> RawEvent | Response:
         reject_credentials(body.model_dump(mode="json"), config)
+        if idempotency is not None and idempotency_key:
+            project = await projects.get(identifier)
+            stored = await idempotency.get(project.id, idempotency_key)
+            if stored is not None:
+                return JSONResponse(
+                    status_code=200,
+                    content=stored,
+                    headers={"Idempotency-Replayed": "true"},
+                )
+            event = await projects.ingest_event(
+                identifier=identifier,
+                content=body.content,
+                source_type=body.source_type,
+                metadata=body.metadata,
+            )
+            payload = event.model_dump(mode="json")
+            payload["deduped"] = False
+            await idempotency.store(
+                project.id, idempotency_key, payload, config.idempotency_ttl_hours
+            )
+            return JSONResponse(status_code=201, content=payload)
         return await projects.ingest_event(
             identifier=identifier,
             content=body.content,
@@ -85,8 +117,31 @@ def projects_router(
         response_model=list[RawEvent],
         status_code=201,
     )
-    async def ingest_events_batch(identifier: str, body: RawEventBatchCreate) -> list[RawEvent]:
+    async def ingest_events_batch(
+        identifier: str,
+        body: RawEventBatchCreate,
+        idempotency_key: IdempotencyKeyHeader = None,
+    ) -> list[RawEvent] | Response:
         reject_credentials(body.model_dump(mode="json"), config)
+        if idempotency is not None and idempotency_key:
+            project = await projects.get(identifier)
+            stored = await idempotency.get(project.id, idempotency_key)
+            if stored is not None:
+                return JSONResponse(
+                    status_code=200,
+                    content=stored,
+                    headers={"Idempotency-Replayed": "true"},
+                )
+            events = await projects.ingest_events_batch(
+                identifier=identifier,
+                items=body.items,
+                source_type=body.source_type,
+            )
+            payload = [event.model_dump(mode="json") for event in events]
+            await idempotency.store(
+                project.id, idempotency_key, payload, config.idempotency_ttl_hours
+            )
+            return JSONResponse(status_code=201, content=payload)
         return await projects.ingest_events_batch(
             identifier=identifier,
             items=body.items,

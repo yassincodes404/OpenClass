@@ -1,19 +1,30 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { Pool } from "pg";
 import { ApiKeyService, type ApiKeyScope } from "./api-key.service.js";
+import { AuditService } from "./audit.service.js";
 import type { Principal } from "./auth.js";
 import { CONTROL_DB } from "./db.js";
 import { EngineClient, type EngineOntologyClass } from "./engine.js";
+import { IdempotencyService } from "./idempotency.service.js";
 import { ROLE_RANK, type Role } from "./workspace.service.js";
 
-export type ControlProject = { id: string; workspace_id: string; engine_project_id: string; slug: string; name: string; created_at: Date };
+export type ControlProject = {
+  id: string;
+  workspace_id: string;
+  engine_project_id: string;
+  slug: string;
+  name: string;
+  created_at: Date;
+  redaction_enabled?: boolean;
+  retention_days?: number;
+};
 export type ControlClassifier = { id: string; project_id: string; engine_classifier_id: string; slug: string; name: string; created_at: Date };
 export type ClassifierDetail = ControlClassifier & {
   active_ontology_version_id: string;
   classes: EngineOntologyClass[];
 };
+export type ProjectSettings = { redaction_enabled: boolean; retention_days: number };
 
-const MANAGER_ROLES: readonly Role[] = ["owner", "admin"];
 const RESERVED_CLASS_NAMES = new Set(["unknown", "other"]);
 
 /**
@@ -27,20 +38,35 @@ export class ProjectService {
     @Inject(CONTROL_DB) private readonly db: Pool,
     private readonly engine: EngineClient,
     private readonly apiKeys: ApiKeyService,
+    private readonly audit: AuditService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
-  async create(principal: Principal, workspaceId: string, name: string, description: string): Promise<ControlProject> {
+  async create(
+    principal: Principal,
+    workspaceId: string,
+    name: string,
+    description: string,
+    idempotencyKey?: string,
+  ): Promise<ControlProject> {
     await this.requireRole(principal, workspaceId, "admin");
+    if (idempotencyKey) {
+      const replayed = await this.idempotency.replay<ControlProject>(workspaceId, idempotencyKey);
+      if (replayed) return replayed;
+    }
     const engineProject = await this.engine.createProject(name, description);
     const base = this.slugify(name);
     try {
       const slug = await this.uniqueSlug(workspaceId, base);
       const result = await this.db.query(
         "INSERT INTO control_projects (workspace_id, engine_project_id, slug, name)" +
-          " VALUES ($1, $2, $3, $4) RETURNING id, workspace_id, engine_project_id, slug, name, created_at",
+          " VALUES ($1, $2, $3, $4) RETURNING id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days",
         [workspaceId, engineProject.id, slug, name.trim()],
       );
-      return result.rows[0] as ControlProject;
+      const project = result.rows[0] as ControlProject;
+      await this.audit.record({ workspaceId, projectId: project.id, actor: principal.subject, action: "project.created", target: `project:${project.slug}` });
+      if (idempotencyKey) await this.idempotency.remember(workspaceId, idempotencyKey, project);
+      return project;
     } catch (error) {
       await this.engine.request("PATCH", `/api/v1/projects/${engineProject.id}`, { status: "archived" }).catch(() => undefined);
       throw error;
@@ -64,13 +90,45 @@ export class ProjectService {
   /** Resolve a project for portal deep links: membership is checked via join, non-members get 404. */
   async resolve(principal: Principal, projectId: string): Promise<ControlProject> {
     const result = await this.db.query(
-      "SELECT p.id, p.workspace_id, p.engine_project_id, p.slug, p.name, p.created_at" +
+      "SELECT p.id, p.workspace_id, p.engine_project_id, p.slug, p.name, p.created_at, p.redaction_enabled, p.retention_days" +
         " FROM control_projects p JOIN control_workspace_memberships m ON m.workspace_id = p.workspace_id AND m.subject = $2" +
         " WHERE p.id = $1",
       [projectId, principal.subject],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");
     return result.rows[0] as ControlProject;
+  }
+
+  async settings(principal: Principal, workspaceId: string, projectId: string): Promise<ProjectSettings> {
+    await this.requireRole(principal, workspaceId, "viewer");
+    const project = await this.byId(workspaceId, projectId);
+    return { redaction_enabled: Boolean(project.redaction_enabled), retention_days: project.retention_days ?? 90 };
+  }
+
+  async updateSettings(
+    principal: Principal,
+    workspaceId: string,
+    projectId: string,
+    patch: Partial<ProjectSettings>,
+  ): Promise<ProjectSettings> {
+    await this.requireRole(principal, workspaceId, "admin");
+    const current = await this.byId(workspaceId, projectId);
+    const redaction = patch.redaction_enabled ?? Boolean(current.redaction_enabled);
+    const retention = patch.retention_days ?? current.retention_days ?? 90;
+    const result = await this.db.query(
+      "UPDATE control_projects SET redaction_enabled = $3, retention_days = $4 WHERE id = $1 AND workspace_id = $2" +
+        " RETURNING redaction_enabled, retention_days",
+      [projectId, workspaceId, redaction, retention],
+    );
+    const settings = result.rows[0] as ProjectSettings;
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: principal.subject,
+      action: "project.settings_updated",
+      target: `settings:redaction=${settings.redaction_enabled},retention=${settings.retention_days}d`,
+    });
+    return settings;
   }
 
   async createClassifier(
@@ -104,6 +162,7 @@ export class ProjectService {
         " VALUES ($1, $2, $3, $4) RETURNING id, project_id, engine_classifier_id, slug, name, created_at",
       [project.id, engineClassifier.id, slug, input.name.trim()],
     );
+    await this.audit.record({ workspaceId, projectId, actor: principal.subject, action: "classifier.created", target: `classifier:${slug}` });
     return { ...(result.rows[0] as ControlClassifier), active_ontology_version_id: engineClassifier.active_ontology_version_id, classes: input.classes };
   }
 
@@ -142,7 +201,9 @@ export class ProjectService {
   async createKey(principal: Principal, workspaceId: string, projectId: string, scopes: ApiKeyScope[]) {
     await this.requireRole(principal, workspaceId, "admin");
     await this.byId(workspaceId, projectId);
-    return this.apiKeys.create(workspaceId, projectId, scopes);
+    const created = await this.apiKeys.create(workspaceId, projectId, scopes);
+    await this.audit.record({ workspaceId, projectId, actor: principal.subject, action: "api_key.created", target: `key:${created.row.prefix}…` });
+    return created;
   }
 
   async listKeys(principal: Principal, workspaceId: string, projectId: string) {
@@ -154,12 +215,14 @@ export class ProjectService {
   async revokeKey(principal: Principal, workspaceId: string, projectId: string, keyId: string) {
     await this.requireRole(principal, workspaceId, "admin");
     await this.byId(workspaceId, projectId);
-    return this.apiKeys.revoke(projectId, keyId);
+    const revoked = await this.apiKeys.revoke(projectId, keyId);
+    await this.audit.record({ workspaceId, projectId, actor: principal.subject, action: "api_key.revoked", target: `key:${revoked.prefix}…` });
+    return revoked;
   }
 
   private async byId(workspaceId: string, projectId: string): Promise<ControlProject> {
     const result = await this.db.query(
-      "SELECT id, workspace_id, engine_project_id, slug, name, created_at FROM control_projects WHERE id = $1 AND workspace_id = $2",
+      "SELECT id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days FROM control_projects WHERE id = $1 AND workspace_id = $2",
       [projectId, workspaceId],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");
