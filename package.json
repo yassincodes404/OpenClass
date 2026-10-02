@@ -3,14 +3,18 @@
   "version": "0.0.1",
   "private": true,
   "workspaces": [
+    "apps/portal",
     "apps/web",
+    "services/control-plane",
     "packages/sdk-typescript"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --filter @openclass/web dev",
+    "dev": "pnpm --filter @openclass/portal dev",
+    "dev:portal": "pnpm --filter @openclass/portal dev",
+    "dev:control-plane": "pnpm --filter @openclass/control-plane start:dev",
     "build": "pnpm --recursive --if-present run build",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --filter @openclass/sdk test",

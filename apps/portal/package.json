@@ -1,0 +1,20 @@
+{
+  "name": "@openclass/portal",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "tsc -b && vite build", "typecheck": "tsc -b --pretty false", "test": "vitest run" },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.20",
+    "@tanstack/react-router": "^1.157.12",
+    "@tanstack/router-plugin": "^1.157.12",
+    "keycloak-js": "^26.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-hook-form": "^7.71.1",
+    "react-router-dom": "^7.13.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": { "@types/react": "^19.2.7", "@types/react-dom": "^19.2.3", "@vitejs/plugin-react": "^5.1.1", "typescript": "^5.9.3", "vite": "^7.3.1", "vitest": "^4.1.0" }
+}

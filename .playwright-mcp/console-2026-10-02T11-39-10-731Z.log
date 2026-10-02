@@ -1,0 +1,253 @@
+[    1070ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[    1118ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[   11494ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[   11606ms] [LOG] [Fast Refresh] done in 212ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[   13277ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[   13378ms] [LOG] [Fast Refresh] done in 201ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[   14341ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[   14422ms] [LOG] [Fast Refresh] done in 180ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  379251ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  379723ms] [ERROR] ./apps/web/app/components/auth-provider.tsx:3:1
+Error: Module not found: Can't resolve 'keycloak-js'
+  1 | "use client";
+  2 |
+> 3 | import Keycloak from "keycloak-js";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | import { createContext, useContext, useEffect, useMemo, useState } from "react";
+  5 |
+  6 | type AuthState = {
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/auth-provider.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  379836ms] [ERROR] ./apps/web/app/components/auth-provider.tsx:3:1
+Error: Module not found: Can't resolve 'keycloak-js'
+  1 | "use client";
+  2 |
+> 3 | import Keycloak from "keycloak-js";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | import { createContext, useContext, useEffect, useMemo, useState } from "react";
+  5 |
+  6 | type AuthState = {
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/auth-provider.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  397519ms] [ERROR] ./apps/web/app/components/auth-provider.tsx:3:1
+Error: Module not found: Can't resolve 'keycloak-js'
+  1 | "use client";
+  2 |
+> 3 | import Keycloak from "keycloak-js";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | import { createContext, useContext, useEffect, useMemo, useState } from "react";
+  5 |
+  6 | type AuthState = {
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/auth-provider.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  397586ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  402947ms] [ERROR] ./apps/web/app/components/auth-provider.tsx:3:1
+Error: Module not found: Can't resolve 'keycloak-js'
+  1 | "use client";
+  2 |
+> 3 | import Keycloak from "keycloak-js";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | import { createContext, useContext, useEffect, useMemo, useState } from "react";
+  5 |
+  6 | type AuthState = {
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/auth-provider.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  420997ms] [ERROR] ./apps/web/app/components/auth-provider.tsx:3:1
+Error: Module not found: Can't resolve 'keycloak-js'
+  1 | "use client";
+  2 |
+> 3 | import Keycloak from "keycloak-js";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | import { createContext, useContext, useEffect, useMemo, useState } from "react";
+  5 |
+  6 | type AuthState = {
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/auth-provider.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  422390ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  422555ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  564174ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  564684ms] [LOG] [Fast Refresh] done in 563ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  588276ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  589489ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  589519ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  837477ms] [ERROR] ./apps/web/app/components/navigation.tsx:5:1
+Error: Module not found: Can't resolve './auth-provider'
+  3 | import Link from "next/link";
+  4 | import { usePathname } from "next/navigation";
+> 5 | import { useAuth } from "./auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | const links = [
+  8 |   { href: "/", label: "Workspace" },
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/navigation.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  837477ms] [ERROR] ./apps/web/app/layout.tsx:4:1
+Error: Module not found: Can't resolve './components/auth-provider'
+  2 | import "./globals.css";
+  3 | import { PortalNavigation } from "./components/navigation";
+> 4 | import { AuthProvider } from "./components/auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | export const metadata: Metadata = {
+  6 |   title: "OpenClass · Genesis",
+  7 |   description: "The open-world classification engine.",
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  837498ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  837552ms] [ERROR] ./apps/web/app/components/navigation.tsx:5:1
+Error: Module not found: Can't resolve './auth-provider'
+  3 | import Link from "next/link";
+  4 | import { usePathname } from "next/navigation";
+> 5 | import { useAuth } from "./auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | const links = [
+  8 |   { href: "/", label: "Workspace" },
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/navigation.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  837552ms] [ERROR] ./apps/web/app/layout.tsx:4:1
+Error: Module not found: Can't resolve './components/auth-provider'
+  2 | import "./globals.css";
+  3 | import { PortalNavigation } from "./components/navigation";
+> 4 | import { AuthProvider } from "./components/auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | export const metadata: Metadata = {
+  6 |   title: "OpenClass · Genesis",
+  7 |   description: "The open-world classification engine.",
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  885066ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  885118ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  964494ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  999364ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1006371ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1018234ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1019244ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  589489ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  589519ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  837477ms] [ERROR] ./apps/web/app/components/navigation.tsx:5:1
+Error: Module not found: Can't resolve './auth-provider'
+  3 | import Link from "next/link";
+  4 | import { usePathname } from "next/navigation";
+> 5 | import { useAuth } from "./auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | const links = [
+  8 |   { href: "/", label: "Workspace" },
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/navigation.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  837477ms] [ERROR] ./apps/web/app/layout.tsx:4:1
+Error: Module not found: Can't resolve './components/auth-provider'
+  2 | import "./globals.css";
+  3 | import { PortalNavigation } from "./components/navigation";
+> 4 | import { AuthProvider } from "./components/auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | export const metadata: Metadata = {
+  6 |   title: "OpenClass · Genesis",
+  7 |   description: "The open-world classification engine.",
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  837498ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  837552ms] [ERROR] ./apps/web/app/components/navigation.tsx:5:1
+Error: Module not found: Can't resolve './auth-provider'
+  3 | import Link from "next/link";
+  4 | import { usePathname } from "next/navigation";
+> 5 | import { useAuth } from "./auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 |
+  7 | const links = [
+  8 |   { href: "/", label: "Workspace" },
+
+Import trace:
+  Server Component:
+    ./apps/web/app/components/navigation.tsx
+    ./apps/web/app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  837552ms] [ERROR] ./apps/web/app/layout.tsx:4:1
+Error: Module not found: Can't resolve './components/auth-provider'
+  2 | import "./globals.css";
+  3 | import { PortalNavigation } from "./components/navigation";
+> 4 | import { AuthProvider } from "./components/auth-provider";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  5 | export const metadata: Metadata = {
+  6 |   title: "OpenClass · Genesis",
+  7 |   description: "The open-world classification engine.",
+
+https://nextjs.org/docs/messages/module-not-found @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:1052
+[  885066ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  885118ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  964494ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[  999364ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1006371ms] [LOG] [Fast Refresh] done in 15ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1018234ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1019244ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1019773ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1019957ms] [LOG] [Fast Refresh] done in 1636ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1019958ms] [LOG] [Fast Refresh] done in 1636ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1019989ms] [LOG] [Fast Refresh] done in 1636ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1020105ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/1hen_next_dist_0yk-0gj._.js:776
+[ 1020191ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/1hen_next_dist_0yk-0gj._.js:776
+[ 1029489ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/1hen_next_dist_0yk-0gj._.js:776
+[ 1030726ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/1hen_next_dist_0yk-0gj._.js:776
+[ 1030735ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/1hen_next_dist_0yk-0gj._.js:776

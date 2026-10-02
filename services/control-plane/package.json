@@ -1,0 +1,8 @@
+{
+  "name": "@openclass/control-plane",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": { "start:dev": "nest start --watch", "build": "nest build", "typecheck": "tsc --noEmit" },
+  "dependencies": { "@nestjs/common": "^11.1.6", "@nestjs/core": "^11.1.6", "@nestjs/platform-express": "^11.1.6", "reflect-metadata": "^0.2.2", "rxjs": "^7.8.2" },
+  "devDependencies": { "@nestjs/cli": "^11.0.11", "@nestjs/schematics": "^11.0.7", "@nestjs/testing": "^11.1.6", "@types/node": "^22.14.0", "typescript": "^5.9.3" }
+}

@@ -1,5 +1,7 @@
 packages:
+  - apps/portal
   - apps/web
+  - services/control-plane
   - packages/sdk-typescript
 
 catalog:
