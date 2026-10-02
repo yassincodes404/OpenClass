@@ -14,14 +14,19 @@ const { keycloak } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("keycloak-js", () => ({ default: function MockKeycloak() { return keycloak; } }));
+vi.mock("keycloak-js", () => ({
+  default: function MockKeycloak() {
+    return keycloak;
+  },
+}));
 
-const workspaces = [
-  { id: "w-1", slug: "acme-support", name: "Acme Support", role: "owner" },
-];
+const workspaces = [{ id: "w-1", slug: "acme-support", name: "Acme Support", role: "owner" }];
 
 function jsonResponse(status: number, body: unknown) {
-  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
 function stubFetch(status: number, body: unknown) {
@@ -84,7 +89,9 @@ describe("portal auth gate", () => {
     renderPortal();
     expect(await screen.findByText("Acme Support")).toBeTruthy();
     expect(screen.getByText("Sign out")).toBeTruthy();
-    expect(fetchMock).toHaveBeenCalledWith("/control/workspaces", { headers: { Authorization: "Bearer local-test-token" } });
+    expect(fetchMock).toHaveBeenCalledWith("/control/workspaces", {
+      headers: { Authorization: "Bearer local-test-token" },
+    });
   });
 
   it("returns to the gate after sign out", async () => {
@@ -101,7 +108,9 @@ describe("portal auth gate", () => {
     vi.stubGlobal("fetch", stubControl({ message: "Authentication required" }, 401));
     keycloak.init.mockResolvedValue(true);
     renderPortal();
-    expect(await screen.findByText("Sign in to your workspace.", {}, { timeout: 3000 })).toBeTruthy();
+    expect(
+      await screen.findByText("Sign in to your workspace.", {}, { timeout: 3000 }),
+    ).toBeTruthy();
     expect(screen.queryByText("Sign out")).toBeNull();
   });
 });

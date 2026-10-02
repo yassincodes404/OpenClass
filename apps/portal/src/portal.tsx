@@ -12,9 +12,15 @@ function Home() {
   return (
     <main className="landing">
       <p className="eyebrow">OPENCLASS / GOVERNED DECISIONS</p>
-      <h1>Turn uncertainty into <em>evidence.</em></h1>
-      <p className="lede">A secure portal for teams that refuse to force uncertain requests into the wrong workflow.</p>
-      <NavLink className="primary" to="/projects">Open workspace ↗</NavLink>
+      <h1>
+        Turn uncertainty into <em>evidence.</em>
+      </h1>
+      <p className="lede">
+        A secure portal for teams that refuse to force uncertain requests into the wrong workflow.
+      </p>
+      <NavLink className="primary" to="/projects">
+        Open workspace ↗
+      </NavLink>
     </main>
   );
 }
@@ -37,9 +43,18 @@ function Header() {
   const auth = useAuth();
   return (
     <header>
-      <NavLink to="/" className="brand"><strong>O↗</strong> OPENCLASS</NavLink>
-      <nav><NavLink to="/">Home</NavLink><NavLink to="/projects">Projects</NavLink></nav>
-      {auth.authenticated && <button className="sign-out" onClick={() => void auth.logout()}>Sign out</button>}
+      <NavLink to="/" className="brand">
+        <strong>O↗</strong> OPENCLASS
+      </NavLink>
+      <nav>
+        <NavLink to="/">Home</NavLink>
+        <NavLink to="/projects">Projects</NavLink>
+      </nav>
+      {auth.authenticated && (
+        <button className="sign-out" onClick={() => void auth.logout()}>
+          Sign out
+        </button>
+      )}
       <span className="badge">GENESIS / PORTAL</span>
     </header>
   );
@@ -54,7 +69,10 @@ export function Portal() {
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:projectId" element={<ProjectOverview />} />
         <Route path="/projects/:projectId/classifiers" element={<ClassifiersPage />} />
-        <Route path="/projects/:projectId/classifiers/:classifierId" element={<ClassifierDetailPage />} />
+        <Route
+          path="/projects/:projectId/classifiers/:classifierId"
+          element={<ClassifierDetailPage />}
+        />
         <Route path="/projects/:projectId/data" element={<DataIngestPage />} />
         <Route path="/projects/:projectId/observations" element={<ObservationsPage />} />
         <Route path="/projects/:projectId/decisions" element={<DecisionsPage />} />

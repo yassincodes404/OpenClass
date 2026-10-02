@@ -52,12 +52,12 @@ Engine Alembic + control-plane SQL, both forward-only with down scripts for dev.
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects` | Create button; new project appears; validation errors inline |
-| `/projects/:id` | Overview with project counts (still 0 until Phase 05+) |
-| `/projects/:id/classifiers` | List with UNKNOWN badge; create flow |
-| `/projects/:id/classifiers/:cid` | Class table + version id + API key section |
+| Route                            | Expected                                                     |
+| -------------------------------- | ------------------------------------------------------------ |
+| `/projects`                      | Create button; new project appears; validation errors inline |
+| `/projects/:id`                  | Overview with project counts (still 0 until Phase 05+)       |
+| `/projects/:id/classifiers`      | List with UNKNOWN badge; create flow                         |
+| `/projects/:id/classifiers/:cid` | Class table + version id + API key section                   |
 
 ## 8. Seeder + credentials
 
@@ -67,14 +67,14 @@ Login: owner credentials (Phase 02 table). Reviewer can view, cannot create/revo
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Owner creates project “Acme Support 2” | Appears in list; slug unique; audit event exists |
-| 2 | Create classifier without UNKNOWN | 400 “UNKNOWN fallback is required” |
-| 3 | Create valid classifier | Detail shows all classes + UNKNOWN locked badge |
-| 4 | Create API key | Full key shown once; reload hides it; prefix remains |
-| 5 | Reviewer tries create/revoke | 403 + friendly message |
-| 6 | Non-member opens project id | 404 |
+| #   | Action                                 | Expected                                             |
+| --- | -------------------------------------- | ---------------------------------------------------- |
+| 1   | Owner creates project “Acme Support 2” | Appears in list; slug unique; audit event exists     |
+| 2   | Create classifier without UNKNOWN      | 400 “UNKNOWN fallback is required”                   |
+| 3   | Create valid classifier                | Detail shows all classes + UNKNOWN locked badge      |
+| 4   | Create API key                         | Full key shown once; reload hides it; prefix remains |
+| 5   | Reviewer tries create/revoke           | 403 + friendly message                               |
+| 6   | Non-member opens project id            | 404                                                  |
 
 ## 10. Automated tests
 

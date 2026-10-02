@@ -1,1 +1,52 @@
-{"realm":"openclass-local","enabled":true,"clients":[{"clientId":"openclass-portal","enabled":true,"publicClient":true,"standardFlowEnabled":true,"directAccessGrantsEnabled":true,"redirectUris":["http://127.0.0.1:5173/*"],"webOrigins":["http://127.0.0.1:5173"],"protocolMappers":[{"name":"portal-audience","protocol":"openid-connect","protocolMapper":"oidc-audience-mapper","consentRequired":false,"config":{"included.client.audience":"openclass-portal","access.token.claim":"true","id.token.claim":"false"}}]}],"users":[{"username":"owner@acme.openclass.test","firstName":"Portal","lastName":"Owner","enabled":true,"email":"owner@acme.openclass.test","emailVerified":true,"credentials":[{"type":"password","value":"OpenClass-Local-Owner-2026","temporary":false}]},{"username":"reviewer@acme.openclass.test","firstName":"Portal","lastName":"Reviewer","enabled":true,"email":"reviewer@acme.openclass.test","emailVerified":true,"credentials":[{"type":"password","value":"OpenClass-Local-Reviewer-2026","temporary":false}]}]}
+{
+  "realm": "openclass-local",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "openclass-portal",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://127.0.0.1:5173/*"],
+      "webOrigins": ["http://127.0.0.1:5173"],
+      "protocolMappers": [
+        {
+          "name": "portal-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "openclass-portal",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "owner@acme.openclass.test",
+      "firstName": "Portal",
+      "lastName": "Owner",
+      "enabled": true,
+      "email": "owner@acme.openclass.test",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "OpenClass-Local-Owner-2026", "temporary": false }
+      ]
+    },
+    {
+      "username": "reviewer@acme.openclass.test",
+      "firstName": "Portal",
+      "lastName": "Reviewer",
+      "enabled": true,
+      "email": "reviewer@acme.openclass.test",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "OpenClass-Local-Reviewer-2026", "temporary": false }
+      ]
+    }
+  ]
+}

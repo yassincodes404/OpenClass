@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { Pool } from "pg";
 import { ApiKeyService, type ApiKeyScope } from "./api-key.service.js";
 import { AuditService } from "./audit.service.js";
@@ -18,7 +24,14 @@ export type ControlProject = {
   redaction_enabled?: boolean;
   retention_days?: number;
 };
-export type ControlClassifier = { id: string; project_id: string; engine_classifier_id: string; slug: string; name: string; created_at: Date };
+export type ControlClassifier = {
+  id: string;
+  project_id: string;
+  engine_classifier_id: string;
+  slug: string;
+  name: string;
+  created_at: Date;
+};
 export type ClassifierDetail = ControlClassifier & {
   active_ontology_version_id: string;
   classes: EngineOntologyClass[];
@@ -64,11 +77,19 @@ export class ProjectService {
         [workspaceId, engineProject.id, slug, name.trim()],
       );
       const project = result.rows[0] as ControlProject;
-      await this.audit.record({ workspaceId, projectId: project.id, actor: principal.subject, action: "project.created", target: `project:${project.slug}` });
+      await this.audit.record({
+        workspaceId,
+        projectId: project.id,
+        actor: principal.subject,
+        action: "project.created",
+        target: `project:${project.slug}`,
+      });
       if (idempotencyKey) await this.idempotency.remember(workspaceId, idempotencyKey, project);
       return project;
     } catch (error) {
-      await this.engine.request("PATCH", `/api/v1/projects/${engineProject.id}`, { status: "archived" }).catch(() => undefined);
+      await this.engine
+        .request("PATCH", `/api/v1/projects/${engineProject.id}`, { status: "archived" })
+        .catch(() => undefined);
       throw error;
     }
   }
@@ -99,10 +120,17 @@ export class ProjectService {
     return result.rows[0] as ControlProject;
   }
 
-  async settings(principal: Principal, workspaceId: string, projectId: string): Promise<ProjectSettings> {
+  async settings(
+    principal: Principal,
+    workspaceId: string,
+    projectId: string,
+  ): Promise<ProjectSettings> {
     await this.requireRole(principal, workspaceId, "viewer");
     const project = await this.byId(workspaceId, projectId);
-    return { redaction_enabled: Boolean(project.redaction_enabled), retention_days: project.retention_days ?? 90 };
+    return {
+      redaction_enabled: Boolean(project.redaction_enabled),
+      retention_days: project.retention_days ?? 90,
+    };
   }
 
   async updateSettings(
@@ -135,21 +163,35 @@ export class ProjectService {
     principal: Principal,
     workspaceId: string,
     projectId: string,
-    input: { name: string; slug?: string; description: string; classes: EngineOntologyClass[]; unknownFallback: boolean },
+    input: {
+      name: string;
+      slug?: string;
+      description: string;
+      classes: EngineOntologyClass[];
+      unknownFallback: boolean;
+    },
   ): Promise<ClassifierDetail> {
     await this.requireRole(principal, workspaceId, "admin");
     const project = await this.byId(workspaceId, projectId);
-    if (!input.unknownFallback) throw new BadRequestException("UNKNOWN fallback is required and permanent");
+    if (!input.unknownFallback)
+      throw new BadRequestException("UNKNOWN fallback is required and permanent");
     if (input.classes.length === 0) throw new BadRequestException("At least one class is required");
     for (const cls of input.classes) {
       if (RESERVED_CLASS_NAMES.has(cls.canonical_name.toLowerCase())) {
-        throw new BadRequestException("UNKNOWN is a permanent fallback state, not a class; remove reserved names");
+        throw new BadRequestException(
+          "UNKNOWN is a permanent fallback state, not a class; remove reserved names",
+        );
       }
     }
     const slug = input.slug?.trim() || this.slugify(input.name);
-    if (!/^[a-z][a-z0-9-]{0,79}$/.test(slug)) throw new BadRequestException("Classifier slug must be lowercase kebab-case");
-    const taken = await this.db.query("SELECT 1 FROM control_classifiers WHERE project_id = $1 AND slug = $2", [projectId, slug]);
-    if (taken.rowCount) throw new BadRequestException("Classifier slug already exists in this project");
+    if (!/^[a-z][a-z0-9-]{0,79}$/.test(slug))
+      throw new BadRequestException("Classifier slug must be lowercase kebab-case");
+    const taken = await this.db.query(
+      "SELECT 1 FROM control_classifiers WHERE project_id = $1 AND slug = $2",
+      [projectId, slug],
+    );
+    if (taken.rowCount)
+      throw new BadRequestException("Classifier slug already exists in this project");
 
     const engineClassifier = await this.engine.createClassifier({
       slug,
@@ -162,11 +204,25 @@ export class ProjectService {
         " VALUES ($1, $2, $3, $4) RETURNING id, project_id, engine_classifier_id, slug, name, created_at",
       [project.id, engineClassifier.id, slug, input.name.trim()],
     );
-    await this.audit.record({ workspaceId, projectId, actor: principal.subject, action: "classifier.created", target: `classifier:${slug}` });
-    return { ...(result.rows[0] as ControlClassifier), active_ontology_version_id: engineClassifier.active_ontology_version_id, classes: input.classes };
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: principal.subject,
+      action: "classifier.created",
+      target: `classifier:${slug}`,
+    });
+    return {
+      ...(result.rows[0] as ControlClassifier),
+      active_ontology_version_id: engineClassifier.active_ontology_version_id,
+      classes: input.classes,
+    };
   }
 
-  async listClassifiers(principal: Principal, workspaceId: string, projectId: string): Promise<ClassifierDetail[]> {
+  async listClassifiers(
+    principal: Principal,
+    workspaceId: string,
+    projectId: string,
+  ): Promise<ClassifierDetail[]> {
     await this.requireRole(principal, workspaceId, "viewer");
     const project = await this.byId(workspaceId, projectId);
     const mappings = await this.db.query(
@@ -185,7 +241,12 @@ export class ProjectService {
     );
   }
 
-  async getClassifier(principal: Principal, workspaceId: string, projectId: string, classifierId: string): Promise<ClassifierDetail> {
+  async getClassifier(
+    principal: Principal,
+    workspaceId: string,
+    projectId: string,
+    classifierId: string,
+  ): Promise<ClassifierDetail> {
     await this.requireRole(principal, workspaceId, "viewer");
     const project = await this.byId(workspaceId, projectId);
     const mapping = await this.db.query(
@@ -204,11 +265,22 @@ export class ProjectService {
     await this.byId(workspaceId, projectId);
   }
 
-  async createKey(principal: Principal, workspaceId: string, projectId: string, scopes: ApiKeyScope[]) {
+  async createKey(
+    principal: Principal,
+    workspaceId: string,
+    projectId: string,
+    scopes: ApiKeyScope[],
+  ) {
     await this.requireRole(principal, workspaceId, "admin");
     await this.byId(workspaceId, projectId);
     const created = await this.apiKeys.create(workspaceId, projectId, scopes);
-    await this.audit.record({ workspaceId, projectId, actor: principal.subject, action: "api_key.created", target: `key:${created.row.prefix}…` });
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: principal.subject,
+      action: "api_key.created",
+      target: `key:${created.row.prefix}…`,
+    });
     return created;
   }
 
@@ -222,7 +294,13 @@ export class ProjectService {
     await this.requireRole(principal, workspaceId, "admin");
     await this.byId(workspaceId, projectId);
     const revoked = await this.apiKeys.revoke(projectId, keyId);
-    await this.audit.record({ workspaceId, projectId, actor: principal.subject, action: "api_key.revoked", target: `key:${revoked.prefix}…` });
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: principal.subject,
+      action: "api_key.revoked",
+      target: `key:${revoked.prefix}…`,
+    });
     return revoked;
   }
 
@@ -235,30 +313,42 @@ export class ProjectService {
     return result.rows[0] as ControlProject;
   }
 
-  private async requireRole(principal: Principal, workspaceId: string, minimum: Role): Promise<Role> {
+  private async requireRole(
+    principal: Principal,
+    workspaceId: string,
+    minimum: Role,
+  ): Promise<Role> {
     const result = await this.db.query(
       "SELECT role FROM control_workspace_memberships WHERE workspace_id = $1 AND subject = $2",
       [workspaceId, principal.subject],
     );
     if (!result.rowCount) throw new NotFoundException("Workspace not found");
     const role = result.rows[0].role as Role;
-    if (ROLE_RANK[role] < ROLE_RANK[minimum]) throw new ForbiddenException("Workspace role cannot manage projects");
+    if (ROLE_RANK[role] < ROLE_RANK[minimum])
+      throw new ForbiddenException("Workspace role cannot manage projects");
     return role;
   }
 
   private slugify(name: string): string {
-    return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "project";
+    return (
+      name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 80) || "project"
+    );
   }
 
   private async uniqueSlug(workspaceId: string, base: string): Promise<string> {
-    const taken = await this.db.query("SELECT slug FROM control_projects WHERE workspace_id = $1 AND (slug = $2 OR slug LIKE $3)", [
-      workspaceId,
-      base,
-      `${base}-%`,
-    ]);
+    const taken = await this.db.query(
+      "SELECT slug FROM control_projects WHERE workspace_id = $1 AND (slug = $2 OR slug LIKE $3)",
+      [workspaceId, base, `${base}-%`],
+    );
     if (!taken.rows.some((row: { slug: string }) => row.slug === base)) return base;
     let suffix = 2;
-    while (taken.rows.some((row: { slug: string }) => row.slug === `${base}-${suffix}`)) suffix += 1;
+    while (taken.rows.some((row: { slug: string }) => row.slug === `${base}-${suffix}`))
+      suffix += 1;
     return `${base}-${suffix}`;
   }
 }

@@ -64,21 +64,21 @@ Control-plane Postgres only (see 4.2). Engine Alembic untouched. Down migration 
 
 ## 6. API contracts
 
-| Method & path | Auth | Body | Success | Errors |
-|---|---|---|---|---|
-| `GET /control/health` | none | — | 200 ready | — |
-| `GET /control/workspaces` | Bearer Keycloak | — | 200 `[{id,slug,name,role}]` | 401 |
-| `POST /control/workspaces` | Bearer | `{ name }` | 201 workspace | 400/401 |
-| `GET /control/workspaces/:id/members` | Bearer + member | — | 200 `[{subject,role,created_at}]` | 401/404 |
-| `POST /control/workspaces/:id/members` | Bearer + admin | `{ subject, role }` | 200 member | 400/401/403/404 |
+| Method & path                          | Auth            | Body                | Success                           | Errors          |
+| -------------------------------------- | --------------- | ------------------- | --------------------------------- | --------------- |
+| `GET /control/health`                  | none            | —                   | 200 ready                         | —               |
+| `GET /control/workspaces`              | Bearer Keycloak | —                   | 200 `[{id,slug,name,role}]`       | 401             |
+| `POST /control/workspaces`             | Bearer          | `{ name }`          | 201 workspace                     | 400/401         |
+| `GET /control/workspaces/:id/members`  | Bearer + member | —                   | 200 `[{subject,role,created_at}]` | 401/404         |
+| `POST /control/workspaces/:id/members` | Bearer + admin  | `{ subject, role }` | 200 member                        | 400/401/403/404 |
 
 ## 7. Portal UI routes & navbar
 
-| Route | Anonymous | Authenticated (owner) |
-|---|---|---|
-| `/` | Public hero | Public hero |
-| `/projects` | Sign-in gate + Keycloak button | Workspace list + project cards + Sign out in header |
-| `/projects/:id` | Redirect/gate (no data leak) | Project shell (data still simulated until Phase 03+) |
+| Route           | Anonymous                      | Authenticated (owner)                                |
+| --------------- | ------------------------------ | ---------------------------------------------------- |
+| `/`             | Public hero                    | Public hero                                          |
+| `/projects`     | Sign-in gate + Keycloak button | Workspace list + project cards + Sign out in header  |
+| `/projects/:id` | Redirect/gate (no data leak)   | Project shell (data still simulated until Phase 03+) |
 
 Navbar unchanged from Phase 01 plus auth state (Sign out). No new section links in this phase.
 
@@ -92,23 +92,23 @@ pnpm dev:portal
 pnpm seed:portal-phase-02
 ```
 
-| Role | Username | Password |
-|---|---|---|
-| Owner | `owner@acme.openclass.test` | `OpenClass-Local-Owner-2026` |
+| Role     | Username                       | Password                        |
+| -------- | ------------------------------ | ------------------------------- |
+| Owner    | `owner@acme.openclass.test`    | `OpenClass-Local-Owner-2026`    |
 | Reviewer | `reviewer@acme.openclass.test` | `OpenClass-Local-Reviewer-2026` |
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Open `/projects` anonymous | “Sign in to your workspace.” + Keycloak button; no workspace data in network tab |
-| 2 | Click Continue → Keycloak login as owner | Redirect back to portal; workspace list visible; header shows Sign out |
-| 3 | Direct `GET /control/workspaces` without token | `401 { message: Authentication required }` |
-| 4 | Owner creates workspace via UI/API | 201, appears in `GET /control/workspaces` with `role: owner` |
-| 5 | Reviewer `POST /:id/members` | `403 Workspace role cannot manage members` |
-| 6 | Non-member `GET /:id/members` | `404 Workspace not found` (no enumeration) |
-| 7 | Logout | Returns to gate; protected queries stop |
-| 8 | Expired token | 401 → portal recovers to gate |
+| #   | Action                                         | Expected                                                                         |
+| --- | ---------------------------------------------- | -------------------------------------------------------------------------------- |
+| 1   | Open `/projects` anonymous                     | “Sign in to your workspace.” + Keycloak button; no workspace data in network tab |
+| 2   | Click Continue → Keycloak login as owner       | Redirect back to portal; workspace list visible; header shows Sign out           |
+| 3   | Direct `GET /control/workspaces` without token | `401 { message: Authentication required }`                                       |
+| 4   | Owner creates workspace via UI/API             | 201, appears in `GET /control/workspaces` with `role: owner`                     |
+| 5   | Reviewer `POST /:id/members`                   | `403 Workspace role cannot manage members`                                       |
+| 6   | Non-member `GET /:id/members`                  | `404 Workspace not found` (no enumeration)                                       |
+| 7   | Logout                                         | Returns to gate; protected queries stop                                          |
+| 8   | Expired token                                  | 401 → portal recovers to gate                                                    |
 
 ## 10. Automated tests
 

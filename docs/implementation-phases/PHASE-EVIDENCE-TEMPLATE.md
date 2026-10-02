@@ -13,8 +13,8 @@ Copy this template to a new phase-specific evidence file; keep this reusable tem
 ## Fresh audit
 
 | Requirement | Existing/wired/simulated/broken/missing | Source/migration/API/SDK/UI evidence | Repair and outcome |
-|---|---|---|---|
-| Fill | Fill | Fill | Fill |
+| ----------- | --------------------------------------- | ------------------------------------ | ------------------ |
+| Fill        | Fill                                    | Fill                                 | Fill               |
 
 ## Implementation and persistence
 
@@ -38,32 +38,32 @@ Copy this template to a new phase-specific evidence file; keep this reusable tem
 
 ## Actual measured results
 
-| Metric/gate | Numerator | Denominator/sample count | Result/uncertainty | Coverage/exclusions | Evidence |
-|---|---|---|---|---|---|
-| Completed source cases | Fill | All attempted distinct cases | Fill | Failed/pending count | Fill |
-| Known-reference agreement | Fill | Independently labeled completed known cases | Fill | Label coverage | Fill |
-| Trusted-reference error | Fill | Independently checked trusted cases | Fill | Risk limit/profile | Fill |
-| UNKNOWN detection | Fill | Eligible labeled withheld completed cases | Fill | Also show all-cohort detection yield | Fill |
-| Retention/regression | Fill | Same frozen historical eligible cases | Fill | Versions and gate | Fill |
-| External verification | Fill | Completed verification attempts | Fill | Pending/ambiguous/missing separate | Fill |
-| Provider/Teacher usage | Actual attempts | Distinct ingested events | Fill | Retries/failures included | Fill |
-| Cost/latency | Actual measured usage | Declared scope/sample count | Fill | Missing cost is unavailable | Fill |
+| Metric/gate               | Numerator             | Denominator/sample count                    | Result/uncertainty | Coverage/exclusions                  | Evidence |
+| ------------------------- | --------------------- | ------------------------------------------- | ------------------ | ------------------------------------ | -------- |
+| Completed source cases    | Fill                  | All attempted distinct cases                | Fill               | Failed/pending count                 | Fill     |
+| Known-reference agreement | Fill                  | Independently labeled completed known cases | Fill               | Label coverage                       | Fill     |
+| Trusted-reference error   | Fill                  | Independently checked trusted cases         | Fill               | Risk limit/profile                   | Fill     |
+| UNKNOWN detection         | Fill                  | Eligible labeled withheld completed cases   | Fill               | Also show all-cohort detection yield | Fill     |
+| Retention/regression      | Fill                  | Same frozen historical eligible cases       | Fill               | Versions and gate                    | Fill     |
+| External verification     | Fill                  | Completed verification attempts             | Fill               | Pending/ambiguous/missing separate   | Fill     |
+| Provider/Teacher usage    | Actual attempts       | Distinct ingested events                    | Fill               | Retries/failures included            | Fill     |
+| Cost/latency              | Actual measured usage | Declared scope/sample count                 | Fill               | Missing cost is unavailable          | Fill     |
 
 Delete metrics irrelevant to this phase; do not fill future-stage values with invented zeros. Distinguish measured savings from counterfactual estimates. Incomplete provider coverage cannot support an unqualified ranking.
 
 ## Required checks
 
-| Command/check | Target/configuration | Actual outcome | Log/artifact reference |
-|---|---|---|---|
-| make check | Fill | Fill | Fill |
-| make test | Fill | Fill | Fill |
-| npm run build | Fill | Fill | Fill |
-| uv build --all-packages | Fill | Fill | Fill |
-| Migrated disposable PostgreSQL | Fill | Fill | Fill |
-| API + SDK + browser E2E | Fill | Fill | Fill |
-| Reload/API/database restart | Fill | Fill | Fill |
-| Isolation/permission negative checks | Fill | Fill | Fill |
-| Phase-specific failure/concurrency checks | Fill | Fill | Fill |
+| Command/check                             | Target/configuration | Actual outcome | Log/artifact reference |
+| ----------------------------------------- | -------------------- | -------------- | ---------------------- |
+| make check                                | Fill                 | Fill           | Fill                   |
+| make test                                 | Fill                 | Fill           | Fill                   |
+| npm run build                             | Fill                 | Fill           | Fill                   |
+| uv build --all-packages                   | Fill                 | Fill           | Fill                   |
+| Migrated disposable PostgreSQL            | Fill                 | Fill           | Fill                   |
+| API + SDK + browser E2E                   | Fill                 | Fill           | Fill                   |
+| Reload/API/database restart               | Fill                 | Fill           | Fill                   |
+| Isolation/permission negative checks      | Fill                 | Fill           | Fill                   |
+| Phase-specific failure/concurrency checks | Fill                 | Fill           | Fill                   |
 
 Offline mock fixtures and live application datasets must use distinct environments/records. Record failed checks even if apparently unrelated; identify confirmed baseline versus newly introduced failures.
 

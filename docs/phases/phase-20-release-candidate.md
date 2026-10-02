@@ -41,18 +41,18 @@ Freeze OpenAPI for the slice; publish `docs/guides/api.md` deltas, portal testin
 
 ## 7. Portal routes (full critical-path browser test)
 
-| Step | Route / action | Expected |
-|---|---|---|
-| 1 | `/login` → owner login | Authenticated, workspace visible |
-| 2 | `/projects` → create/select `acme-support` | Project overview with real counters |
-| 3 | `/projects/:id/data` → ingest “Cancel my plan” + “I was charged twice” | Events persisted |
-| 4 | `/projects/:id/decisions` → run router | Known → `billing`; unmatched → `UNKNOWN` (not forced) |
-| 5 | `/projects/:id/unknowns` → triage | UNKNOWN visible with evidence |
-| 6 | `/projects/:id/unknowns/clusters` → cluster | Cancel groups together |
-| 7 | `/projects/:id/discoveries/:cid` → review | Evidence threshold + approval |
-| 8 | `/projects/:id/evaluations/:eid` | Passing eval, no billing regression |
-| 9 | `/projects/:id/ontology` → promote | v1 unchanged, v2 with approved change + diff |
-| 10 | Re-run decision | Previously UNKNOWN now `known` with v2 + audit trail intact |
+| Step | Route / action                                                         | Expected                                                    |
+| ---- | ---------------------------------------------------------------------- | ----------------------------------------------------------- |
+| 1    | `/login` → owner login                                                 | Authenticated, workspace visible                            |
+| 2    | `/projects` → create/select `acme-support`                             | Project overview with real counters                         |
+| 3    | `/projects/:id/data` → ingest “Cancel my plan” + “I was charged twice” | Events persisted                                            |
+| 4    | `/projects/:id/decisions` → run router                                 | Known → `billing`; unmatched → `UNKNOWN` (not forced)       |
+| 5    | `/projects/:id/unknowns` → triage                                      | UNKNOWN visible with evidence                               |
+| 6    | `/projects/:id/unknowns/clusters` → cluster                            | Cancel groups together                                      |
+| 7    | `/projects/:id/discoveries/:cid` → review                              | Evidence threshold + approval                               |
+| 8    | `/projects/:id/evaluations/:eid`                                       | Passing eval, no billing regression                         |
+| 9    | `/projects/:id/ontology` → promote                                     | v1 unchanged, v2 with approved change + diff                |
+| 10   | Re-run decision                                                        | Previously UNKNOWN now `known` with v2 + audit trail intact |
 
 ## 8. Seeder + credentials
 

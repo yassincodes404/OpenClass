@@ -16,9 +16,9 @@ Use this alongside the selected numbered phase. It is an implementation brief, n
 
 ## Audit matrix
 
-| Requirement | Existing code and migration | Actual API/SDK/UI route | Status | Runtime/test evidence | Planned repair |
-|---|---|---|---|---|---|
-| Example: provider binding | Fill actual paths | Fill actual routes | Wired / unwired / simulated / broken / missing | Fill command/artifact | Bounded change |
+| Requirement               | Existing code and migration | Actual API/SDK/UI route | Status                                         | Runtime/test evidence | Planned repair |
+| ------------------------- | --------------------------- | ----------------------- | ---------------------------------------------- | --------------------- | -------------- |
+| Example: provider binding | Fill actual paths           | Fill actual routes      | Wired / unwired / simulated / broken / missing | Fill command/artifact | Bounded change |
 
 ## During implementation
 

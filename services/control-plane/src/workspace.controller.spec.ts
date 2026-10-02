@@ -32,7 +32,9 @@ describe("WorkspaceController", () => {
 
   it("POST / rejects names over 200 characters (400)", async () => {
     const { controller } = controllerWith();
-    expect(() => controller.create({ principal }, { name: "x".repeat(201) })).toThrow(BadRequestException);
+    expect(() => controller.create({ principal }, { name: "x".repeat(201) })).toThrow(
+      BadRequestException,
+    );
   });
 
   it("POST / accepts a valid name and delegates to the service", async () => {
@@ -44,20 +46,25 @@ describe("WorkspaceController", () => {
 
   it("POST /:id/members rejects an invalid role (400)", async () => {
     const { controller, service } = controllerWith();
-    expect(() => controller.invite({ principal }, "w1", { subject: "new-sub", role: "superuser" })).toThrow(
-      BadRequestException,
-    );
+    expect(() =>
+      controller.invite({ principal }, "w1", { subject: "new-sub", role: "superuser" }),
+    ).toThrow(BadRequestException);
     expect(service.invite).not.toHaveBeenCalled();
   });
 
   it("POST /:id/members rejects an empty subject (400)", async () => {
     const { controller } = controllerWith();
-    expect(() => controller.invite({ principal }, "w1", { subject: "", role: "viewer" })).toThrow(BadRequestException);
+    expect(() => controller.invite({ principal }, "w1", { subject: "", role: "viewer" })).toThrow(
+      BadRequestException,
+    );
   });
 
   it("POST /:id/members delegates a valid member payload", async () => {
     const { controller, service } = controllerWith();
-    const member = await controller.invite({ principal }, "w1", { subject: "new-sub", role: "reviewer" });
+    const member = await controller.invite({ principal }, "w1", {
+      subject: "new-sub",
+      role: "reviewer",
+    });
     expect(member).toEqual({ subject: "reviewer-sub", role: "reviewer" });
     expect(service.invite).toHaveBeenCalledWith(principal, "w1", "new-sub", "reviewer");
   });

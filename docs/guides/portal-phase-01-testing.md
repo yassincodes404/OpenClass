@@ -49,24 +49,24 @@ local-only simulated credentials.
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | `curl http://127.0.0.1:7400/control/workspaces` | `401 { "message": "Authentication required" }` |
-| 2 | Sign in as owner | Workspace list renders; header shows Sign out |
-| 3 | `POST /control/workspaces { "name": "Acme Support" }` with owner token | `201` with `role: "owner"` |
-| 4 | Reviewer token calls `POST /control/workspaces/:id/members` | `403 Workspace role cannot manage members` |
-| 5 | Non-member calls `GET /control/workspaces/:id/members` | `404 Workspace not found` |
-| 6 | Sign out | Portal returns to the sign-in gate |
+| #   | Action                                                                 | Expected                                       |
+| --- | ---------------------------------------------------------------------- | ---------------------------------------------- |
+| 1   | `curl http://127.0.0.1:7400/control/workspaces`                        | `401 { "message": "Authentication required" }` |
+| 2   | Sign in as owner                                                       | Workspace list renders; header shows Sign out  |
+| 3   | `POST /control/workspaces { "name": "Acme Support" }` with owner token | `201` with `role: "owner"`                     |
+| 4   | Reviewer token calls `POST /control/workspaces/:id/members`            | `403 Workspace role cannot manage members`     |
+| 5   | Non-member calls `GET /control/workspaces/:id/members`                 | `404 Workspace not found`                      |
+| 6   | Sign out                                                               | Portal returns to the sign-in gate             |
 
 Automated checks: `pnpm test` (NestJS guard/service/controller Vitest, portal
 gate/list/logout Vitest), `pnpm typecheck`, `pnpm build`, `uv run ruff check scripts/`.
 
-| Route | Expected result |
-| --- | --- |
-| `http://127.0.0.1:5173/` | Genesis landing screen and **Open demo workspace** action. |
-| `http://127.0.0.1:5173/projects` | Anonymous: sign-in gate. Authenticated: workspace list. |
+| Route                                  | Expected result                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `http://127.0.0.1:5173/`               | Genesis landing screen and **Open demo workspace** action.                                       |
+| `http://127.0.0.1:5173/projects`       | Anonymous: sign-in gate. Authenticated: workspace list.                                          |
 | `http://127.0.0.1:5173/projects/:slug` | Project navigation lists all planned portal sections; only delivered phase messaging is claimed. |
-| `http://127.0.0.1:7400/control/health` | `{ "status": "ready", "service": "openclass-control-plane" }`. |
+| `http://127.0.0.1:7400/control/health` | `{ "status": "ready", "service": "openclass-control-plane" }`.                                   |
 
 ## Phase 3 projects & classifiers testing
 
@@ -83,14 +83,14 @@ pnpm seed:portal-phase-3   # workspace acme-support → project → classifier �
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Owner creates project via `/projects` modal | Project card appears with unique slug |
-| 2 | `POST .../classifiers` with `unknown_fallback: false` | `400 UNKNOWN fallback is required and permanent` |
-| 3 | Valid classifier via UI | Detail lists all classes + locked UNKNOWN row + version id |
-| 4 | Create API key | Full key shown once; after reload only the prefix remains |
-| 5 | Reviewer creates project/classifier/key | `403 Workspace role cannot manage projects` |
-| 6 | Non-member resolves project id | `404 Project not found` |
+| #   | Action                                                | Expected                                                   |
+| --- | ----------------------------------------------------- | ---------------------------------------------------------- |
+| 1   | Owner creates project via `/projects` modal           | Project card appears with unique slug                      |
+| 2   | `POST .../classifiers` with `unknown_fallback: false` | `400 UNKNOWN fallback is required and permanent`           |
+| 3   | Valid classifier via UI                               | Detail lists all classes + locked UNKNOWN row + version id |
+| 4   | Create API key                                        | Full key shown once; after reload only the prefix remains  |
+| 5   | Reviewer creates project/classifier/key               | `403 Workspace role cannot manage projects`                |
+| 6   | Non-member resolves project id                        | `404 Project not found`                                    |
 
 UNKNOWN is enforced as a permanent fallback state, never a class: requests may
 not opt out, and class canonical names `unknown`/`other` are rejected.
@@ -104,13 +104,13 @@ rate-limit test key, printed once).
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Save settings on `/projects/:id/settings` | Redaction toggle + retention persist; secrets are never displayed |
-| 2 | POST a project twice with the same `Idempotency-Key` | Second call replays the original project (same id, no second write) |
-| 3 | POST engine `/events` twice with the same `Idempotency-Key` | 200 replay with `Idempotency-Replayed: true`; no duplicate rows |
-| 4 | Exceed the ingest rate limit (engine) | `429` + `Retry-After` + `X-RateLimit-*` headers |
-| 5 | Open `/projects/:id/audit` | New actions appear with actor/timestamp; cursor pagination works |
+| #   | Action                                                      | Expected                                                            |
+| --- | ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| 1   | Save settings on `/projects/:id/settings`                   | Redaction toggle + retention persist; secrets are never displayed   |
+| 2   | POST a project twice with the same `Idempotency-Key`        | Second call replays the original project (same id, no second write) |
+| 3   | POST engine `/events` twice with the same `Idempotency-Key` | 200 replay with `Idempotency-Replayed: true`; no duplicate rows     |
+| 4   | Exceed the ingest rate limit (engine)                       | `429` + `Retry-After` + `X-RateLimit-*` headers                     |
+| 5   | Open `/projects/:id/audit`                                  | New actions appear with actor/timestamp; cursor pagination works    |
 
 Engine env: `OPENCLASS_RATE_LIMITS_ENABLED`, `OPENCLASS_RATE_LIMIT_INGEST_PER_MIN`
 (default 60), `OPENCLASS_RATE_LIMIT_CLASSIFY_PER_MIN` (default 300),
@@ -126,14 +126,14 @@ unknowns); re-running reports all 25 as deduped.
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Ingest text from `/projects/:id/data` | Saved toast with event id; appears first in Observations |
-| 2 | Re-send identical content (same or no key) | `200 deduped: true`, same id, count unchanged |
-| 3 | Batch with one blank row | `207` per-item statuses (201/400/413) |
-| 4 | Search "refund" in Observations | Only matching rows |
-| 5 | Open detail drawer | Original content + metadata (members only) |
-| 6 | Ingest with an `oc_dev_` key scoped to another project | `404` |
+| #   | Action                                                 | Expected                                                 |
+| --- | ------------------------------------------------------ | -------------------------------------------------------- |
+| 1   | Ingest text from `/projects/:id/data`                  | Saved toast with event id; appears first in Observations |
+| 2   | Re-send identical content (same or no key)             | `200 deduped: true`, same id, count unchanged            |
+| 3   | Batch with one blank row                               | `207` per-item statuses (201/400/413)                    |
+| 4   | Search "refund" in Observations                        | Only matching rows                                       |
+| 5   | Open detail drawer                                     | Original content + metadata (members only)               |
+| 6   | Ingest with an `oc_dev_` key scoped to another project | `404`                                                    |
 
 Programmatic ingestion accepts either a member JWT or a scoped API key
 (`Authorization: Bearer oc_dev_…`, requires the `ingest` scope). Engine limits:
@@ -149,14 +149,14 @@ auto-appended and locked) with 10 known + 5 UNKNOWN runs via the mock provider
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Open `/projects/:id/decisions` | Service cards show choice count + locked UNKNOWN |
-| 2 | Create service sending UNKNOWN as a choice | `400` — UNKNOWN is auto-appended and locked |
-| 3 | Test panel: "I have a billing question please" | `BILLING` with full distribution (sums to 1) |
-| 4 | Test panel: unmatched text | `UNKNOWN` — never forced into a choice |
-| 5 | Open Runs page + a run detail | State chips, probability bars, provider + latency, simulated badge |
-| 6 | Reviewer runs the test panel | Allowed (viewer+ can run; owner/admin edit services) |
+| #   | Action                                         | Expected                                                           |
+| --- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| 1   | Open `/projects/:id/decisions`                 | Service cards show choice count + locked UNKNOWN                   |
+| 2   | Create service sending UNKNOWN as a choice     | `400` — UNKNOWN is auto-appended and locked                        |
+| 3   | Test panel: "I have a billing question please" | `BILLING` with full distribution (sums to 1)                       |
+| 4   | Test panel: unmatched text                     | `UNKNOWN` — never forced into a choice                             |
+| 5   | Open Runs page + a run detail                  | State chips, probability bars, provider + latency, simulated badge |
+| 6   | Reviewer runs the test panel                   | Allowed (viewer+ can run; owner/admin edit services)               |
 
 Runs accept `{ content }` (ingested first) or `{ raw_event_ids }`. The control
 plane rate-limits runs per caller (classify class, 300/min default) and audits
@@ -170,13 +170,13 @@ migration `0004_provider_configs.sql`. Seeder: `pnpm seed:portal-phase-7`
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | POST `/api/v1/providers/test {provider:"mock"}` | `{ok, model, latency_ms, normalized_preview, simulated:true}`; nothing persisted |
-| 2 | Open `/projects/:id/providers` | Config cards (mock DEFAULT + jev env ref), usage table from engine rollups |
-| 3 | Click Test provider | Safe result panel; failures show sanitized messages only |
-| 4 | Configure provider with raw URL instead of env ref | `400 endpoint_ref must be an environment variable name` |
-| 5 | Run decisions | Usage calls/latency increase; provider failures count as errors with no run persisted |
+| #   | Action                                             | Expected                                                                              |
+| --- | -------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 1   | POST `/api/v1/providers/test {provider:"mock"}`    | `{ok, model, latency_ms, normalized_preview, simulated:true}`; nothing persisted      |
+| 2   | Open `/projects/:id/providers`                     | Config cards (mock DEFAULT + jev env ref), usage table from engine rollups            |
+| 3   | Click Test provider                                | Safe result panel; failures show sanitized messages only                              |
+| 4   | Configure provider with raw URL instead of env ref | `400 endpoint_ref must be an environment variable name`                               |
+| 5   | Run decisions                                      | Usage calls/latency increase; provider failures count as errors with no run persisted |
 
 Provider configs store environment-variable references only (`endpoint_ref`
 UPPER_SNAKE_CASE); secrets never round-trip. Provider failures raise structured
@@ -192,12 +192,12 @@ reviewer.
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Open `/projects/:id/unknowns` | KPIs (volume, UNKNOWN rate, recurring phrases), SVG trend, table |
-| 2 | Filter category + search "cancel" | Only matching rows |
-| 3 | Triage as missing_info + assign reviewer | Status/category update; audit entry; ontology unchanged |
-| 4 | Look for a promote/activate action | None exists (by design) |
+| #   | Action                                   | Expected                                                         |
+| --- | ---------------------------------------- | ---------------------------------------------------------------- |
+| 1   | Open `/projects/:id/unknowns`            | KPIs (volume, UNKNOWN rate, recurring phrases), SVG trend, table |
+| 2   | Filter category + search "cancel"        | Only matching rows                                               |
+| 3   | Triage as missing_info + assign reviewer | Status/category update; audit entry; ontology unchanged          |
+| 4   | Look for a promote/activate action       | None exists (by design)                                          |
 
 Triage states: needs_evidence → triaged → dismissed (dismissed is terminal).
 Categories are advisory only (truly_novel/ambiguous/out_of_scope/missing_info/
@@ -212,11 +212,11 @@ simulated — and clusters it; reruns are idempotent).
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Open `/projects/:id/unknowns/clusters`, click Run clustering | New cluster set; cancel texts grouped |
-| 2 | Open a cluster | Members + per-member similarity + provenance footer |
-| 3 | Re-run at the same threshold | Same cluster count (idempotent replace, no duplicates) |
+| #   | Action                                                       | Expected                                               |
+| --- | ------------------------------------------------------------ | ------------------------------------------------------ |
+| 1   | Open `/projects/:id/unknowns/clusters`, click Run clustering | New cluster set; cancel texts grouped                  |
+| 2   | Open a cluster                                               | Members + per-member similarity + provenance footer    |
+| 3   | Re-run at the same threshold                                 | Same cluster count (idempotent replace, no duplicates) |
 
 Embedding port lives in core (`EmbeddingProvider`); the local adapter is a
 deterministic lexical encoder (`hash-lexical-v1`, 256-dim, simulated badge).
@@ -235,12 +235,12 @@ yield INSUFFICIENT_EVIDENCE).
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Discover the cancel cluster (Clusters page → API) | Candidate with definition + aliases, status inactive |
-| 2 | Discover a singleton cluster | INSUFFICIENT_EVIDENCE, no promotion path |
-| 3 | Check "cancel plan" / "close subscription" | Canonicalized to one proposal (synonym map) |
-| 4 | Open `/projects/:id/discoveries` + a candidate | Type chip, confidence, evidence runs, provenance, read-only |
+| #   | Action                                            | Expected                                                    |
+| --- | ------------------------------------------------- | ----------------------------------------------------------- |
+| 1   | Discover the cancel cluster (Clusters page → API) | Candidate with definition + aliases, status inactive        |
+| 2   | Discover a singleton cluster                      | INSUFFICIENT_EVIDENCE, no promotion path                    |
+| 3   | Check "cancel plan" / "close subscription"        | Canonicalized to one proposal (synonym map)                 |
+| 4   | Open `/projects/:id/discoveries` + a candidate    | Type chip, confidence, evidence runs, provenance, read-only |
 
 All six proposal types are handled (NEW_CLASS/EXISTING_CLASS/ALIAS/
 INSUFFICIENT_EVIDENCE/OUT_OF_DOMAIN/SCHEMA_ISSUE). Candidates are inactive by

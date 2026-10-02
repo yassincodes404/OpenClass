@@ -24,7 +24,12 @@ export const MAX_EVENT_CHARS = 10_000;
 export const MAX_BATCH_ITEMS = 500;
 const MONTHLY_QUOTA = Number(process.env.WORKSPACE_MONTHLY_EVENT_QUOTA ?? 10_000);
 
-export type Caller = { principal: Principal; keyPrefix?: string; keyProjectId?: string; rateIdentity: string };
+export type Caller = {
+  principal: Principal;
+  keyPrefix?: string;
+  keyProjectId?: string;
+  rateIdentity: string;
+};
 
 /**
  * Accepts either a workspace member's Keycloak JWT or a scoped project API key
@@ -32,7 +37,10 @@ export type Caller = { principal: Principal; keyPrefix?: string; keyProjectId?: 
  */
 @Injectable()
 export class IngestionGuard implements CanActivate {
-  constructor(private readonly keycloak: KeycloakGuard, private readonly apiKeys: ApiKeyService) {}
+  constructor(
+    private readonly keycloak: KeycloakGuard,
+    private readonly apiKeys: ApiKeyService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<{
@@ -116,16 +124,22 @@ export class IngestionService {
     const project = await this.authorize(caller, workspaceId, projectId, "viewer");
     this.throttle(caller, project.id);
     await this.enforceQuota(workspaceId);
-    if (items.length > MAX_BATCH_ITEMS) throw new PayloadTooLargeException(`batch exceeds ${MAX_BATCH_ITEMS} items`);
+    if (items.length > MAX_BATCH_ITEMS)
+      throw new PayloadTooLargeException(`batch exceeds ${MAX_BATCH_ITEMS} items`);
     if (items.length === 0) throw new BadRequestException("items cannot be empty");
-    const entries: Array<{ index: number; status: number | null; error?: string; event?: unknown; deduped?: boolean }> =
-      items.map((item, index) => {
-        if (!item.content?.trim()) return { index, status: 400, error: "content cannot be blank" };
-        if (item.content.length > MAX_EVENT_CHARS) {
-          return { index, status: 413, error: `content exceeds ${MAX_EVENT_CHARS} characters` };
-        }
-        return { index, status: null };
-      });
+    const entries: Array<{
+      index: number;
+      status: number | null;
+      error?: string;
+      event?: unknown;
+      deduped?: boolean;
+    }> = items.map((item, index) => {
+      if (!item.content?.trim()) return { index, status: 400, error: "content cannot be blank" };
+      if (item.content.length > MAX_EVENT_CHARS) {
+        return { index, status: 413, error: `content exceeds ${MAX_EVENT_CHARS} characters` };
+      }
+      return { index, status: null };
+    });
     const valid = items.filter((_, index) => entries[index].status === null);
     if (valid.length) {
       const result = await this.engine.ingestEventsBatch(
@@ -133,7 +147,15 @@ export class IngestionService {
         { items: valid, source_type: sourceType },
         idempotencyKey,
       );
-      const body = result.body as { items?: Array<{ index: number; status: number; event?: unknown; deduped?: boolean; error?: string }> };
+      const body = result.body as {
+        items?: Array<{
+          index: number;
+          status: number;
+          event?: unknown;
+          deduped?: boolean;
+          error?: string;
+        }>;
+      };
       const engineEntries = body.items ?? [];
       let cursor = 0;
       for (const entry of entries) {
@@ -181,15 +203,25 @@ export class IngestionService {
     if (options.sourceType) {
       filtered = filtered.filter((event) => event.source_type === options.sourceType);
     }
-    const items = filtered.slice(0, limit).map((event) => this.toPreview(event, Boolean(project.redaction_enabled)));
+    const items = filtered
+      .slice(0, limit)
+      .map((event) => this.toPreview(event, Boolean(project.redaction_enabled)));
     const hasMore = filtered.length > limit || window.length === 200;
     return {
       items,
-      next_cursor: hasMore && offset + window.length > offset + limit ? this.encodeCursor(offset + limit) : null,
+      next_cursor:
+        hasMore && offset + window.length > offset + limit
+          ? this.encodeCursor(offset + limit)
+          : null,
     };
   }
 
-  async detail(caller: Caller, workspaceId: string, projectId: string, eventId: string): Promise<EngineRawEvent> {
+  async detail(
+    caller: Caller,
+    workspaceId: string,
+    projectId: string,
+    eventId: string,
+  ): Promise<EngineRawEvent> {
     await this.authorize(caller, workspaceId, projectId, "viewer");
     const project = await this.byId(workspaceId, projectId);
     try {
@@ -208,7 +240,10 @@ export class IngestionService {
     const decision = this.rateLimits.check(caller.rateIdentity, "ingest");
     if (!decision.allowed) {
       throw new HttpException(
-        { message: `Rate limit exceeded; retry in ${decision.retryAfterSeconds}s`, retryAfterSeconds: decision.retryAfterSeconds },
+        {
+          message: `Rate limit exceeded; retry in ${decision.retryAfterSeconds}s`,
+          retryAfterSeconds: decision.retryAfterSeconds,
+        },
         429,
       );
     }
@@ -221,7 +256,9 @@ export class IngestionService {
     );
     let total = 0;
     for (const row of projects.rows as Array<{ engine_project_id: string }>) {
-      const summary = await this.engine.projectSummary(row.engine_project_id).catch(() => ({ events: 0 }));
+      const summary = await this.engine
+        .projectSummary(row.engine_project_id)
+        .catch(() => ({ events: 0 }));
       total += summary.events ?? 0;
     }
     if (total >= MONTHLY_QUOTA) {
@@ -246,7 +283,8 @@ export class IngestionService {
       throw new NotFoundException("Workspace not found");
     }
     const role = result.rows[0].role as Role;
-    if (ROLE_RANK[role] < ROLE_RANK[minimum]) throw new ForbiddenException("Workspace role cannot access observations");
+    if (ROLE_RANK[role] < ROLE_RANK[minimum])
+      throw new ForbiddenException("Workspace role cannot access observations");
     return this.byId(workspaceId, projectId);
   }
 
@@ -256,7 +294,14 @@ export class IngestionService {
       [projectId, workspaceId],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");
-    return result.rows[0] as { id: string; workspace_id: string; engine_project_id: string; slug: string; name: string; redaction_enabled: boolean };
+    return result.rows[0] as {
+      id: string;
+      workspace_id: string;
+      engine_project_id: string;
+      slug: string;
+      name: string;
+      redaction_enabled: boolean;
+    };
   }
 
   private encodeCursor(offset: number): string {

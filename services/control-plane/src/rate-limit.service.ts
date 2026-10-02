@@ -4,7 +4,12 @@ export type RateClass = "ingest" | "classify";
 
 type Bucket = { tokens: number; updatedAt: number };
 
-export type RateDecision = { allowed: boolean; retryAfterSeconds: number; limit: number; remaining: number };
+export type RateDecision = {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  limit: number;
+  remaining: number;
+};
 
 const MINUTE_MS = 60_000;
 
@@ -34,7 +39,12 @@ export class RateLimitService {
     bucket.updatedAt = now;
     if (bucket.tokens >= 1) {
       bucket.tokens -= 1;
-      return { allowed: true, retryAfterSeconds: 0, limit: capacity, remaining: Math.floor(bucket.tokens) };
+      return {
+        allowed: true,
+        retryAfterSeconds: 0,
+        limit: capacity,
+        remaining: Math.floor(bucket.tokens),
+      };
     }
     const deficit = 1 - bucket.tokens;
     return {
@@ -47,6 +57,7 @@ export class RateLimitService {
 
   /** Test/ops helper: forget one identity's buckets. */
   reset(identity: string): void {
-    for (const rateClass of ["ingest", "classify"] as const) this.buckets.delete(`${identity}:${rateClass}`);
+    for (const rateClass of ["ingest", "classify"] as const)
+      this.buckets.delete(`${identity}:${rateClass}`);
   }
 }

@@ -77,9 +77,10 @@ export class UnknownController {
     @Param("projectId") projectId: string,
     @Body() body: unknown,
   ) {
-    const threshold = typeof (body as { threshold?: number })?.threshold === "number"
-      ? (body as { threshold: number }).threshold
-      : undefined;
+    const threshold =
+      typeof (body as { threshold?: number })?.threshold === "number"
+        ? (body as { threshold: number }).threshold
+        : undefined;
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
     const result = await this.engine.runClustering(project.engine_project_id, threshold);
     await this.audit.record({
@@ -215,7 +216,8 @@ export class UnknownController {
     );
     if (!membership.rowCount) throw new NotFoundException("Workspace not found");
     const role = membership.rows[0].role as Role;
-    if (ROLE_RANK[role] < ROLE_RANK[minimum]) throw new HttpException("Workspace role cannot triage unknowns", 403);
+    if (ROLE_RANK[role] < ROLE_RANK[minimum])
+      throw new HttpException("Workspace role cannot triage unknowns", 403);
     const project = await this.db.query(
       "SELECT id, engine_project_id FROM control_projects WHERE id = $1 AND workspace_id = $2",
       [projectId, workspaceId],

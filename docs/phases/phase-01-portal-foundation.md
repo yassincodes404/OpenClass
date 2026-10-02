@@ -62,9 +62,9 @@ None. No new tables. No Alembic migration. No control-plane SQL migration.
 
 ## 6. API contracts
 
-| Method & path | Auth | Response |
-|---|---|---|
-| `GET /control/health` | none | `{ status, service }` |
+| Method & path               | Auth | Response                                              |
+| --------------------------- | ---- | ----------------------------------------------------- |
+| `GET /control/health`       | none | `{ status, service }`                                 |
 | `GET /control/portal-phase` | none | `{ phase: 1, status, simulated: true, capabilities }` |
 
 Typed DTOs in NestJS; Zod schemas in portal for any parsed payload. No engine calls in this phase.
@@ -73,11 +73,11 @@ Typed DTOs in NestJS; Zod schemas in portal for any parsed payload. No engine ca
 
 All routes use the same Genesis theme. Navbar must expose every planned section (fixes “no routes in navbar” from last 2 commits).
 
-| Route | Navbar state | Expected content |
-|---|---|---|
-| `/` | Home active | Hero, CTA “Open workspace” |
-| `/projects` | Projects active | Simulated Acme Support card, “Open project →” |
-| `/projects/acme-support-phase-01-demo` | Project tabs visible | Kicker + 11 section tabs + foundation panel + metrics (0,0,0) |
+| Route                                                                      | Navbar state             | Expected content                                                                               |
+| -------------------------------------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------- |
+| `/`                                                                        | Home active              | Hero, CTA “Open workspace”                                                                     |
+| `/projects`                                                                | Projects active          | Simulated Acme Support card, “Open project →”                                                  |
+| `/projects/acme-support-phase-01-demo`                                     | Project tabs visible     | Kicker + 11 section tabs + foundation panel + metrics (0,0,0)                                  |
 | `/projects/:id/<section>` (e.g. `/observations`, `/unknowns`, `/ontology`) | Corresponding tab active | Same shell; section title; “staged for its planned phase” message (honest, no fake capability) |
 
 Mobile: tabs scroll horizontally; header wraps; no horizontal page overflow at 390px.
@@ -97,14 +97,14 @@ Expected seeder output: JSON with `simulated: true`, `login_required: false`, pr
 
 ## 9. Manual browser tests
 
-| # | Route / action | Expected result |
-|---|---|---|
-| 1 | `http://127.0.0.1:5173/` | Hero renders, CTA goes to `/projects`, no console errors (except none) |
-| 2 | `http://127.0.0.1:5173/projects` | Simulated project card visible, link to demo project works |
-| 3 | `http://127.0.0.1:5173/projects/acme-support-phase-01-demo` | All 11 section links visible and clickable; overview content renders |
-| 4 | Any `/projects/:id/<section>` | Title matches section; honest “staged” message; metrics show 0s |
-| 5 | `http://127.0.0.1:7400/control/health` | JSON ready status |
-| 6 | Resize to 390px | No broken layout; nav scrolls; cards stack |
+| #   | Route / action                                              | Expected result                                                        |
+| --- | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 1   | `http://127.0.0.1:5173/`                                    | Hero renders, CTA goes to `/projects`, no console errors (except none) |
+| 2   | `http://127.0.0.1:5173/projects`                            | Simulated project card visible, link to demo project works             |
+| 3   | `http://127.0.0.1:5173/projects/acme-support-phase-01-demo` | All 11 section links visible and clickable; overview content renders   |
+| 4   | Any `/projects/:id/<section>`                               | Title matches section; honest “staged” message; metrics show 0s        |
+| 5   | `http://127.0.0.1:7400/control/health`                      | JSON ready status                                                      |
+| 6   | Resize to 390px                                             | No broken layout; nav scrolls; cards stack                             |
 
 ## 10. Automated tests
 

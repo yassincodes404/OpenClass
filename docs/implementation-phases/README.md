@@ -10,18 +10,18 @@ A class, endpoint, provider card or screenshot is not a completed feature. Compl
 
 ## Read and execute in this order
 
-| Order | Implementation brief | Main gate | Status |
-|---|---|---|---|
-| 01 | [Project, data and persistence](01-real-project-data-foundation.md) | Isolated authenticated projects; restart-safe real ingestion/state | Planned |
-| 02 | [Canonical decision runtime](02-canonical-decision-runtime.md) | Enforced real provider bindings and historical spec identity | Planned |
-| 03 | [Trust, UNKNOWN and supervision](03-trust-unknown-supervision.md) | Conservative deterministic gating; independent risk/coverage evidence | Planned |
-| 04 | [Runs, traces and audit](04-runs-traces-audit.md) | Reconstructable success/failure/version history and honest usage | Planned |
-| 05 | [Evidence, cohorts and discovery](05-evidence-cohorts-discovery.md) | Frozen distinct-source cohorts; non-destructive cluster history | Planned |
-| 06 | [Supervisor and typed proposals](06-supervisor-typed-proposals.md) | Real evidence-linked advisory changes, with no mutation authority | Planned |
-| 07 | [Evaluation, replay and shadow](07-evaluation-replay-shadow.md) | Complete independent baseline/candidate comparison and regression gates | Planned |
-| 08 | [Approval and immutable activation](08-approval-immutable-activation.md) | Reviewed vN → vN+1, atomic activation and rollback-as-new-version | Planned |
-| 09 | [Controlled actions and integrations](09-controlled-actions-integrations.md) | Authorized external effect plus independent verification/recovery | Planned |
-| 10 | [Product and SaaS operations](10-saas-product-operations.md) | Whole lifecycle plus tenant security, quotas, recovery and business pilot | Planned |
+| Order | Implementation brief                                                         | Main gate                                                                 | Status  |
+| ----- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------- |
+| 01    | [Project, data and persistence](01-real-project-data-foundation.md)          | Isolated authenticated projects; restart-safe real ingestion/state        | Planned |
+| 02    | [Canonical decision runtime](02-canonical-decision-runtime.md)               | Enforced real provider bindings and historical spec identity              | Planned |
+| 03    | [Trust, UNKNOWN and supervision](03-trust-unknown-supervision.md)            | Conservative deterministic gating; independent risk/coverage evidence     | Planned |
+| 04    | [Runs, traces and audit](04-runs-traces-audit.md)                            | Reconstructable success/failure/version history and honest usage          | Planned |
+| 05    | [Evidence, cohorts and discovery](05-evidence-cohorts-discovery.md)          | Frozen distinct-source cohorts; non-destructive cluster history           | Planned |
+| 06    | [Supervisor and typed proposals](06-supervisor-typed-proposals.md)           | Real evidence-linked advisory changes, with no mutation authority         | Planned |
+| 07    | [Evaluation, replay and shadow](07-evaluation-replay-shadow.md)              | Complete independent baseline/candidate comparison and regression gates   | Planned |
+| 08    | [Approval and immutable activation](08-approval-immutable-activation.md)     | Reviewed vN → vN+1, atomic activation and rollback-as-new-version         | Planned |
+| 09    | [Controlled actions and integrations](09-controlled-actions-integrations.md) | Authorized external effect plus independent verification/recovery         | Planned |
+| 10    | [Product and SaaS operations](10-saas-product-operations.md)                 | Whole lifecycle plus tenant security, quotas, recovery and business pilot | Planned |
 
 Read [AGENT-HANDOFF](AGENT-HANDOFF.md) before any phase. Fill [PHASE-EVIDENCE-TEMPLATE](PHASE-EVIDENCE-TEMPLATE.md) after each implementation. Work serially on numbered gates; independently executable tasks within a phase may be batched, but later phases cannot bypass prerequisites.
 

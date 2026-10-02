@@ -40,9 +40,9 @@ Routes: `/projects/:id/evaluations` (dataset cards: size, sealed badge, slice co
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/evaluations` | Seeded dataset with 40 examples, sealed badge |
+| Route                                     | Expected                                              |
+| ----------------------------------------- | ----------------------------------------------------- |
+| `/projects/:id/evaluations`               | Seeded dataset with 40 examples, sealed badge         |
 | `/projects/:id/evaluations/datasets/:did` | Provenance per row; “prediction” import fails clearly |
 
 ## 8. Seeder + credentials
@@ -51,11 +51,11 @@ Routes: `/projects/:id/evaluations` (dataset cards: size, sealed badge, slice co
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Add example with `source: prediction` | 400 with clear message |
-| 2 | Seal dataset → try edit | Blocked (immutable) |
-| 3 | Import CSV with bad label | Row-level error, no partial commit |
+| #   | Action                                | Expected                           |
+| --- | ------------------------------------- | ---------------------------------- |
+| 1   | Add example with `source: prediction` | 400 with clear message             |
+| 2   | Seal dataset → try edit               | Blocked (immutable)                |
+| 3   | Import CSV with bad label             | Row-level error, no partial commit |
 
 ## 10. Automated tests
 

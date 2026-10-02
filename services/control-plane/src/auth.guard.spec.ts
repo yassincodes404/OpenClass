@@ -14,7 +14,10 @@ vi.mock("jose", async (importOriginal) => {
 
 const ISSUER = "http://127.0.0.1:8080/realms/openclass-local";
 
-type TestRequest = { headers: Record<string, string | undefined>; principal?: { subject: string; email?: string } };
+type TestRequest = {
+  headers: Record<string, string | undefined>;
+  principal?: { subject: string; email?: string };
+};
 
 function contextFor(request: TestRequest): ExecutionContext {
   return { switchToHttp: () => ({ getRequest: () => request }) } as unknown as ExecutionContext;
@@ -47,7 +50,9 @@ describe("KeycloakGuard", () => {
 
   it("rejects a request without a token (401)", async () => {
     const request: TestRequest = { headers: {} };
-    await expect(guard.canActivate(contextFor(request))).rejects.toThrow(new UnauthorizedException("Authentication required"));
+    await expect(guard.canActivate(contextFor(request))).rejects.toThrow(
+      new UnauthorizedException("Authentication required"),
+    );
   });
 
   it("rejects a malformed token (401)", async () => {

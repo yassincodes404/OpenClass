@@ -1,4 +1,17 @@
-import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
 type Response = { status: (code: number) => Response };
 import { z } from "zod";
 import type { Principal } from "./auth.js";
@@ -13,7 +26,11 @@ const ingestSchema = z.object({
 });
 
 const batchSchema = z.object({
-  items: z.array(z.object({ content: z.string(), metadata: z.record(z.string(), z.unknown()).optional() })).min(1),
+  items: z
+    .array(
+      z.object({ content: z.string(), metadata: z.record(z.string(), z.unknown()).optional() }),
+    )
+    .min(1),
   source_type: z.enum(["text", "json", "csv", "webhook"]).optional(),
 });
 
@@ -46,7 +63,13 @@ export class IngestionController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const input = parseBody(ingestSchema, body);
-    const result = await this.ingestion.ingest(callerOf(request), workspaceId, projectId, input, idempotencyKey ? idempotencyKey.slice(0, 200) : undefined);
+    const result = await this.ingestion.ingest(
+      callerOf(request),
+      workspaceId,
+      projectId,
+      input,
+      idempotencyKey ? idempotencyKey.slice(0, 200) : undefined,
+    );
     response.status(result.status);
     return result.payload;
   }
@@ -85,7 +108,12 @@ export class IngestionController {
     if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 100)) {
       throw new BadRequestException("limit must be an integer between 1 and 100");
     }
-    return this.ingestion.list(callerOf(request), workspaceId, projectId, { limit, cursor, q, sourceType });
+    return this.ingestion.list(callerOf(request), workspaceId, projectId, {
+      limit,
+      cursor,
+      q,
+      sourceType,
+    });
   }
 
   @Get(":eventId")

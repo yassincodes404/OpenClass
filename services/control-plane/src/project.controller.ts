@@ -1,4 +1,15 @@
-import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Param, Post, Req, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import { z } from "zod";
 import { API_KEY_SCOPES } from "./api-key.service.js";
 import { KeycloakGuard, type Principal } from "./auth.js";
@@ -58,16 +69,30 @@ export class ProjectController {
     @Headers("idempotency-key") idempotencyKey?: string,
   ) {
     const input = parseBody(createProjectSchema, body);
-    return this.projects.create(request.principal, workspaceId, input.name, input.description, idempotencyKey?.slice(0, 200));
+    return this.projects.create(
+      request.principal,
+      workspaceId,
+      input.name,
+      input.description,
+      idempotencyKey?.slice(0, 200),
+    );
   }
 
   @Get(":projectId")
-  get(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  get(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     return this.projects.get(request.principal, workspaceId, projectId);
   }
 
   @Get(":projectId/classifiers")
-  listClassifiers(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  listClassifiers(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     return this.projects.listClassifiers(request.principal, workspaceId, projectId);
   }
 
@@ -110,7 +135,11 @@ export class ProjectController {
   }
 
   @Get(":projectId/keys")
-  listKeys(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  listKeys(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     return this.projects.listKeys(request.principal, workspaceId, projectId);
   }
 
