@@ -32,6 +32,8 @@ markers = ["live: opt-in real inference; requires OPENCLASS_RUN_LIVE_TESTS=1", "
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+# Frozen application-proof evidence is retained verbatim; it is not project source.
+extend-exclude = ["artifacts"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "ASYNC"]
