@@ -64,21 +64,14 @@ export default function ProjectsPage() {
 
   return (
     <main>
-      <header>
-        <div className="brand">
-          <span className="mark">OC</span>
-          <div>
-            <div className="eyebrow">OpenClass</div>
-            <h1>Projects</h1>
-          </div>
-        </div>
-        <span className="badge">Build mode</span>
-      </header>
-
-      <p className="lede">
+      <section className="intro compact-intro">
+        <p className="eyebrow">OPENCLASS / PORTAL</p>
+        <h1>Projects</h1>
+        <p className="lede">
         A project is a persistent workspace that owns data, decisions, knowledge and every evolution
         of them.
-      </p>
+        </p>
+      </section>
 
       <section className="panel">
         <h2 className="section-heading">Create project</h2>

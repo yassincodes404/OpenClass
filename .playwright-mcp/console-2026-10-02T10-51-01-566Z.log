@@ -1,0 +1,77 @@
+[  759851ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[  759866ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[  760070ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[  760079ms] [LOG] [Fast Refresh] done in 108ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1612360ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1612511ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1612549ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1635747ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1688378ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1689967ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1714343ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1719256ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1731845ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1736815ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1749436ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1771383ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1772198ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[  759851ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[  759866ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[  760070ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[  760079ms] [LOG] [Fast Refresh] done in 108ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1612360ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1612511ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1612549ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1635747ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1688378ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1689967ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1714343ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1719256ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1731845ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1736815ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1749436ms] [LOG] [Fast Refresh] done in 247ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1771383ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1772198ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1772869ms] [WARNING] [Fast Refresh] performing full reload
+
+Fast Refresh will perform a full reload when you edit a file that's imported by modules outside of the React rendering tree.
+You might have a file which exports a React component but also exports a value that is imported by a non-React component file.
+Consider migrating the non-React component export to a separate file and importing it into both files.
+
+It is also possible the parent component of the component you edited is a class component, which disables Fast Refresh.
+Fast Refresh requires at least one parent function component in your React tree. @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1773033ms] [LOG] [Fast Refresh] done in 1743ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1773038ms] [LOG] [Fast Refresh] done in 1743ms @ http://127.0.0.1:3000/_next/static/chunks/node_modules_next_dist_1e8vcs8._.js:776
+[ 1773109ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1773152ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1830926ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1831969ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 1831979ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 2108440ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2109441ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2110442ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2111445ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2112447ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2117453ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2122462ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2127481ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2132498ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3000/_next/hmr?id=Lhis1otzK1NcbS4z8GtiP' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_client_1bj6pmq._.js:16348
+[ 2137549ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 2138634ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 2138646ms] [LOG] [HMR] connected @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 2140030ms] [LOG] [Fast Refresh] rebuilding @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776
+[ 2140092ms] [LOG] [Fast Refresh] done in 162ms @ http://127.0.0.1:3000/_next/static/chunks/19q3_next_dist_1hpijv1._.js:776

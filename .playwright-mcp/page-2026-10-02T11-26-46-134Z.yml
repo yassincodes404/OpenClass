@@ -1,0 +1,34 @@
+- generic [active] [ref=f16e1]:
+  - banner [ref=f16e2]:
+    - link "OpenClass workspace home" [ref=f16e3] [cursor=pointer]:
+      - /url: /
+      - generic [aria-hidden] [ref=f16e4]: O↗
+      - text: OPENCLASS
+    - navigation "Portal navigation" [ref=f16e5]:
+      - link "Workspace" [ref=f16e6] [cursor=pointer]:
+        - /url: /
+      - link "Projects" [ref=f16e7] [cursor=pointer]:
+        - /url: /projects
+    - generic [ref=f16e8]: GENESIS / 0.0.1
+  - main [ref=f16e9]:
+    - generic [ref=f16e10]:
+      - paragraph [ref=f16e11]: OPENCLASS / PORTAL
+      - heading "Projects" [level=1] [ref=f16e12]
+      - paragraph [ref=f16e13]: A project is a persistent workspace that owns data, decisions, knowledge and every evolution of them.
+    - generic [ref=f16e14]:
+      - heading "Create project" [level=2] [ref=f16e15]
+      - generic [ref=f16e16]:
+        - generic [ref=f16e17]:
+          - text: Name
+          - textbox "Name" [ref=f16e18]:
+            - /placeholder: GymHolic Intelligence
+        - generic [ref=f16e19]:
+          - text: Description
+          - textbox "Description" [ref=f16e20]:
+            - /placeholder: Customer intelligence experiment
+        - button "Create project" [ref=f16e21] [cursor=pointer]
+    - generic [ref=f16e22]:
+      - heading "Projects" [level=2] [ref=f16e23]
+      - status [ref=f16e24]: Loading projects…
+  - button "Open Next.js Dev Tools" [ref=f16e30] [cursor=pointer]
+  - alert [ref=f16e34]

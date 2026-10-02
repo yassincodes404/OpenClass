@@ -1,0 +1,33 @@
+{
+  "name": "OpenClass Genesis portal",
+  "mood": "evidence-first, technical, calm",
+  "colorScheme": "dark",
+  "colors": {
+    "background": "#101411",
+    "surface": "#171d18",
+    "border": "#303a31",
+    "text": "#eef0e8",
+    "muted": "#a6b0a6",
+    "accent": "#c4f48a",
+    "warning": "#e2c68a",
+    "danger": "#ff9f9f"
+  },
+  "typography": {
+    "body": "Arial, Helvetica, sans-serif",
+    "technical": "ui-monospace, monospace",
+    "heading": "Arial, Helvetica, sans-serif"
+  },
+  "shape": {
+    "controlRadius": "4px",
+    "panelRadius": "10px",
+    "borderWidth": "1px"
+  },
+  "motion": {
+    "duration": "160ms",
+    "reducedMotion": "disable non-essential transitions"
+  },
+  "responsive": {
+    "compactBreakpoint": "720px",
+    "navigation": "wrap global navigation and allow project tabs to scroll horizontally"
+  }
+}

@@ -28,7 +28,7 @@ export function ProjectShell({
   const pathname = usePathname();
   return (
     <main>
-      <header>
+      <section className="project-heading">
         <div className="brand">
           <span className="mark">OC</span>
           <div>
@@ -37,7 +37,7 @@ export function ProjectShell({
           </div>
         </div>
         <span className="badge">{project.status}</span>
-      </header>
+      </section>
 
       <nav className="project-nav" aria-label="Project sections">
         {SECTIONS.map((section) => {

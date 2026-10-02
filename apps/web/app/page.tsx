@@ -83,15 +83,6 @@ export default function Home() {
 
   return (
     <main>
-      <header>
-        <a href="/" className="brand">
-          <span className="mark">
-            O<span>↗</span>
-          </span>
-          OPENCLASS
-        </a>
-        <span className="badge">GENESIS / 0.0.1</span>
-      </header>
       <section className="intro">
         <p className="eyebrow">THE OPEN-WORLD CLASSIFICATION ENGINE</p>
         <h1>

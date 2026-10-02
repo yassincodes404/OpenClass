@@ -1,0 +1,76 @@
+- generic [active] [ref=f16e1]:
+  - banner [ref=f16e2]:
+    - link "OpenClass workspace home" [ref=f16e3] [cursor=pointer]:
+      - /url: /
+      - generic [aria-hidden] [ref=f16e4]: O↗
+      - text: OPENCLASS
+    - navigation "Portal navigation" [ref=f16e5]:
+      - link "Workspace" [ref=f16e6] [cursor=pointer]:
+        - /url: /
+      - link "Projects" [ref=f16e7] [cursor=pointer]:
+        - /url: /projects
+    - generic [ref=f16e8]: GENESIS / 0.0.1
+  - button "Open Next.js Dev Tools" [ref=f16e30] [cursor=pointer]
+  - alert [ref=f16e34]
+  - main [ref=f16e40]:
+    - generic [ref=f16e41]:
+      - generic [ref=f16e42]:
+        - generic [ref=f16e43]: OC
+        - generic [ref=f16e44]:
+          - generic [ref=f16e45]: OpenClass · Project
+          - heading "Acme Support — Phase 1 demo" [level=1] [ref=f16e46]
+      - generic [ref=f16e47]: active
+    - navigation "Project sections" [ref=f16e48]:
+      - link "Overview" [ref=f16e49] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo
+      - link "Data" [ref=f16e50] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/data
+      - link "Decisions" [ref=f16e51] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/decisions
+      - link "Knowledge" [ref=f16e52] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/knowledge
+      - link "Evolution" [ref=f16e53] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/evolution
+      - link "Integrations" [ref=f16e54] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/integrations
+      - link "Analytics" [ref=f16e55] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/analytics
+      - link "Runs" [ref=f16e56] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/runs
+      - link "Settings" [ref=f16e57] [cursor=pointer]:
+        - /url: /projects/acme-support-phase-1-demo/settings
+    - generic [ref=f16e58]:
+      - heading "Overview" [level=2] [ref=f16e59]
+      - paragraph [ref=f16e60]: Simulated local project for portal navigation and project-route testing.
+      - generic [ref=f16e61]:
+        - generic [ref=f16e62]:
+          - term [ref=f16e63]: Slug
+          - definition [ref=f16e64]: acme-support-phase-1-demo
+        - generic [ref=f16e65]:
+          - term [ref=f16e66]: Created
+          - definition [ref=f16e67]: 10/2/2026
+        - generic [ref=f16e68]:
+          - term [ref=f16e69]: Status
+          - definition [ref=f16e70]: active
+    - generic [ref=f16e71]:
+      - heading "Activity" [level=2] [ref=f16e72]
+      - list [ref=f16e73]:
+        - listitem [ref=f16e74]:
+          - generic [ref=f16e75]: "0"
+          - generic [ref=f16e76]: Events
+        - listitem [ref=f16e77]:
+          - generic [ref=f16e78]: "0"
+          - generic [ref=f16e79]: Decision runs
+        - listitem [ref=f16e80]:
+          - generic [ref=f16e81]: "0"
+          - generic [ref=f16e82]: Unknowns
+        - listitem [ref=f16e83]:
+          - generic [ref=f16e84]: "0"
+          - generic [ref=f16e85]: Pending evidence
+        - listitem [ref=f16e86]:
+          - generic [ref=f16e87]: —
+          - generic [ref=f16e88]: Active policy
+        - listitem [ref=f16e89]:
+          - generic [ref=f16e90]: "0"
+          - generic [ref=f16e91]: Pending candidates
+      - paragraph [ref=f16e92]: Counters reflect project-scoped data that arrives with later slices; they are real server values, not samples.

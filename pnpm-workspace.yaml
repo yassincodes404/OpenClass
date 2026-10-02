@@ -1,0 +1,9 @@
+packages:
+  - apps/web
+  - packages/sdk-typescript
+
+catalog:
+  openclass-sdk: workspace:*
+
+allowBuilds:
+  esbuild: true

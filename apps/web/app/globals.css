@@ -21,13 +21,43 @@ main {
   margin: auto;
   padding: 0 36px;
 }
-header {
+.portal-header,
+.project-heading {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 28px 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--line);
   padding: 28px 0;
   gap: 20px;
+}
+.portal-header {
+  border-bottom: 1px solid var(--line);
+}
+.project-heading {
+  padding-bottom: 20px;
+}
+.portal-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.portal-link {
+  border: 1px solid transparent;
+  color: var(--muted);
+  font: 11px ui-monospace, monospace;
+  letter-spacing: 1.2px;
+  padding: 9px 11px;
+  text-decoration: none;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+.portal-link:hover,
+.portal-link.active {
+  border-color: var(--line);
+  color: var(--accent);
 }
 .brand {
   display: flex;
@@ -61,6 +91,9 @@ header {
 }
 .intro {
   padding: 66px 0 52px;
+}
+.compact-intro {
+  padding-bottom: 34px;
 }
 .eyebrow {
   color: var(--accent);
@@ -300,6 +333,16 @@ footer {
   padding: 28px 0 40px;
 }
 @media (max-width: 720px) {
+  .portal-header,
+  .project-heading {
+    padding: 20px;
+    flex-wrap: wrap;
+  }
+  .portal-nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+  }
   main {
     padding: 0 20px;
   }

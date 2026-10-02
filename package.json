@@ -10,10 +10,10 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "npm run dev --workspace=@openclass/web",
-    "build": "npm run build --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspace=@openclass/sdk",
+    "dev": "pnpm --filter @openclass/web dev",
+    "build": "pnpm --recursive --if-present run build",
+    "typecheck": "pnpm --recursive --if-present run typecheck",
+    "test": "pnpm --filter @openclass/sdk test",
     "test:web": "playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
