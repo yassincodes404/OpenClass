@@ -101,7 +101,13 @@ def decisions_router(
     ) -> list[DecisionRun]:
         service = await projects.get_decision_service(identifier, service_id)
         if service.provider_override:
-            exec_provider = resolve_decision_provider(config, service.provider_override)
+            try:
+                exec_provider = resolve_decision_provider(config, service.provider_override)
+            except ValueError as err:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Unsupported provider override: {service.provider_override}",
+                ) from err
         else:
             exec_provider = default_decision_provider
         executor = DecisionExecutor(exec_provider)
