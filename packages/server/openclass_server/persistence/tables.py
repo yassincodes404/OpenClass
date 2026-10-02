@@ -335,3 +335,29 @@ class ClusterMemberRow(Base):
     )
     run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), primary_key=True)
     similarity: Mapped[float] = mapped_column(Float, default=0.0)
+
+
+class ClusterCandidateRow(Base):
+    __tablename__ = "cluster_candidates"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    cluster_id: Mapped[str] = mapped_column(ForeignKey("unknown_clusters.id", ondelete="CASCADE"))
+    type: Mapped[str] = mapped_column(String(30))
+    canonical_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    definition: Mapped[str | None] = mapped_column(Text, nullable=True)
+    aliases: Mapped[list[str]] = mapped_column(JSON)
+    existing_match: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    confidence: Mapped[float] = mapped_column(Float)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20))
+    provider: Mapped[str] = mapped_column(String(50))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CandidateEvidenceRow(Base):
+    __tablename__ = "candidate_evidence"
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("cluster_candidates.id", ondelete="CASCADE"), primary_key=True
+    )
+    run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), primary_key=True)

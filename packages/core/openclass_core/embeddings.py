@@ -60,7 +60,8 @@ def group_into_clusters(items: Sequence[EmbeddedItem], threshold: float) -> list
     centroids: list[list[float]] = []
     groups: list[list[str]] = []
     similarities: list[list[float]] = []
-    for item in sorted(items, key=lambda entry: entry.item_id):
+    # Text-first ordering keeps grouping stable regardless of random item ids.
+    for item in sorted(items, key=lambda entry: (entry.text, entry.item_id)):
         best_index = -1
         best_score = threshold
         for index, centroid in enumerate(centroids):

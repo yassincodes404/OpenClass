@@ -225,3 +225,26 @@ raises a safe unsupported error when absent — vectors are never fabricated.
 Grouping is greedy cosine first-fit over id-sorted items (threshold default
 0.82; the demo seeds use 0.5 for lexical vectors). Clusters are observation
 groupings only — never classes.
+
+## Phase 10 discovery & canonicalization testing
+
+Engine migration `0016_cluster_candidates`. Seeder: `pnpm seed:portal-phase-10`
+(discovery on the two largest clusters; expects a cancellation NEW_CLASS — the
+intake ontology deliberately lacks it — plus further candidates; small clusters
+yield INSUFFICIENT_EVIDENCE).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Discover the cancel cluster (Clusters page → API) | Candidate with definition + aliases, status inactive |
+| 2 | Discover a singleton cluster | INSUFFICIENT_EVIDENCE, no promotion path |
+| 3 | Check "cancel plan" / "close subscription" | Canonicalized to one proposal (synonym map) |
+| 4 | Open `/projects/:id/discoveries` + a candidate | Type chip, confidence, evidence runs, provenance, read-only |
+
+All six proposal types are handled (NEW_CLASS/EXISTING_CLASS/ALIAS/
+INSUFFICIENT_EVIDENCE/OUT_OF_DOMAIN/SCHEMA_ISSUE). Candidates are inactive by
+construction; providers cannot write the ontology; discovery uses the mock
+cluster provider (deterministic, simulated) with no per-unknown LLM calls.
+Engine routes are `/discovery-candidates` (the classifier-plane `/candidates`
+path stays with the existing evolution surface).

@@ -23,6 +23,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from openclass_server.api.candidates import candidates_router
 from openclass_server.api.classifiers import classifiers_router
 from openclass_server.api.clusters import clusters_router
 from openclass_server.api.decisions import decisions_router
@@ -202,4 +203,9 @@ def create_app(
         )
     )
     app.include_router(unknowns_router(config, projects, triage_store))
+    app.include_router(
+        candidates_router(
+            config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+        )
+    )
     return app
