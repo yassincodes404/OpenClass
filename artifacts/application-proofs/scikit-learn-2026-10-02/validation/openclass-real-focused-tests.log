@@ -1,0 +1,18 @@
+............................                                             [100%]
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/openclass-portal-phase-10/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_discovery_candidates.py: 8 warnings
+tests/integration/test_embeddings_clustering.py: 21 warnings
+  /tmp/openclass-portal-phase-10/.venv/lib/python3.12/site-packages/aiosqlite/core.py:63: DeprecationWarning: The default date adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    result = function()
+
+tests/integration/test_discovery_candidates.py: 20 warnings
+tests/integration/test_embeddings_clustering.py: 42 warnings
+  /tmp/openclass-portal-phase-10/.venv/lib/python3.12/site-packages/aiosqlite/core.py:63: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    result = function()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+28 passed, 92 warnings in 1.32s

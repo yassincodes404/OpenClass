@@ -1,5 +1,9 @@
 # Discovery productionization reconciliation
 
+The 2026-10-02 [application proof program](application-proof-program.md) supersedes
+the immediate sequencing below. This document remains a historical reuse assessment;
+frozen research records and evaluation/approval safeguards still apply.
+
 Date: 2026-09-24. Status: implementation plan for review, not a release claim.
 Baseline supplied by the founder: `9118f21042508ec60deae4e68270b9e3e2f16e80`.
 The working tree contains uncommitted experiments beyond that baseline. Their

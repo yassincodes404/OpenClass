@@ -1,0 +1,417 @@
+{
+  "generated_at_utc": "2026-10-02T17:26:55.606482+00:00",
+  "branch": "origin/feat/portal-phase-10",
+  "baseline_commit": "d539862",
+  "deployment": "Local Phase 10 checkout with bounded real-provider wiring",
+  "workspace": {
+    "id": "828d1936-3bc6-4103-96b6-84bfdbb86055",
+    "slug": "real-scikit-learn-issue-triage",
+    "name": "Real scikit-learn issue triage",
+    "role": "owner"
+  },
+  "metrics": {
+    "gpt": {
+      "source_cases": 60,
+      "recorded_terminal_cases": 60,
+      "completed_unique_cases": 56,
+      "failed_terminal_cases": 4,
+      "source_label_coverage": 0.9333333333333333,
+      "correct": 43,
+      "accuracy": 0.7678571428571429,
+      "known_correct": 39,
+      "known_completed": 45,
+      "known_accuracy": 0.8666666666666667,
+      "heldout_completed": 11,
+      "heldout_unknown_detected": 4,
+      "heldout_unknown_recall": 0.36363636363636365,
+      "unknown_predictions": 4,
+      "unknown_precision": 1.0,
+      "unknown_rate": 0.07142857142857142,
+      "trusted": 51,
+      "trusted_errors": 12,
+      "trusted_error_rate": 0.23529411764705882,
+      "macro_f1": 0.7426313628899835,
+      "per_class_f1": {
+        "BUG": 0.75,
+        "ENHANCEMENT": 0.7586206896551724,
+        "DOCUMENTATION": 0.9285714285714286,
+        "UNKNOWN": 0.5333333333333333
+      },
+      "confusion_matrix": {
+        "BUG": {
+          "BUG": 15,
+          "ENHANCEMENT": 0,
+          "DOCUMENTATION": 0,
+          "UNKNOWN": 0
+        },
+        "ENHANCEMENT": {
+          "BUG": 4,
+          "ENHANCEMENT": 11,
+          "DOCUMENTATION": 0,
+          "UNKNOWN": 0
+        },
+        "DOCUMENTATION": {
+          "BUG": 2,
+          "ENHANCEMENT": 0,
+          "DOCUMENTATION": 13,
+          "UNKNOWN": 0
+        },
+        "UNKNOWN": {
+          "BUG": 4,
+          "ENHANCEMENT": 3,
+          "DOCUMENTATION": 0,
+          "UNKNOWN": 4
+        }
+      },
+      "latency_sample_count": 56,
+      "p50_latency_ms": 1563.7048390008204,
+      "p95_latency_ms": 3136.2597892498343,
+      "unique_completed_decision_reported_cost_usd": 0.0237084,
+      "cost_coverage": 1.0,
+      "all_runs_real": true,
+      "failures": [
+        {
+          "number": 31808,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/31808",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.85,
+            "ENHANCEMENT": 0.1,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.05
+          }
+        },
+        {
+          "number": 31536,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/31536",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.85,
+            "ENHANCEMENT": 0.1,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.05
+          }
+        },
+        {
+          "number": 31315,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/31315",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.85,
+            "ENHANCEMENT": 0.05,
+            "DOCUMENTATION": 0.1,
+            "UNKNOWN": 0
+          }
+        },
+        {
+          "number": 30689,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/30689",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.7,
+            "ENHANCEMENT": 0.1,
+            "DOCUMENTATION": 0.1,
+            "UNKNOWN": 0.1
+          }
+        },
+        {
+          "number": 34880,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34880",
+          "reference": "DOCUMENTATION",
+          "prediction": "BUG",
+          "supervision": "REVIEW",
+          "scores": {
+            "BUG": 0.6,
+            "ENHANCEMENT": 0,
+            "DOCUMENTATION": 0.4,
+            "UNKNOWN": 0
+          }
+        },
+        {
+          "number": 34845,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34845",
+          "reference": "DOCUMENTATION",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.7,
+            "ENHANCEMENT": 0.25,
+            "DOCUMENTATION": 0.05,
+            "UNKNOWN": 0
+          }
+        },
+        {
+          "number": 34869,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34869",
+          "reference": "UNKNOWN",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.95,
+            "ENHANCEMENT": 0.03,
+            "DOCUMENTATION": 0.01,
+            "UNKNOWN": 0.01
+          }
+        },
+        {
+          "number": 34723,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34723",
+          "reference": "UNKNOWN",
+          "prediction": "ENHANCEMENT",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0,
+            "ENHANCEMENT": 0.8,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.2
+          }
+        },
+        {
+          "number": 34719,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34719",
+          "reference": "UNKNOWN",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.7,
+            "ENHANCEMENT": 0.2,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.1
+          }
+        },
+        {
+          "number": 34639,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34639",
+          "reference": "UNKNOWN",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.7,
+            "ENHANCEMENT": 0.1,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.2
+          }
+        },
+        {
+          "number": 34292,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34292",
+          "reference": "UNKNOWN",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.8,
+            "ENHANCEMENT": 0,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.2
+          }
+        },
+        {
+          "number": 34045,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34045",
+          "reference": "UNKNOWN",
+          "prediction": "ENHANCEMENT",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.1,
+            "ENHANCEMENT": 0.7,
+            "DOCUMENTATION": 0.1,
+            "UNKNOWN": 0.1
+          }
+        },
+        {
+          "number": 33775,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/33775",
+          "reference": "UNKNOWN",
+          "prediction": "ENHANCEMENT",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0,
+            "ENHANCEMENT": 0.95,
+            "DOCUMENTATION": 0.05,
+            "UNKNOWN": 0
+          }
+        }
+      ]
+    },
+    "gemini": {
+      "source_cases": 60,
+      "recorded_terminal_cases": 60,
+      "completed_unique_cases": 38,
+      "failed_terminal_cases": 22,
+      "source_label_coverage": 0.6333333333333333,
+      "correct": 31,
+      "accuracy": 0.8157894736842105,
+      "known_correct": 29,
+      "known_completed": 35,
+      "known_accuracy": 0.8285714285714286,
+      "heldout_completed": 3,
+      "heldout_unknown_detected": 2,
+      "heldout_unknown_recall": 0.6666666666666666,
+      "unknown_predictions": 2,
+      "unknown_precision": 1.0,
+      "unknown_rate": 0.05263157894736842,
+      "trusted": 36,
+      "trusted_errors": 7,
+      "trusted_error_rate": 0.19444444444444445,
+      "macro_f1": 0.8231060606060606,
+      "per_class_f1": {
+        "BUG": 0.8333333333333334,
+        "ENHANCEMENT": 0.75,
+        "DOCUMENTATION": 0.9090909090909091,
+        "UNKNOWN": 0.8
+      },
+      "confusion_matrix": {
+        "BUG": {
+          "BUG": 15,
+          "ENHANCEMENT": 0,
+          "DOCUMENTATION": 0,
+          "UNKNOWN": 0
+        },
+        "ENHANCEMENT": {
+          "BUG": 5,
+          "ENHANCEMENT": 9,
+          "DOCUMENTATION": 1,
+          "UNKNOWN": 0
+        },
+        "DOCUMENTATION": {
+          "BUG": 0,
+          "ENHANCEMENT": 0,
+          "DOCUMENTATION": 5,
+          "UNKNOWN": 0
+        },
+        "UNKNOWN": {
+          "BUG": 1,
+          "ENHANCEMENT": 0,
+          "DOCUMENTATION": 0,
+          "UNKNOWN": 2
+        }
+      },
+      "latency_sample_count": 38,
+      "p50_latency_ms": 2066.801795500396,
+      "p95_latency_ms": 8771.283513399974,
+      "unique_completed_decision_reported_cost_usd": 0.0454657,
+      "cost_coverage": 1.0,
+      "all_runs_real": true,
+      "failures": [
+        {
+          "number": 33842,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/33842",
+          "reference": "ENHANCEMENT",
+          "prediction": "DOCUMENTATION",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0,
+            "ENHANCEMENT": 0.1,
+            "DOCUMENTATION": 0.9,
+            "UNKNOWN": 0
+          }
+        },
+        {
+          "number": 31808,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/31808",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 1,
+            "ENHANCEMENT": 0,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0
+          }
+        },
+        {
+          "number": 31536,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/31536",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.9,
+            "ENHANCEMENT": 0.05,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.05
+          }
+        },
+        {
+          "number": 31315,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/31315",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.8,
+            "ENHANCEMENT": 0.15,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.05
+          }
+        },
+        {
+          "number": 30689,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/30689",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.9,
+            "ENHANCEMENT": 0.05,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.05
+          }
+        },
+        {
+          "number": 30664,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/30664",
+          "reference": "ENHANCEMENT",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 0.8,
+            "ENHANCEMENT": 0.15,
+            "DOCUMENTATION": 0,
+            "UNKNOWN": 0.05
+          }
+        },
+        {
+          "number": 34869,
+          "url": "https://github.com/scikit-learn/scikit-learn/issues/34869",
+          "reference": "UNKNOWN",
+          "prediction": "BUG",
+          "supervision": "TRUSTED",
+          "scores": {
+            "BUG": 1.0,
+            "ENHANCEMENT": 0.0,
+            "DOCUMENTATION": 0.0,
+            "UNKNOWN": 0.0
+          }
+        }
+      ]
+    }
+  },
+  "provider_telemetry_event_counts": {
+    "provider.completed": 108,
+    "provider.error": 252,
+    "runtime.error": 214
+  },
+  "gateway_reported_pipeline_cost_usd": 0.0758268,
+  "pipeline_calls_with_reported_cost": 106,
+  "cost_scope": "Reported successful API-pipeline choice/cluster-discovery calls, including persisted diagnostic duplicates; excludes embeddings without reported cost, connectivity probes, legacy Teacher/diagnosis calls without persisted cost, and unreported failed-call charges. This is not a complete bill.",
+  "provider_errors_by_status": {
+    "429": 251,
+    "403": 1
+  },
+  "blocked_metrics": {
+    "learned_improvement": null,
+    "knowledge_retention": null,
+    "execution_success_rate": null,
+    "verification_success_rate": null,
+    "complete_teacher_cost": null
+  }
+}

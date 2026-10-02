@@ -1,0 +1,132 @@
+[
+  {
+    "id": "3b5427c3-fbb3-4f1b-a38a-e0454b122c09",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "03530f44-0ccd-4118-9b65-75155aff21ad",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Enhancement; configured reference ENHANCEMENT. Source: https://github.com/scikit-learn/scikit-learn/issues/31808",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.254629"
+  },
+  {
+    "id": "04d251b2-2b8c-4515-b641-bd41cbc0e6f0",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "35477e34-e89b-4d33-830b-a9d32ab9dca8",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Enhancement; configured reference ENHANCEMENT. Source: https://github.com/scikit-learn/scikit-learn/issues/31536",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.263243"
+  },
+  {
+    "id": "092ba37d-d00c-4991-935f-173756d68e5a",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "91675b3f-6e45-43c4-9439-15403f5db9ca",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Enhancement; configured reference ENHANCEMENT. Source: https://github.com/scikit-learn/scikit-learn/issues/31315",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.269206"
+  },
+  {
+    "id": "56a51170-ad37-4bfe-8cbf-6a27276320bf",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "ab23d608-7a3f-4186-a5a7-039b2518deb2",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Enhancement; configured reference ENHANCEMENT. Source: https://github.com/scikit-learn/scikit-learn/issues/30689",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.275726"
+  },
+  {
+    "id": "a49f6065-ddcc-4129-861b-95fca2eff4ef",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "a1a433a1-fbd4-49e8-a8c5-d1bc8a95d9ba",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Documentation; configured reference DOCUMENTATION. Source: https://github.com/scikit-learn/scikit-learn/issues/34880",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.281639"
+  },
+  {
+    "id": "43cb7dd7-21a6-48a5-a12e-3d49849fb85e",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "cfa803ce-61ed-4f83-9e72-8513a55539f5",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Documentation; configured reference DOCUMENTATION. Source: https://github.com/scikit-learn/scikit-learn/issues/34845",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.287402"
+  },
+  {
+    "id": "cac37263-1724-417f-b286-591f31030639",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "a8833785-2676-4aa4-afc7-6c1a578241ec",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Build / CI; configured reference UNKNOWN. Source: https://github.com/scikit-learn/scikit-learn/issues/34869",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.292830"
+  },
+  {
+    "id": "d255001a-c86e-4659-b80c-5ad6645435be",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "94239357-8b4b-44c8-bde2-d1fe79d9c1fc",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Build / CI; configured reference UNKNOWN. Source: https://github.com/scikit-learn/scikit-learn/issues/34723",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.298171"
+  },
+  {
+    "id": "197dcc0a-e75c-412c-9554-c8b39e52a257",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "3bf8d94a-39d1-48b0-9cce-a48e821c4ec5",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Build / CI; configured reference UNKNOWN. Source: https://github.com/scikit-learn/scikit-learn/issues/34719",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.303374"
+  },
+  {
+    "id": "7b7d534f-c8e4-452a-a67d-b5d610281dec",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "37bb575c-5248-4db0-a72b-a628f0e026d0",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Build / CI; configured reference UNKNOWN. Source: https://github.com/scikit-learn/scikit-learn/issues/34639",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.308799"
+  },
+  {
+    "id": "f3057df5-99be-4e33-acac-fd41ed7e42db",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "6915fc1f-c99f-474a-8e1c-bf97b391e23a",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Build / CI; configured reference UNKNOWN. Source: https://github.com/scikit-learn/scikit-learn/issues/34292",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.314585"
+  },
+  {
+    "id": "1a6db7db-ab16-4187-a98f-bf3c1aaf8403",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "26c09b9f-1ba0-4539-b680-b80a547f9459",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Build / CI; configured reference UNKNOWN. Source: https://github.com/scikit-learn/scikit-learn/issues/34045",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.319931"
+  },
+  {
+    "id": "04828491-2b63-490e-97ce-8592a88bb88b",
+    "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+    "decision_run_id": "b0750415-122e-48d2-bae7-9817fcae4b5c",
+    "action": "note",
+    "corrected_choice": null,
+    "note": "Automated external-reference comparison, not human adjudication: source maintainer label Build / CI; configured reference UNKNOWN. Source: https://github.com/scikit-learn/scikit-learn/issues/33775",
+    "actor": "local-user",
+    "created_at": "2026-10-02T20:12:23.325245"
+  }
+]

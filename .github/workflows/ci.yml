@@ -62,6 +62,8 @@ jobs:
       - run: npm audit --omit=dev --audit-level=high
   compose:
     runs-on: ubuntu-latest
+    env:
+      OPENCLASS_DECISION_PROVIDER: mock
     steps:
       - uses: actions/checkout@v4
       - run: docker compose up --build -d --wait

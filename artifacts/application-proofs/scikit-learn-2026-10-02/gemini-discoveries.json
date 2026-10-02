@@ -1,0 +1,40 @@
+[
+  {
+    "cluster_id": "01671dd2-b476-4689-8b5c-aba69226e21d",
+    "cluster_size": 2,
+    "candidate": {
+      "id": "b6789be1-71cf-42a8-909e-18a456088307",
+      "type": "INSUFFICIENT_EVIDENCE",
+      "canonical_name": null,
+      "display_name": null,
+      "definition": null,
+      "aliases": [],
+      "existing_match": null,
+      "confidence": 0.3,
+      "reason": "The observations describe issues and discussions related to CI workflows and wheel building in the scikit-learn project, which relate to existing classes such as 'bug' or 'enhancement'. However, there are fewer than three distinct items and no clear new class concept emerges from the data. Therefore, insufficient evidence exists to propose a new or distinct cluster.",
+      "status": "candidate",
+      "provider": "openai-compatible:openai/gpt-4.1-mini",
+      "simulated": false
+    }
+  },
+  {
+    "cluster_id": "ee76e6fa-1aab-4bbf-b75e-5ff69c933afb",
+    "cluster_size": 1,
+    "candidate": {
+      "id": "1e4cd65d-941d-45d6-a65b-2bd9261ccdcf",
+      "type": "INSUFFICIENT_EVIDENCE",
+      "canonical_name": null,
+      "display_name": null,
+      "definition": null,
+      "aliases": [
+        "ports problem"
+      ],
+      "existing_match": null,
+      "confidence": 0.3,
+      "reason": "Only one observation 'ports problem' is provided, which is insufficient to determine a new or existing class. It is unclear if this refers to a bug, enhancement, or other issue.",
+      "status": "candidate",
+      "provider": "openai-compatible:openai/gpt-4.1-mini",
+      "simulated": false
+    }
+  }
+]

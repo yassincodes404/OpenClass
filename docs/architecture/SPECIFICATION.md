@@ -1,5 +1,10 @@
 # OpenClass — canonical implementation specification
 
+The founder-authorized 2026-10-02 [application proof program](application-proof-program.md)
+sets the current development priority: shared execution, integrations and measured
+outcomes across domains. It supersedes earlier immediate sequencing while retaining
+this specification's invariants and Genesis/Discovery release gates.
+
 The 2026-09-24 platform direction and experiment-to-product reconciliation are
 recorded in [Discovery productionization](../architecture/discovery-productionization.md).
 The expanded roadmap is proposed; Genesis and existing ticket IDs remain intact.

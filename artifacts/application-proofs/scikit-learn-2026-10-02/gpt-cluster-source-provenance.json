@@ -1,0 +1,96 @@
+[
+  {
+    "cluster_id": "511cfe9c-112a-4461-be53-1e67ea1ea185",
+    "members": [
+      {
+        "run_id": "ee54e699-e978-4c89-b5ac-aa2a58027d6f",
+        "raw_event_id": "773a1089-f0a7-4f61-8ca0-6502d1cd3681",
+        "issue_number": 34017,
+        "model": "openai/gpt-4.1-mini",
+        "in_frozen_cohort": true,
+        "source_type": "json",
+        "metadata_keys": [
+          "source_repository",
+          "source_url",
+          "source_issue_number",
+          "source_sha256",
+          "submitted_sha256",
+          "truncated"
+        ]
+      },
+      {
+        "run_id": "ab94cd83-2dd4-4966-9902-0bc431a8fe5a",
+        "raw_event_id": "f3944b11-243d-4441-98db-c40dd61df335",
+        "issue_number": 34569,
+        "model": "openai/gpt-4.1-mini",
+        "in_frozen_cohort": true,
+        "source_type": "json",
+        "metadata_keys": [
+          "source_repository",
+          "source_url",
+          "source_issue_number",
+          "source_sha256",
+          "submitted_sha256",
+          "truncated"
+        ]
+      },
+      {
+        "run_id": "ade58361-b407-44a5-ad54-b4e8c6981691",
+        "raw_event_id": "58b770a5-ffbe-4e03-9f91-5dfaf5eafb45",
+        "issue_number": 34717,
+        "model": "openai/gpt-4.1-mini",
+        "in_frozen_cohort": true,
+        "source_type": "json",
+        "metadata_keys": [
+          "source_repository",
+          "source_url",
+          "source_issue_number",
+          "source_sha256",
+          "submitted_sha256",
+          "truncated"
+        ]
+      }
+    ],
+    "distinct_source_events": 3,
+    "frozen_cohort_members": 3
+  },
+  {
+    "cluster_id": "57f9af18-ec6d-4d40-9d4c-62077ef2d880",
+    "members": [
+      {
+        "run_id": "bcfaadd1-b89e-493a-a82c-f64a15804d8d",
+        "raw_event_id": "d7ba1a0b-75ec-4852-a3c1-d920ef122817",
+        "issue_number": null,
+        "model": "openai/gpt-4.1-mini",
+        "in_frozen_cohort": false,
+        "source_type": "text",
+        "metadata_keys": []
+      }
+    ],
+    "distinct_source_events": 1,
+    "frozen_cohort_members": 0
+  },
+  {
+    "cluster_id": "a3533949-d9a0-4484-bdb4-a142beba3310",
+    "members": [
+      {
+        "run_id": "5d215591-0c4e-4385-94cb-ec789ef709e3",
+        "raw_event_id": "3e18c8bb-cd86-4411-8bf0-fcf1cf80895a",
+        "issue_number": 34458,
+        "model": "openai/gpt-4.1-mini",
+        "in_frozen_cohort": true,
+        "source_type": "json",
+        "metadata_keys": [
+          "source_repository",
+          "source_url",
+          "source_issue_number",
+          "source_sha256",
+          "submitted_sha256",
+          "truncated"
+        ]
+      }
+    ],
+    "distinct_source_events": 1,
+    "frozen_cohort_members": 1
+  }
+]

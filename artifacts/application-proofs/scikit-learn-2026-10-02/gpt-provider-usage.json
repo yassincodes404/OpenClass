@@ -1,0 +1,24 @@
+[
+  {
+    "provider": "openai-compatible",
+    "model": "openai/gpt-4.1-mini",
+    "date": "2026-10-02",
+    "calls": 60,
+    "errors": 0,
+    "input_tokens": 53746,
+    "output_tokens": 1800,
+    "estimated_cost": 0.024378399999999998,
+    "avg_latency_ms": 1720.18
+  },
+  {
+    "provider": "provider",
+    "model": "",
+    "date": "2026-10-02",
+    "calls": 0,
+    "errors": 140,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "estimated_cost": 0.0,
+    "avg_latency_ms": 0.0
+  }
+]

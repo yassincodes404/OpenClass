@@ -1,0 +1,20 @@
+[
+  {
+    "id": "01671dd2-b476-4689-8b5c-aba69226e21d",
+    "algorithm": "greedy-cosine-first-fit",
+    "model": "cohere/embed-v4.0",
+    "threshold": 0.55,
+    "created_at": "2026-10-02T17:19:25.872561Z",
+    "size": 2,
+    "simulated": false
+  },
+  {
+    "id": "ee76e6fa-1aab-4bbf-b75e-5ff69c933afb",
+    "algorithm": "greedy-cosine-first-fit",
+    "model": "cohere/embed-v4.0",
+    "threshold": 0.55,
+    "created_at": "2026-10-02T17:19:25.872561Z",
+    "size": 1,
+    "simulated": false
+  }
+]

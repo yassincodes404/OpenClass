@@ -1,5 +1,9 @@
 # Initial development tickets
 
+Current priorities follow the founder-authorized 2026-10-02
+[application proof program](../architecture/application-proof-program.md).
+OC-034–039 below preserve existing IDs and evaluation/release gates.
+
 The 2026-09-24 platform direction and experiment-to-product reconciliation are
 recorded in [Discovery productionization](../architecture/discovery-productionization.md).
 The expanded roadmap is proposed; Genesis and existing ticket IDs remain intact.
@@ -228,3 +232,82 @@ missing/bad credentials cannot ingest; retries survive restart; project lookup p
 cross-project access; source/audit/receipt history rejects UPDATE/DELETE; failures roll
 back all ingestion writes; unsupported adapters cannot invent connected capabilities;
 blocked activation leaves service/candidate/evidence/run/audit snapshots unchanged.
+
+## OC-034 — Restore the target-branch CI baseline
+
+**Priority:** P0. **Status:** partial local fix; target-branch validation pending.
+At remote main `469482350102bddb00c55d773256cf10f60f997b`, CI run `37004638713`
+failed npm installation (`workspace:*` unsupported), Python formatting
+(`scripts/seed_portal_phase_01.py`) and Compose classification (provider HTTP 502).
+The portal dependency/seed files are absent from this checkout. Use the explicit
+simulated mock provider for credential-free Compose smoke checks; fix dependency
+resolution and formatting on the branch containing those files.
+**Acceptance:** clean locked installs; all CI jobs pass on the reviewed target
+commit, including disposable migrated PostgreSQL and Compose; no live credentials
+or publication used to validate. Local passing checks alone do not close this ticket.
+
+## OC-035 — Versioned transition, execution and verification vertical
+
+**Depends on:** OC-034; OC-017 for immutable decision configuration references.
+**Priority:** P0. **Status:** planned; contract review precedes implementation.
+Review typed state provenance/freshness, semantic Choice → Transition binding,
+scoped capability registry, execution intent/outcome and independent verification.
+Implement one bounded HTTP capability plus termination in customer operations.
+Migrate append-only records explicitly; persist intent before side effects and
+handle idempotency, ambiguous outcomes, bounded retries and reconciliation.
+**Acceptance:** public API → SDK → UI action → external outcome → verifier →
+persisted result survives restart; wrong project/version, unavailable capability,
+malformed output, timeout and failed postcondition produce safe typed errors/events.
+Retries never blindly repeat ambiguous non-idempotent effects. UNKNOWN does not
+grant execution authority. No arbitrary shell or generated code in this slice.
+
+## OC-036 — Shared integration manifests and generic adapters
+
+**Depends on:** OC-033, OC-035. **Priority:** P0. **Status:** planned.
+Introduce manifests and project bindings for implemented SOURCE/QUERY/CAPABILITY/
+TRIGGER/SINK roles, typed schemas and verifier/version identities. Reuse webhook
+receipts and environment secret references. Ship HTTP and CSV/JSON first, then
+read-only PostgreSQL and MQTT as application protocols need them.
+**Acceptance:** two applications reuse the same adapter/binding mechanism;
+unsupported roles remain explicit; auth/health/permissions are distinct; contracts
+cover isolation, malformed input, redaction, deduplication and restart recovery.
+No speculative queues, marketplace or writable ontology access for adapters.
+
+## OC-037 — Persisted application proof reports
+
+**Depends on:** OC-035/036; learning metrics additionally depend on OC-008/009/017.
+**Priority:** P1. **Status:** planned.
+Implement typed report queries, HTTP SDKs and a minimal evidence/report view using
+persisted decisions, executions, verifications, usage, reviews and version history.
+Follow the program's metric definitions, provenance and denominators. Partial
+reports mark unavailable metrics explicitly; no invented savings or passing scores.
+**Acceptance:** hand-computed metric fixtures cover missing labels/costs, zero
+denominators, pending outcomes, rejected evaluations and version/cohort comparison;
+reports reproduce after restart and reject cross-project queries. Document API,
+safe errors and report-generation events. Preserve success and failure evidence.
+
+## OC-038 — Customer and developer operations proofs
+
+**Depends on:** OC-035–037; reviewed learning depends on OC-008/009/017.
+**Priority:** P1. **Status:** planned. **Related:** OC-028/029/030.
+First run authorized customer data through one externally verified routing action.
+Then run a bounded developer recovery against a disposable OpenClass environment.
+Declare hypotheses, labels, retained cases and postconditions before execution.
+**Acceptance:** same Core and integration contracts; real ingestion/action evidence,
+UNKNOWN cases and failed outcomes retained; measured reports expose evidence level.
+Claims of learned reuse require actual evaluated, human-reviewed vN → vN+1 and
+later replay/reuse. Developer actions are allowlisted and confined; verify Git and
+filesystem state. Research artifacts remain frozen and separate from production.
+
+## OC-039 — Smart-home and robot simulator proofs; cross-domain comparison
+
+**Depends on:** OC-038 and fixes justified by its evidence.
+**Priority:** P2. **Status:** planned.
+Use MQTT/simulator state for smart-home behavior and structured perception plus
+deterministic controls for a robot simulator. Record seeds, state freshness,
+missing-input failures, outcomes and retention. Real devices require later scoped
+application work. Compare all four protocols using persisted reports.
+**Acceptance:** no domain-specific Core fork; adapter/configuration reuse is explicit;
+both simulator proofs include failure scenarios and restart checks; simulated
+results remain labeled. The comparison states sample sizes, provenance, unavailable
+metrics and generalization limits without extrapolating scale or capability claims.

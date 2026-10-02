@@ -1,0 +1,26 @@
+{
+  "id": "4a6eb4b3-daf8-4e20-9d03-b6f7d18af833",
+  "project_id": "606c3660-c3a4-4c3f-af4b-9a77d0f9e9bd",
+  "decision_service_id": "b70f164f-d827-4167-b3c6-f4c0bf0c87cc",
+  "base_service_hash": "38a0dfa81f6e8a094251ba485dcccf34cd5503b00a0607d8b160d2d845d0ad89",
+  "evidence_run_ids": [
+    "ade58361-b407-44a5-ad54-b4e8c6981691",
+    "ab94cd83-2dd4-4966-9902-0bc431a8fe5a",
+    "5d215591-0c4e-4385-94cb-ec789ef709e3",
+    "ee54e699-e978-4c89-b5ac-aa2a58027d6f"
+  ],
+  "proposal": {
+    "kind": "existing_choice",
+    "key": "UNKNOWN",
+    "label": "Unknown",
+    "description": "Input cannot be reliably classified, is ambiguous, out of domain, or novel.",
+    "rationale": "All unknown evidence concerns CI failures, wheel building, packaging infrastructure, or ambiguous test failures that do not clearly pertain to core scikit-learn code bugs, enhancements, or documentation issues. Instructions explicitly direct to route issues related to build/CI, packaging, installation infrastructure as UNKNOWN. Hence, the evidence supports routing to the existing UNKNOWN category.",
+    "provider": "openai-compatible",
+    "model": "openai/gpt-4.1-mini",
+    "simulated": false
+  },
+  "status": "candidate",
+  "rejection_reason": null,
+  "promoted_at": null,
+  "created_at": "2026-10-02T17:12:30.725376Z"
+}

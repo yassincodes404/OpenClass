@@ -1,0 +1,29 @@
+[
+  {
+    "id": "511cfe9c-112a-4461-be53-1e67ea1ea185",
+    "algorithm": "greedy-cosine-first-fit",
+    "model": "cohere/embed-v4.0",
+    "threshold": 0.55,
+    "created_at": "2026-10-02T17:17:16.811297Z",
+    "size": 3,
+    "simulated": false
+  },
+  {
+    "id": "57f9af18-ec6d-4d40-9d4c-62077ef2d880",
+    "algorithm": "greedy-cosine-first-fit",
+    "model": "cohere/embed-v4.0",
+    "threshold": 0.55,
+    "created_at": "2026-10-02T17:17:16.811297Z",
+    "size": 1,
+    "simulated": false
+  },
+  {
+    "id": "a3533949-d9a0-4484-bdb4-a142beba3310",
+    "algorithm": "greedy-cosine-first-fit",
+    "model": "cohere/embed-v4.0",
+    "threshold": 0.55,
+    "created_at": "2026-10-02T17:17:16.811297Z",
+    "size": 1,
+    "simulated": false
+  }
+]

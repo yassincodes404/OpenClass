@@ -1,0 +1,57 @@
+[
+  {
+    "cluster_id": "01671dd2-b476-4689-8b5c-aba69226e21d",
+    "members": [
+      {
+        "run_id": "1238a5b6-a006-46a4-89ac-849bf044f60c",
+        "raw_event_id": "ba902fb4-f9db-400b-b226-f093181d4354",
+        "issue_number": 34017,
+        "model": "google/gemini-2.5-flash",
+        "in_frozen_cohort": true,
+        "source_type": "json",
+        "metadata_keys": [
+          "source_repository",
+          "source_url",
+          "source_issue_number",
+          "source_sha256",
+          "submitted_sha256",
+          "truncated"
+        ]
+      },
+      {
+        "run_id": "5670d7e1-4f2c-4d55-b180-0136c7767dae",
+        "raw_event_id": "ba90729d-39e6-408a-b9f7-1ceb23210cd4",
+        "issue_number": 34723,
+        "model": "google/gemini-2.5-flash",
+        "in_frozen_cohort": true,
+        "source_type": "json",
+        "metadata_keys": [
+          "source_repository",
+          "source_url",
+          "source_issue_number",
+          "source_sha256",
+          "submitted_sha256",
+          "truncated"
+        ]
+      }
+    ],
+    "distinct_source_events": 2,
+    "frozen_cohort_members": 2
+  },
+  {
+    "cluster_id": "ee76e6fa-1aab-4bbf-b75e-5ff69c933afb",
+    "members": [
+      {
+        "run_id": "5784ca42-69f6-4452-8707-70ba1db2a6e3",
+        "raw_event_id": "1d4c33dc-b41f-445e-8122-badf8375bc13",
+        "issue_number": null,
+        "model": "google/gemini-2.5-flash",
+        "in_frozen_cohort": false,
+        "source_type": "text",
+        "metadata_keys": []
+      }
+    ],
+    "distinct_source_events": 1,
+    "frozen_cohort_members": 0
+  }
+]

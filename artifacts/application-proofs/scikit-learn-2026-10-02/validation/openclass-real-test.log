@@ -1,0 +1,146 @@
+uv run pytest
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /tmp/openclass-portal-phase-10
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 428 items
+
+tests/contract/test_decision_provider.py ...                             [  0%]
+tests/contract/test_gateway_providers.py .............                   [  3%]
+tests/contract/test_gemini_live.py ss                                    [  4%]
+tests/contract/test_glm_provider.py ..                                   [  4%]
+tests/contract/test_integration_adapters.py ............                 [  7%]
+tests/contract/test_jev_provider.py .................................... [ 15%]
+...                                                                      [ 16%]
+tests/contract/test_laya_provider.py ..........                          [ 18%]
+tests/contract/test_python_sdk.py ..........                             [ 21%]
+tests/contract/test_supervisor_provider.py ..                            [ 21%]
+tests/e2e/test_genesis.py .                                              [ 21%]
+tests/e2e/test_jev_live.py s                                             [ 22%]
+tests/e2e/test_jev_pilot.py .                                            [ 22%]
+tests/e2e/test_supervisor.py ..                                          [ 22%]
+tests/integration/test_api.py ....                                       [ 23%]
+tests/integration/test_candidate_promotion_api.py .                      [ 24%]
+tests/integration/test_candidate_promotion_postgres.py s                 [ 24%]
+tests/integration/test_decision_service_runs.py .....                    [ 25%]
+tests/integration/test_decision_services_api.py ...                      [ 26%]
+tests/integration/test_decision_services_postgres.py s                   [ 26%]
+tests/integration/test_discovery.py ...                                  [ 27%]
+tests/integration/test_discovery_candidates.py .......                   [ 28%]
+tests/integration/test_embeddings_clustering.py .......                  [ 30%]
+tests/integration/test_evidence_api.py .                                 [ 30%]
+tests/integration/test_evidence_postgres.py s                            [ 30%]
+tests/integration/test_idempotency_and_limits.py .....                   [ 32%]
+tests/integration/test_integrations_api.py .                             [ 32%]
+tests/integration/test_integrations_postgres.py s                        [ 32%]
+tests/integration/test_observation_ingestion.py ......                   [ 33%]
+tests/integration/test_persistence.py ..ss.s                             [ 35%]
+tests/integration/test_projects_api.py .....                             [ 36%]
+tests/integration/test_projects_postgres.py s                            [ 36%]
+tests/integration/test_provider_protocol.py ......                       [ 38%]
+tests/integration/test_raw_events_api.py .....                           [ 39%]
+tests/integration/test_raw_events_postgres.py s                          [ 39%]
+tests/integration/test_reviews.py ...F..                                 [ 40%]
+tests/integration/test_unknown_workspace.py ......                       [ 42%]
+tests/integration/test_webhooks_api.py ..................                [ 46%]
+tests/integration/test_webhooks_postgres.py s                            [ 46%]
+tests/unit/test_automation.py ..                                         [ 47%]
+tests/unit/test_automation_applicability.py ............                 [ 50%]
+tests/unit/test_automation_attempts.py .....                             [ 51%]
+tests/unit/test_automation_executor.py .                                 [ 51%]
+tests/unit/test_automation_proof2b_cycle2.py .......                     [ 53%]
+tests/unit/test_automation_replay.py ...............                     [ 56%]
+tests/unit/test_automation_reuse.py .......                              [ 58%]
+tests/unit/test_boundaries.py ......                                     [ 59%]
+tests/unit/test_cli.py ...                                               [ 60%]
+tests/unit/test_core_decision.py ...........                             [ 62%]
+tests/unit/test_core_evolution.py .......                                [ 64%]
+tests/unit/test_decision_executor.py ..F.                                [ 65%]
+tests/unit/test_decision_graph.py .........                              [ 67%]
+tests/unit/test_decision_services.py ....                                [ 68%]
+tests/unit/test_domain.py ..................                             [ 72%]
+tests/unit/test_evidence.py ..........                                   [ 75%]
+tests/unit/test_integrations.py .....                                    [ 76%]
+tests/unit/test_jev_characterization.py .........                        [ 78%]
+tests/unit/test_jev_contract.py ...............s.........                [ 84%]
+tests/unit/test_project_evolution.py .....                               [ 85%]
+tests/unit/test_projects.py ..........                                   [ 87%]
+tests/unit/test_protocol_v21.py ...........                              [ 90%]
+tests/unit/test_provider_config.py .........                             [ 92%]
+tests/unit/test_rate_limit.py ......                                     [ 93%]
+tests/unit/test_redaction.py .......                                     [ 95%]
+tests/unit/test_review_models.py .................                       [ 99%]
+tests/unit/test_stage1_live.py ...                                       [100%]
+
+=================================== FAILURES ===================================
+____________ test_supervisor_failures_are_safe_and_persist_nothing _____________
+
+database_url = 'sqlite+aiosqlite:////tmp/pytest-of-yassin/pytest-5/test_supervisor_failures_are_s0/test.db'
+classifier_body = {'slug': 'support-intent', 'name': 'Support intent', 'classes': [{'canonical_name': 'billing', 'display_name': 'Billin...': 'Technical', 'aliases': ['broken']}, {'canonical_name': 'sales', 'display_name': 'Sales', 'aliases': ['purchase']}]}
+
+    def test_supervisor_failures_are_safe_and_persist_nothing(
+        database_url: str, classifier_body: dict
+    ) -> None:
+        app = create_app(Settings(database_url=database_url), supervisor_provider=LeakingSupervisor())
+        with TestClient(app) as client:
+            created = client.post("/api/v1/classifiers", json=classifier_body)
+            base = f"/api/v1/classifiers/{created.json()['id']}"
+            run = client.post(f"{base}/classify", json={"observation": "charged twice"}).json()
+>           response = client.post(f"{base}/runs/{run['id']}/reviews")
+                                                  ^^^^^^^^^
+E           KeyError: 'id'
+
+tests/integration/test_reviews.py:96: KeyError
+_________________ test_decision_executor_provenance_recording __________________
+
+sample_service = DecisionService(id=UUID('7bad685b-098a-4a13-b5f1-ffc22f73ef55'), project_id=UUID('87473455-4ecc-4801-aa6b-bd5fc67437b2...fo=datetime.timezone.utc), updated_at=datetime.datetime(2026, 10, 2, 16, 31, 25, 311333, tzinfo=datetime.timezone.utc))
+
+    async def test_decision_executor_provenance_recording(sample_service: DecisionService) -> None:
+        event = RawEvent(
+            project_id=sample_service.project_id,
+            source_type="text",
+            content="Everything is fine",
+        )
+    
+        # Real in-process Laya inference provenance
+        real_provider = LayaDecisionProvider(allow_fallback=True)
+        real_run = await DecisionExecutor(real_provider).execute(event, sample_service)
+>       assert real_run.execution_mode == "in_process"
+E       AssertionError: assert 'deterministic_test_fallback' == 'in_process'
+E         
+E         - in_process
+E         + deterministic_test_fallback
+
+tests/unit/test_decision_executor.py:95: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/openclass-portal-phase-10/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/integration/test_candidate_promotion_api.py: 3 warnings
+tests/integration/test_decision_service_runs.py: 3 warnings
+tests/integration/test_decision_services_api.py: 2 warnings
+tests/integration/test_discovery_candidates.py: 8 warnings
+tests/integration/test_embeddings_clustering.py: 21 warnings
+tests/integration/test_evidence_api.py: 1 warning
+tests/integration/test_provider_protocol.py: 7 warnings
+tests/integration/test_unknown_workspace.py: 10 warnings
+  /tmp/openclass-portal-phase-10/.venv/lib/python3.12/site-packages/aiosqlite/core.py:63: DeprecationWarning: The default date adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    result = function()
+
+tests/integration/test_discovery_candidates.py: 20 warnings
+tests/integration/test_embeddings_clustering.py: 42 warnings
+tests/integration/test_idempotency_and_limits.py: 8 warnings
+tests/integration/test_unknown_workspace.py: 8 warnings
+  /tmp/openclass-portal-phase-10/.venv/lib/python3.12/site-packages/aiosqlite/core.py:63: DeprecationWarning: The default datetime adapter is deprecated as of Python 3.12; see the sqlite3 documentation for suggested replacement recipes
+    result = function()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_reviews.py::test_supervisor_failures_are_safe_and_persist_nothing
+FAILED tests/unit/test_decision_executor.py::test_decision_executor_provenance_recording
+=========== 2 failed, 412 passed, 14 skipped, 134 warnings in 21.64s ===========
+make: *** [Makefile:13: test] Error 1

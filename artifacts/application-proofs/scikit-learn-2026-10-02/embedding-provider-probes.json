@@ -1,0 +1,38 @@
+[
+  {
+    "model": "openai/text-embedding-3-small",
+    "status": 403,
+    "error": {
+      "message": "Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access.",
+      "type": "no_providers_available",
+      "param": {
+        "error": "Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access.",
+        "type": "no_providers_available",
+        "statusCode": 403,
+        "name": "RestrictedModelsError",
+        "message": "Free tier users do not have access to this model. Upgrade to paid credits at https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai%3Fmodal%3Dtop-up for unrestricted access."
+      }
+    },
+    "usage": null
+  },
+  {
+    "model": "google/gemini-embedding-001",
+    "status": 200,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 79,
+      "total_tokens": 79
+    },
+    "dimensions": 3072
+  },
+  {
+    "model": "cohere/embed-v4.0",
+    "status": 200,
+    "error": null,
+    "usage": {
+      "prompt_tokens": 77,
+      "total_tokens": 77
+    },
+    "dimensions": 1536
+  }
+]

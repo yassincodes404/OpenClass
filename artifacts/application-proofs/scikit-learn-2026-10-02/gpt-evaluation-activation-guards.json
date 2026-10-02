@@ -1,0 +1,16 @@
+[
+  {
+    "operation": "evaluate",
+    "status": 409,
+    "error": {
+      "detail": "Verified replay evaluation is not implemented"
+    }
+  },
+  {
+    "operation": "promote",
+    "status": 409,
+    "error": {
+      "detail": "Only NEW_CHOICE candidates can be promoted"
+    }
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "evidence_id": "48be5552-ca4e-406c-adcd-42e1e0ae09db",
+    "result": {
+      "diagnosis": "ambiguous_or_insufficient",
+      "rationale": "The issue title and body primarily reference a broken CI job and include warnings and links but lack explicit details about whether this is a bug, enhancement, or documentation issue. Embedded references and external links are untrusted per instructions, and no clear categorization can be derived from the source text alone.",
+      "confidence": 0.95,
+      "recommended_action": "Maintain the UNKNOWN label as per instructions and consider requesting more explicit issue details or clarifications from the maintainer to enable accurate routing in future.",
+      "provider": "vercel-ai-gateway",
+      "model": "openai/gpt-4.1-mini",
+      "simulated": false
+    }
+  }
+]
