@@ -197,6 +197,15 @@ def projects_router(
             )
         return JSONResponse(status_code=207, content=payload)
 
+    @router.get("/api/v1/projects/{identifier}/providers/usage")
+    async def provider_usage(
+        identifier: str,
+        date_from: Annotated[str, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")] = "2026-01-01",
+        date_to: Annotated[str, Query(pattern=r"^\d{4}-\d{2}-\d{2}$")] = "2100-01-01",
+    ) -> list[dict[str, Any]]:
+        project = await projects.get(identifier)
+        return await project_repository.provider_usage(project.id, date_from, date_to)
+
     @router.get("/api/v1/projects/{identifier}/events", response_model=list[RawEvent])
     async def list_events(
         identifier: str,

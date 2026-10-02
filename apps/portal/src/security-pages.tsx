@@ -3,6 +3,10 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
+
+function useToken() {
+  return useAuth().token() ?? "";
+}
 import { ProjectShell, type Project } from "./projects";
 
 export type Settings = { redaction_enabled: boolean; retention_days: number };
@@ -90,25 +94,47 @@ export function ProjectSettingsPage() {
   );
 }
 
+export type ProviderConfig = { id: string; type: string; endpoint_ref: string | null; model: string | null; timeout_seconds: number; is_default: boolean };
+export type UsageRow = { provider: string; model: string; date: string; calls: number; errors: number; estimated_cost: number; avg_latency_ms: number };
+export type TestResult = { ok: boolean; provider?: string; error?: string; model?: string; simulated?: boolean; latency_ms?: number; normalized_preview?: { selected: string; top_probability: number; unknown_probability: number } };
+
 export function ProjectProvidersPage() {
   const { projectId = "" } = useParams();
-  const token = useAuth().token() ?? "";
+  const token = useToken();
+  const queryClient = useQueryClient();
   const project = useProject(projectId);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
   const providers = useQuery({
     queryKey: ["providers", projectId],
     enabled: project.isSuccess,
-    queryFn: async (): Promise<{ catalog: ProviderCard[]; status: ProviderStatus }> =>
+    queryFn: async (): Promise<{ catalog: ProviderCard[]; status: ProviderStatus; configs: ProviderConfig[] }> =>
       (await controlFetch(`/workspaces/${project.data!.workspace_id}/projects/${projectId}/providers`, token)) as {
         catalog: ProviderCard[];
         status: ProviderStatus;
+        configs: ProviderConfig[];
       },
   });
-  if (project.isPending || providers.isPending) return <main><p className="lede">Loading providers…</p></main>;
+  const usage = useQuery({
+    queryKey: ["provider-usage", projectId],
+    enabled: project.isSuccess,
+    queryFn: async (): Promise<UsageRow[]> =>
+      (await controlFetch(`/workspaces/${project.data!.workspace_id}/projects/${projectId}/providers/usage`, token)) as UsageRow[],
+  });
+  const test = useMutation({
+    mutationFn: async (configId: string) =>
+      (await controlFetch(`/workspaces/${project.data!.workspace_id}/projects/${projectId}/providers/${configId}/test`, token, {
+        method: "POST",
+      })) as TestResult,
+    onSuccess: (result) => setTestResult(result),
+    onError: (error: Error) => setTestResult({ ok: false, error: error.message }),
+  });
+
+  if (project.isPending) return <main><p className="lede">Loading providers…</p></main>;
   if (!project.data) return <main><p className="lede">Project unavailable.</p></main>;
   if (providers.isError) {
     return (
       <main>
-        <ProjectShell project={project.data} active="/settings">
+        <ProjectShell project={project.data} active="/providers">
           <section className="signal">
             <p className="eyebrow">PROVIDERS / STATUS</p>
             <h2>Provider status is temporarily unavailable.</h2>
@@ -120,21 +146,62 @@ export function ProjectProvidersPage() {
   }
   return (
     <main>
-      <ProjectShell project={project.data} active="/settings">
+      <ProjectShell project={project.data} active="/providers">
         <section className="signal">
-          <p className="eyebrow">PROVIDERS / STATUS</p>
-          <h2>Decision providers</h2>
+          <p className="eyebrow">PROVIDERS / PROTOCOL &amp; COSTS</p>
+          <h2>Provider configurations are stored as secret references.</h2>
+          <p className="muted">Credentials are write-only environment references; values are never echoed back.</p>
           <div className="card-grid">
-            {providers.data?.catalog.map((provider, index) => (
-              <article key={`${provider.name}-${index}`} className="project-card">
-                <p className="status"><i /> {provider.model ?? "—"}</p>
-                <h3>{provider.name}</h3>
-                <p>{provider.capabilities?.join(", ") ?? "choice"}</p>
-                {provider.simulated && <p><span className="chip locked">simulated</span></p>}
+            {providers.data?.configs.map((config) => (
+              <article key={config.id} className="project-card">
+                <p className="status"><i /> {config.type}{config.is_default ? " / DEFAULT" : ""}</p>
+                <h3>{config.type}</h3>
+                <p>endpoint ref <code>{config.endpoint_ref ?? "—"}</code> · model <code>{config.model ?? "—"}</code> · timeout {config.timeout_seconds}s</p>
+                <button className="ghost" onClick={() => test.mutate(config.id)}>Test provider</button>
               </article>
             ))}
+            {providers.data?.configs.length === 0 && <p className="muted">No provider configs yet — add one below (seed script or API).</p>}
           </div>
-          <p className="muted">Failures surface as sanitized 502 responses; provider errors never include secrets or request bodies.</p>
+          {testResult && (
+            <div className="key-reveal">
+              <p className="eyebrow">TEST RESULT / {testResult.ok ? "OK" : "FAILED"}</p>
+              {testResult.ok ? (
+                <p>
+                  {testResult.provider} · {testResult.model} · {testResult.latency_ms}ms ·{" "}
+                  preview: {testResult.normalized_preview?.selected}
+                  {testResult.simulated && <> · <span className="chip locked">simulated</span></>}
+                </p>
+              ) : (
+                <p className="field-error">{testResult.error}</p>
+              )}
+            </div>
+          )}
+          <div className="panel">
+            <div className="panel-head"><h3>Usage (engine rollups)</h3></div>
+            {usage.data?.length ? (
+              <table className="table">
+                <thead><tr><th>Date</th><th>Provider</th><th>Calls</th><th>Errors</th><th>Avg latency</th><th>Est. cost</th></tr></thead>
+                <tbody>
+                  {usage.data.map((row, index) => (
+                    <tr key={index}>
+                      <td>{row.date}</td>
+                      <td><code>{row.provider}</code>{row.provider === "mock" && " (simulated)"}</td>
+                      <td>{row.calls}</td>
+                      <td>{row.errors}</td>
+                      <td>{row.avg_latency_ms}ms</td>
+                      <td>${row.estimated_cost.toFixed(4)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="muted">No usage recorded yet — runs accrue here.</p>
+            )}
+          </div>
+          <div className="panel">
+            <div className="panel-head"><h3>Engine catalog</h3></div>
+            <p className="muted">{providers.data?.catalog.map((entry) => `${entry.name} (${entry.capabilities?.join("/")})`).join(" · ")}</p>
+          </div>
         </section>
       </ProjectShell>
     </main>

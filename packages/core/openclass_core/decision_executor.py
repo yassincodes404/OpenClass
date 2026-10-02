@@ -8,6 +8,8 @@ and creates immutable DecisionRuns with execution provenance and snapshots.
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+
 from openclass_core.models import (
     ChoiceRequest,
     Observation,
@@ -20,7 +22,7 @@ from openclass_core.projects import (
     DecisionServiceNode,
     RawEvent,
 )
-from openclass_core.providers import DecisionProvider
+from openclass_core.providers import DecisionProvider, ProviderError
 
 
 class DecisionExecutor:
@@ -83,8 +85,16 @@ class DecisionExecutor:
         )
 
         # 2. Invoke DecisionProvider
-        # Provider failures are operational and MUST raise ProviderError
-        result = await self.provider.choice(request)
+        # Provider failures are operational and MUST raise ProviderError;
+        # malformed adapter output (validation failures) is normalized to one too.
+        try:
+            result = await self.provider.choice(request)
+        except ProviderError:
+            raise
+        except ValidationError as error:
+            raise ProviderError(
+                "provider returned malformed output", kind="bad_response"
+            ) from error
 
         # 3. Map canonical probabilities back to uppercase Choice keys
         key_lookup = {c.key.lower(): c.key for c in node.choices if c.key != "UNKNOWN"}
@@ -120,6 +130,13 @@ class DecisionExecutor:
 
         # 6. Extract Provenance
         meta = dict(result.provider_metadata)
+        # Usage telemetry travels in metadata so the run snapshot stays self-contained.
+        if result.input_tokens is not None:
+            meta.setdefault("input_tokens", result.input_tokens)
+        if result.output_tokens is not None:
+            meta.setdefault("output_tokens", result.output_tokens)
+        if result.estimated_cost is not None:
+            meta.setdefault("estimated_cost", result.estimated_cost)
         default_mode = "mock" if result.provider == "mock" else "daemon"
         execution_mode = str(meta.get("execution_mode", default_mode))
         real_inference = bool(meta.get("real_inference", False))

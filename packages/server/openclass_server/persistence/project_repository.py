@@ -4,8 +4,12 @@ Lookup accepts identifier or slug; every stored mutation writes its audit event
 in the same transaction so the audit trail cannot drift from project state.
 """
 
+from datetime import UTC, datetime
+from datetime import date as date_type
+from typing import Any
 from uuid import UUID
 
+import sqlalchemy as sa
 from openclass_core.evidence import (
     EvidenceCase,
     EvidenceItem,
@@ -265,9 +269,98 @@ class SQLProjectRepository:
                         payload=run.model_dump(mode="json"),
                     )
                 )
+                await self._roll_up_usage(session, run, error=False)
         except IntegrityError as exc:
             msg = "Decision run already exists or referenced entities missing"
             raise ConflictError(msg) from exc
+
+    async def _roll_up_usage(self, session: AsyncSession, run: DecisionRun, *, error: bool) -> None:
+        usage_date = (
+            run.created_at.date()
+            if run.created_at.tzinfo is None
+            else run.created_at.astimezone().date()
+        )
+        statement = sa.text(
+            "INSERT INTO provider_usage"
+            " (project_id, provider, model, usage_date, calls, errors, input_tokens,"
+            "  output_tokens, estimated_cost, latency_ms_total)"
+            " VALUES (:project_id, :provider, :model, :usage_date, :calls, :errors,"
+            "         :input_tokens, :output_tokens, :estimated_cost, :latency)"
+            " ON CONFLICT (project_id, provider, usage_date) DO UPDATE SET"
+            " calls = provider_usage.calls + excluded.calls,"
+            " errors = provider_usage.errors + excluded.errors,"
+            " input_tokens = provider_usage.input_tokens + excluded.input_tokens,"
+            " output_tokens = provider_usage.output_tokens + excluded.output_tokens,"
+            " estimated_cost = provider_usage.estimated_cost + excluded.estimated_cost,"
+            " latency_ms_total = provider_usage.latency_ms_total + excluded.latency_ms_total"
+        )
+        await session.execute(
+            statement,
+            {
+                "project_id": str(run.project_id),
+                "provider": run.provider,
+                "model": run.model or "",
+                "usage_date": usage_date,
+                "calls": 0 if error else 1,
+                "errors": 1 if error else 0,
+                "input_tokens": run.provider_metadata.get("input_tokens") or 0,
+                "output_tokens": run.provider_metadata.get("output_tokens") or 0,
+                "estimated_cost": run.provider_metadata.get("estimated_cost") or 0.0,
+                "latency": run.latency_ms or 0.0,
+            },
+        )
+
+    async def record_provider_error(
+        self, project_id: UUID, provider: str, model: str, latency_ms: float
+    ) -> None:
+        """Count a provider failure in the usage rollup without persisting a run."""
+
+        class _UsageOnly:  # minimal carrier for _roll_up_usage
+            def __init__(self) -> None:
+                self.project_id = project_id
+                self.provider = provider
+                self.model = model
+                self.latency_ms = latency_ms
+                self.created_at = datetime.now(UTC)
+                self.provider_metadata: dict[str, Any] = {}
+
+        async with self.sessions.begin() as session:
+            await self._roll_up_usage(session, _UsageOnly(), error=True)  # type: ignore[arg-type]
+
+    async def provider_usage(
+        self, project_id: UUID, date_from: str, date_to: str
+    ) -> list[dict[str, Any]]:
+        async with self.sessions() as session:
+            rows = await session.execute(
+                sa.text(
+                    "SELECT provider, model, usage_date, calls, errors, input_tokens,"
+                    " output_tokens, estimated_cost, latency_ms_total"
+                    " FROM provider_usage WHERE project_id = :project_id"
+                    " AND usage_date BETWEEN :date_from AND :date_to"
+                    " ORDER BY usage_date DESC, provider"
+                ),
+                {
+                    "project_id": str(project_id),
+                    "date_from": date_type.fromisoformat(date_from),
+                    "date_to": date_type.fromisoformat(date_to),
+                },
+            )
+            return [
+                {
+                    "provider": row.provider,
+                    "model": row.model,
+                    "date": str(row.usage_date),
+                    "calls": row.calls,
+                    "errors": row.errors,
+                    "input_tokens": row.input_tokens,
+                    "output_tokens": row.output_tokens,
+                    "estimated_cost": row.estimated_cost,
+                    "avg_latency_ms": round(row.latency_ms_total / row.calls, 2)
+                    if row.calls
+                    else 0.0,
+                }
+                for row in rows
+            ]
 
     async def list_decision_runs(
         self, project_id: UUID, limit: int = 50, offset: int = 0

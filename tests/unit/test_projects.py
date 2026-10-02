@@ -73,6 +73,12 @@ class InMemoryProjects(ProjectRepository):
         matched = [e for e in self.raw_events if e.project_id == project_id]
         return matched[offset : offset + limit]
 
+    async def provider_usage(self, project_id, date_from, date_to):
+        return []
+
+    async def record_provider_error(self, project_id, provider, model, latency_ms):
+        return None
+
     async def get_raw_event_by_hash(self, project_id, content_hash):
         if not hasattr(self, "raw_events"):
             self.raw_events = []
