@@ -1,6 +1,7 @@
 """API tests for the Raw Events ingestion slice (sqlite, migrated via Alembic)."""
 
 from fastapi.testclient import TestClient
+from openclass_server.settings import Settings
 
 CREATE_PROJECT = {
     "name": "Customer Support Triage",
@@ -94,7 +95,8 @@ def test_providers_status_endpoint(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert "default_provider" in data
-    assert data["default_provider"] == "laya"
+    # The endpoint reports the configured default, whatever the environment sets.
+    assert data["default_provider"] == Settings().decision_provider
     assert "laya" in data
     assert data["laya"]["status"] in {"configured", "ready", "loading", "unavailable"}
     assert data["laya"]["model"] == "laya-router"

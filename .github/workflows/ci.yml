@@ -24,6 +24,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       OPENCLASS_TEST_DATABASE_URL: postgresql+asyncpg://openclass:openclass@localhost:5432/openclass_test
+      OPENCLASS_DECISION_PROVIDER: mock
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
