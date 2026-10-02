@@ -10,18 +10,19 @@ A class, endpoint, provider card or screenshot is not a completed feature. Compl
 
 ## Read and execute in this order
 
-| Order | Implementation brief                                                         | Main gate                                                                 | Status  |
-| ----- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------- |
-| 01    | [Project, data and persistence](01-real-project-data-foundation.md)          | Isolated authenticated projects; restart-safe real ingestion/state        | Planned |
-| 02    | [Canonical decision runtime](02-canonical-decision-runtime.md)               | Enforced real provider bindings and historical spec identity              | Planned |
-| 03    | [Trust, UNKNOWN and supervision](03-trust-unknown-supervision.md)            | Conservative deterministic gating; independent risk/coverage evidence     | Planned |
-| 04    | [Runs, traces and audit](04-runs-traces-audit.md)                            | Reconstructable success/failure/version history and honest usage          | Planned |
-| 05    | [Evidence, cohorts and discovery](05-evidence-cohorts-discovery.md)          | Frozen distinct-source cohorts; non-destructive cluster history           | Planned |
-| 06    | [Supervisor and typed proposals](06-supervisor-typed-proposals.md)           | Real evidence-linked advisory changes, with no mutation authority         | Planned |
-| 07    | [Evaluation, replay and shadow](07-evaluation-replay-shadow.md)              | Complete independent baseline/candidate comparison and regression gates   | Planned |
-| 08    | [Approval and immutable activation](08-approval-immutable-activation.md)     | Reviewed vN → vN+1, atomic activation and rollback-as-new-version         | Planned |
-| 09    | [Controlled actions and integrations](09-controlled-actions-integrations.md) | Authorized external effect plus independent verification/recovery         | Planned |
-| 10    | [Product and SaaS operations](10-saas-product-operations.md)                 | Whole lifecycle plus tenant security, quotas, recovery and business pilot | Planned |
+| Order | Implementation brief                                                         | Main gate                                                                 | Status                                                            |
+| ----- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 00    | Phase 0 — target branch, inventory, baseline checks                          | Unambiguous target; baseline checks reproduced; OC-034 green              | [Complete pending merge](evidence/phase-0-baseline-and-oc-034.md) |
+| 01    | [Project, data and persistence](01-real-project-data-foundation.md)          | Isolated authenticated projects; restart-safe real ingestion/state        | Audited                                                           |
+| 02    | [Canonical decision runtime](02-canonical-decision-runtime.md)               | Enforced real provider bindings and historical spec identity              | Planned                                                           |
+| 03    | [Trust, UNKNOWN and supervision](03-trust-unknown-supervision.md)            | Conservative deterministic gating; independent risk/coverage evidence     | Planned                                                           |
+| 04    | [Runs, traces and audit](04-runs-traces-audit.md)                            | Reconstructable success/failure/version history and honest usage          | Planned                                                           |
+| 05    | [Evidence, cohorts and discovery](05-evidence-cohorts-discovery.md)          | Frozen distinct-source cohorts; non-destructive cluster history           | Planned                                                           |
+| 06    | [Supervisor and typed proposals](06-supervisor-typed-proposals.md)           | Real evidence-linked advisory changes, with no mutation authority         | Planned                                                           |
+| 07    | [Evaluation, replay and shadow](07-evaluation-replay-shadow.md)              | Complete independent baseline/candidate comparison and regression gates   | Planned                                                           |
+| 08    | [Approval and immutable activation](08-approval-immutable-activation.md)     | Reviewed vN → vN+1, atomic activation and rollback-as-new-version         | Planned                                                           |
+| 09    | [Controlled actions and integrations](09-controlled-actions-integrations.md) | Authorized external effect plus independent verification/recovery         | Planned                                                           |
+| 10    | [Product and SaaS operations](10-saas-product-operations.md)                 | Whole lifecycle plus tenant security, quotas, recovery and business pilot | Planned                                                           |
 
 Read [AGENT-HANDOFF](AGENT-HANDOFF.md) before any phase. Fill [PHASE-EVIDENCE-TEMPLATE](PHASE-EVIDENCE-TEMPLATE.md) after each implementation. Work serially on numbered gates; independently executable tasks within a phase may be batched, but later phases cannot bypass prerequisites.
 
@@ -36,6 +37,13 @@ Read [AGENT-HANDOFF](AGENT-HANDOFF.md) before any phase. Fill [PHASE-EVIDENCE-TE
 ## Baseline and facts versus targets
 
 There are at least two relevant baselines: the current project checkout and the isolated `origin/feat/portal-phase-10` checkout used for the real challenge. The latter started at `d539862` and received an unmerged local real-provider patch. Branch-only portal/control-plane files are not assumed present in the current checkout. Every agent must capture its own branch/commit/dirty state and audit actual wiring before claiming reuse or completion.
+
+**Phase 0 decision (2026-10-02):** the target branch is the `feat/portal-phase-10`
+line, carried into main through PR #20 together with the program docs, the retained
+challenge artifacts and the OC-034 CI repair. The uncommitted planning layer that
+previously lived on `experiment/jev-characterization` was cherry-picked onto this
+line (planning commit `f7228d6`). Evidence, the audit matrix and the Phase 01 entry
+plan: [phase-0 evidence record](evidence/phase-0-baseline-and-oc-034.md).
 
 The [retained challenge report](../../artifacts/application-proofs/scikit-learn-2026-10-02/REPORT.md) and [results](../../artifacts/application-proofs/scikit-learn-2026-10-02/results.json) describe 60 real GitHub issues per provider attempt: GPT completed 56, Gemini 38. Trusted-reference disagreements were 12/51 and 7/36. These are small curated source-label comparisons with incomplete coverage, not certified business accuracy or a fair provider ranking. The patch/artifacts must be inspected before reuse; no secret is part of this roadmap.
 

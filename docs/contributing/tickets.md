@@ -235,13 +235,16 @@ blocked activation leaves service/candidate/evidence/run/audit snapshots unchang
 
 ## OC-034 — Restore the target-branch CI baseline
 
-**Priority:** P0. **Status:** partial local fix; target-branch validation pending.
-At remote main `469482350102bddb00c55d773256cf10f60f997b`, CI run `37004638713`
-failed npm installation (`workspace:*` unsupported), Python formatting
-(`scripts/seed_portal_phase_01.py`) and Compose classification (provider HTTP 502).
-The portal dependency/seed files are absent from this checkout. Use the explicit
-simulated mock provider for credential-free Compose smoke checks; fix dependency
-resolution and formatting on the branch containing those files.
+**Priority:** P0. **Status:** CI green on reviewed PR #20 head `c6545bf` (all four
+jobs, run `37051177668`); ticket closes when PR #20 merges to main.
+Evidence: [phase-0 evidence record](../implementation-phases/evidence/phase-0-baseline-and-oc-034.md).
+Original failure at remote main `469482350102bddb00c55d773256cf10f60f997b`, CI run
+`37004638713`: npm installation (`workspace:*` unsupported), Python formatting
+(`scripts/seed_portal_phase_01.py`, superseded on the portal line) and Compose
+classification (provider HTTP 502). Repairs: pnpm web job with pinned
+`packageManager`, mock provider for the python and Compose jobs, Makefile pnpm
+alignment, glm provider LICENSE, plus environment-honest test repairs recorded in
+the evidence file. Local passing checks alone do not close this ticket.
 **Acceptance:** clean locked installs; all CI jobs pass on the reviewed target
 commit, including disposable migrated PostgreSQL and Compose; no live credentials
 or publication used to validate. Local passing checks alone do not close this ticket.
