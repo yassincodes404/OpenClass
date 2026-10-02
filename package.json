@@ -2,6 +2,7 @@
   "name": "openclass-workspace",
   "version": "0.0.1",
   "private": true,
+  "packageManager": "pnpm@11.24.0",
   "workspaces": [
     "apps/portal",
     "apps/web",
