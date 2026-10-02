@@ -1,5 +1,16 @@
 name: openclass
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    profiles: [portal-identity]
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change-me-local-only}
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8080}:8080"
+    volumes:
+      - ./services/control-plane/keycloak:/opt/keycloak/data/import:ro
   db:
     image: pgvector/pgvector:pg17
     environment:
