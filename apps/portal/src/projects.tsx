@@ -24,6 +24,7 @@ export type ApiKeyRow = { id: string; prefix: string; scopes: string[]; created_
 export const sectionLinks = [
   { label: "Overview", path: "" },
   { label: "Classifiers", path: "/classifiers" },
+  { label: "Data", path: "/data" },
   { label: "Observations", path: "/observations" },
   { label: "Unknowns", path: "/unknowns" },
   { label: "Discoveries", path: "/discoveries" },

@@ -10,6 +10,15 @@ export type EngineClassifier = {
 };
 export type EngineOntologyClass = { canonical_name: string; display_name: string; aliases?: string[] };
 export type EngineOntology = { id: string; version_number: number; classes: EngineOntologyClass[] };
+export type EngineRawEvent = {
+  id: string;
+  project_id: string;
+  source_type: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  deduped?: boolean;
+};
 
 /**
  * HTTP-only client for the FastAPI engine. The engine stays the sole owner of
@@ -54,6 +63,76 @@ export class EngineClient {
 
   async providerStatus(): Promise<Record<string, unknown>> {
     return this.request<Record<string, unknown>>("GET", "/api/v1/providers/status");
+  }
+
+  async ingestEvent(
+    engineProjectId: string,
+    body: { content: string; source_type?: string; metadata?: Record<string, unknown> },
+    idempotencyKey?: string,
+  ): Promise<{ status: number; body: Record<string, unknown> }> {
+    return this.requestStatus("POST", `/api/v1/projects/${engineProjectId}/events`, body, [200, 201], idempotencyKey);
+  }
+
+  async ingestEventsBatch(
+    engineProjectId: string,
+    body: { items: Array<{ content: string; metadata?: Record<string, unknown> }>; source_type?: string },
+    idempotencyKey?: string,
+  ): Promise<{ status: number; body: Record<string, unknown> }> {
+    return this.requestStatus(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/events/batch`,
+      body,
+      [200, 207],
+      idempotencyKey,
+    );
+  }
+
+  async listEvents(
+    engineProjectId: string,
+    limit: number,
+    offset: number,
+  ): Promise<EngineRawEvent[]> {
+    return this.request<EngineRawEvent[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/events?limit=${limit}&offset=${offset}`,
+    );
+  }
+
+  async getEvent(engineProjectId: string, eventId: string): Promise<EngineRawEvent> {
+    return this.request<EngineRawEvent>("GET", `/api/v1/projects/${engineProjectId}/events/${eventId}`);
+  }
+
+  async projectSummary(engineProjectId: string): Promise<{ events: number }> {
+    return this.request<{ events: number }>("GET", `/api/v1/projects/${engineProjectId}/summary`);
+  }
+
+  private async requestStatus(
+    method: string,
+    path: string,
+    body: unknown,
+    expectedStatuses: number[],
+    idempotencyKey?: string,
+  ): Promise<{ status: number; body: Record<string, unknown> }> {
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers: {
+          "content-type": "application/json",
+          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      throw new BadGatewayException("Engine is temporarily unavailable");
+    }
+    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    if (expectedStatuses.includes(response.status)) return { status: response.status, body: payload };
+    const message = typeof payload.detail === "string" ? payload.detail : "Engine rejected the request";
+    if (response.status === 404) throw new NotFoundException(message);
+    if (response.status === 429) throw new BadGatewayException("Engine rate limit reached; retry shortly");
+    if (response.status >= 400 && response.status < 500) throw new BadRequestException(message);
+    throw new BadGatewayException("Engine request failed");
   }
 
   async request<T>(method: string, path: string, body?: unknown, expectedStatus = 200): Promise<T> {

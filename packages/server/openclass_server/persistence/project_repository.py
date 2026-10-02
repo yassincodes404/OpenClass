@@ -159,6 +159,16 @@ class SQLProjectRepository:
                 raise NotFoundError("Raw event not found")
             return RawEvent.model_validate(row.payload)
 
+    async def get_raw_event_by_hash(self, project_id: UUID, content_hash: str) -> RawEvent | None:
+        async with self.sessions() as session:
+            row = await session.scalar(
+                select(RawEventRow).where(
+                    RawEventRow.project_id == str(project_id),
+                    RawEventRow.content_hash == content_hash,
+                )
+            )
+            return RawEvent.model_validate(row.payload) if row else None
+
     async def count_raw_events(self, project_id: UUID) -> int:
         async with self.sessions() as session:
             return (

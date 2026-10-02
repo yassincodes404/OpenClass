@@ -95,7 +95,7 @@ async def test_decision_runs_persistence_and_counting(service: ProjectService) -
         choices=[{"key": "URGENT", "label": "Urgent"}],
     )
 
-    event = await service.ingest_event(
+    event, _deduped = await service.ingest_event(
         identifier=str(project.id),
         content="System down! Need help!",
         source_type="text",

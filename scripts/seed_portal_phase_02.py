@@ -1,4 +1,5 @@
 """Print local-only deterministic Phase 2 browser test credentials."""
+
 import json
 
 manifest = {

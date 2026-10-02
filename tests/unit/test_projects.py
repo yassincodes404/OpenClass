@@ -52,6 +52,14 @@ class InMemoryProjects(ProjectRepository):
     async def create_raw_event(self, event) -> None:
         if not hasattr(self, "raw_events"):
             self.raw_events: list = []
+        # Mirrors the (project_id, content_hash) unique index from migration 0012.
+        from openclass_core.repositories import ConflictError
+
+        if any(
+            e.project_id == event.project_id and e.content_hash == event.content_hash
+            for e in self.raw_events
+        ):
+            raise ConflictError("Raw event already exists")
         self.raw_events.append(event)
 
     async def create_raw_events(self, events) -> None:
@@ -64,6 +72,18 @@ class InMemoryProjects(ProjectRepository):
             self.raw_events = []
         matched = [e for e in self.raw_events if e.project_id == project_id]
         return matched[offset : offset + limit]
+
+    async def get_raw_event_by_hash(self, project_id, content_hash):
+        if not hasattr(self, "raw_events"):
+            self.raw_events = []
+        return next(
+            (
+                e
+                for e in self.raw_events
+                if e.project_id == project_id and e.content_hash == content_hash
+            ),
+            None,
+        )
 
     async def get_raw_event(self, project_id, event_id):
         if not hasattr(self, "raw_events"):
@@ -390,12 +410,13 @@ async def test_raw_event_ingestion_and_summary_count(service: ProjectService) ->
     summary = await service.summary(project.slug)
     assert summary.events == 0
 
-    event1 = await service.ingest_event(
+    event1, deduped = await service.ingest_event(
         project.slug,
         "Customer says: please add dark mode support",
         source_type="text",
         metadata={"author": "alice"},
     )
+    assert deduped is False
     assert event1.project_id == project.id
     assert event1.content == "Customer says: please add dark mode support"
     assert event1.source_type == "text"
@@ -411,6 +432,12 @@ async def test_raw_event_ingestion_and_summary_count(service: ProjectService) ->
     fetched = await service.get_event(project.slug, event1.id)
     assert fetched.content == event1.content
 
+    repeat, repeat_deduped = await service.ingest_event(
+        project.slug, "Customer says: please add dark mode support", source_type="text"
+    )
+    assert repeat_deduped is True
+    assert repeat.id == event1.id
+
 
 async def test_raw_event_batch_ingestion(service: ProjectService) -> None:
     project = await service.create("Batch Event Project")
@@ -421,8 +448,9 @@ async def test_raw_event_batch_ingestion(service: ProjectService) -> None:
     ]
     created = await service.ingest_events_batch(project.slug, batch, source_type="csv")
     assert len(created) == 2
-    assert created[0].source_type == "csv"
-    assert created[1].source_type == "csv"
+    assert created[0][0].source_type == "csv"
+    assert created[1][0].source_type == "csv"
+    assert all(deduped is False for _, deduped in created)
 
     events_list = await service.list_events(project.slug)
     assert len(events_list) == 2

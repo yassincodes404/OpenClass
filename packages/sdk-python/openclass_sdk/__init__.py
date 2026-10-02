@@ -187,16 +187,18 @@ class OpenClass:
         items: list[dict[str, Any]],
         source_type: str = "text",
     ) -> list[dict[str, Any]]:
-        return list(
-            self._request(
-                "POST",
-                f"/api/v1/projects/{quote(project, safe='')}/events/batch",
-                {
-                    "items": items,
-                    "source_type": source_type,
-                },
-            )
+        payload = self._request(
+            "POST",
+            f"/api/v1/projects/{quote(project, safe='')}/events/batch",
+            {
+                "items": items,
+                "source_type": source_type,
+            },
         )
+        # 207 multi-status: {"items": [{index, status, event?|error?, deduped?}]}
+        if isinstance(payload, dict) and "items" in payload:
+            return list(payload["items"])
+        return list(payload)
 
     def events(
         self,

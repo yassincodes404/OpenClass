@@ -1,4 +1,5 @@
 """Deterministic, simulated seed manifest for the separate portal Phase 1."""
+
 import json
 
 manifest = {
