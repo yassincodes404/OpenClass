@@ -1,0 +1,16 @@
+- generic [ref=f15e3]:
+  - banner [ref=f15e4]:
+    - generic [ref=f15e5]: openclass-local
+  - main [ref=f15e6]:
+    - heading "Sign in to your account" [level=1] [ref=f15e8]
+    - generic [ref=f15e12]:
+      - generic [ref=f15e13]:
+        - generic [ref=f15e14]: Username or email
+        - textbox "Username or email" [active] [ref=f15e17]
+      - generic [ref=f15e18]:
+        - generic [ref=f15e19]: Password
+        - generic [ref=f15e21]:
+          - textbox "Password" [ref=f15e24]
+          - button "Show password" [ref=f15e26] [cursor=pointer]:
+            - generic [aria-hidden] [ref=f15e27]: 
+      - button "Sign In" [ref=f15e30] [cursor=pointer]

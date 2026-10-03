@@ -1,0 +1,20 @@
+- generic [ref=f16e3]:
+  - banner [ref=f16e4]:
+    - generic [ref=f16e5]: openclass-local
+  - main [ref=f16e6]:
+    - heading "Update Account Information" [level=1] [ref=f16e8]
+    - generic [ref=f16e9]:
+      - generic [ref=f16e10]: "* Required fields"
+      - generic [ref=f16e13]:
+        - generic [ref=f16e14]:
+          - generic [ref=f16e15]: Email *
+          - textbox "Email" [ref=f16e19]: owner@acme.openclass.test
+        - generic [ref=f16e20]:
+          - generic [ref=f16e21]: First name *
+          - textbox "First name" [invalid] [ref=f16e25]
+          - generic [ref=f16e26]: Please specify this field.
+        - generic [ref=f16e31]:
+          - generic [ref=f16e32]: Last name *
+          - textbox "Last name" [invalid] [ref=f16e36]
+          - generic [ref=f16e37]: Please specify this field.
+        - button "Submit" [ref=f16e44]

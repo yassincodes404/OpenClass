@@ -1,0 +1,17 @@
+- generic [ref=f14e2]:
+  - banner [ref=f14e3]:
+    - link [ref=f14e4] [cursor=pointer]:
+      - /url: /
+      - strong [ref=f14e5]: O↗
+      - text: OPENCLASS
+    - navigation [ref=f14e6]:
+      - link "Home" [ref=f14e7] [cursor=pointer]:
+        - /url: /
+      - link "Projects" [ref=f14e8] [cursor=pointer]:
+        - /url: /projects
+    - generic [ref=f14e9]: GENESIS / PORTAL
+  - main [ref=f14e10]:
+    - paragraph [ref=f14e11]: SECURE PORTAL / PHASE 2
+    - heading "Sign in to your workspace." [level=1] [ref=f14e12]
+    - paragraph [ref=f14e13]: Projects are visible only to authorized workspace members.
+    - button "Continue with Keycloak ↗" [ref=f14e14]
