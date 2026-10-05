@@ -140,3 +140,24 @@ Programmatic ingestion accepts either a member JWT or a scoped API key
 content 1–10,000 chars (blank 400/422, oversize 413), batch ≤ 500. The control
 plane enforces per-caller token buckets, a 10k/workspace/month simulated quota,
 and redacted list previews per project settings.
+
+## Phase 6 decision services & runs testing
+
+Seeder: `pnpm seed:portal-phase-6` — service `support-router` (5 choices; UNKNOWN
+auto-appended and locked) with 10 known + 5 UNKNOWN runs via the mock provider
+(output labeled simulated; lexical matching documented as demo-only).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Open `/projects/:id/decisions` | Service cards show choice count + locked UNKNOWN |
+| 2 | Create service sending UNKNOWN as a choice | `400` — UNKNOWN is auto-appended and locked |
+| 3 | Test panel: "I have a billing question please" | `BILLING` with full distribution (sums to 1) |
+| 4 | Test panel: unmatched text | `UNKNOWN` — never forced into a choice |
+| 5 | Open Runs page + a run detail | State chips, probability bars, provider + latency, simulated badge |
+| 6 | Reviewer runs the test panel | Allowed (viewer+ can run; owner/admin edit services) |
+
+Runs accept `{ content }` (ingested first) or `{ raw_event_ids }`. The control
+plane rate-limits runs per caller (classify class, 300/min default) and audits
+service/creation and run executions without observation content.

@@ -19,6 +19,33 @@ export type EngineRawEvent = {
   created_at: string;
   deduped?: boolean;
 };
+export type EngineDecisionService = {
+  id: string;
+  project_id: string;
+  slug: string;
+  name: string;
+  instructions: string;
+  status: string;
+  provider_override?: string | null;
+  nodes: Array<{ id: string; name: string; instructions: string; choices: Array<{ key: string; label: string; description?: string }> }>;
+};
+export type EngineDecisionRun = {
+  id: string;
+  project_id: string;
+  raw_event_id: string;
+  decision_service_id: string;
+  provider: string;
+  model?: string;
+  execution_mode?: string;
+  selected_choice: string;
+  supervision_outcome: string;
+  probabilities: Record<string, number>;
+  top_probability?: number;
+  margin?: number;
+  unknown_probability?: number;
+  latency_ms?: number;
+  created_at: string;
+};
 
 /**
  * HTTP-only client for the FastAPI engine. The engine stays the sole owner of
@@ -104,6 +131,53 @@ export class EngineClient {
 
   async projectSummary(engineProjectId: string): Promise<{ events: number }> {
     return this.request<{ events: number }>("GET", `/api/v1/projects/${engineProjectId}/summary`);
+  }
+
+  async createDecisionService(
+    engineProjectId: string,
+    body: { name: string; instructions: string; description?: string; choices: Array<{ key: string; label: string; description?: string }> },
+  ): Promise<EngineDecisionService> {
+    return this.request<EngineDecisionService>(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/decision-services`,
+      body,
+      201,
+    );
+  }
+
+  async listDecisionServices(engineProjectId: string): Promise<EngineDecisionService[]> {
+    return this.request<EngineDecisionService[]>("GET", `/api/v1/projects/${engineProjectId}/decision-services`);
+  }
+
+  async getDecisionService(engineProjectId: string, serviceId: string): Promise<EngineDecisionService> {
+    return this.request<EngineDecisionService>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/decision-services/${encodeURIComponent(serviceId)}`,
+    );
+  }
+
+  async runDecisions(
+    engineProjectId: string,
+    serviceId: string,
+    body: { content?: string; raw_event_ids?: string[] },
+  ): Promise<EngineDecisionRun[]> {
+    return this.request<EngineDecisionRun[]>(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/decision-services/${encodeURIComponent(serviceId)}/runs`,
+      body,
+      201,
+    );
+  }
+
+  async listRuns(engineProjectId: string, limit: number, offset: number): Promise<EngineDecisionRun[]> {
+    return this.request<EngineDecisionRun[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/runs?limit=${limit}&offset=${offset}`,
+    );
+  }
+
+  async getRun(engineProjectId: string, runId: string): Promise<EngineDecisionRun> {
+    return this.request<EngineDecisionRun>("GET", `/api/v1/projects/${engineProjectId}/runs/${runId}`);
   }
 
   private async requestStatus(

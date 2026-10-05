@@ -3,6 +3,7 @@ import { useAuth } from "./auth";
 import { ClassifierDetailPage, ClassifiersPage, ProjectOverview, Projects } from "./projects";
 import { ProjectAuditPage, ProjectProvidersPage, ProjectSettingsPage } from "./security-pages";
 import { DataIngestPage, ObservationsPage } from "./ingestion-pages";
+import { DecisionServicePage, DecisionsPage, RunsPage } from "./decision-pages";
 
 function Home() {
   return (
@@ -53,6 +54,9 @@ export function Portal() {
         <Route path="/projects/:projectId/classifiers/:classifierId" element={<ClassifierDetailPage />} />
         <Route path="/projects/:projectId/data" element={<DataIngestPage />} />
         <Route path="/projects/:projectId/observations" element={<ObservationsPage />} />
+        <Route path="/projects/:projectId/decisions" element={<DecisionsPage />} />
+        <Route path="/projects/:projectId/decisions/:serviceId" element={<DecisionServicePage />} />
+        <Route path="/projects/:projectId/runs" element={<RunsPage />} />
         <Route path="/projects/:projectId/unknowns" element={<Placeholder label="The UNKNOWN workspace" />} />
         <Route path="/projects/:projectId/discoveries" element={<Placeholder label="Discovery & canonicalization" />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />

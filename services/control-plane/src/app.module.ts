@@ -6,6 +6,7 @@ import { KeycloakGuard } from "./auth.js";
 import { CONTROL_DB, createControlPool } from "./db.js";
 import { EngineClient } from "./engine.js";
 import { IdempotencyService } from "./idempotency.service.js";
+import { DecisionController } from "./decision.controller.js";
 import { IngestionController } from "./ingestion.controller.js";
 import { IngestionGuard, IngestionService } from "./ingestion.service.js";
 import { ProjectController, ProjectResolveController } from "./project.controller.js";
@@ -23,6 +24,7 @@ import { WorkspaceService } from "./workspace.service.js";
     ProjectResolveController,
     SecurityController,
     IngestionController,
+    DecisionController,
   ],
   providers: [
     KeycloakGuard,
