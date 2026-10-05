@@ -265,3 +265,13 @@ class WebhookReceiptRow(Base):
     event_id: Mapped[str] = mapped_column(ForeignKey("raw_events.id"), unique=True)
     source: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class IdempotencyKeyRow(Base):
+    __tablename__ = "idempotency_keys"
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    response_hash: Mapped[str] = mapped_column(String(64))
+    response: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

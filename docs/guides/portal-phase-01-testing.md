@@ -94,3 +94,25 @@ Manual checks:
 
 UNKNOWN is enforced as a permanent fallback state, never a class: requests may
 not opt out, and class canonical names `unknown`/`other` are rejected.
+
+## Phase 4 secure boundaries testing
+
+Apply `services/control-plane/migrations/0003_security.sql` to the control-plane
+database and run `uv run alembic upgrade head` for the engine (revision
+`0011_idempotency_keys`). Then `pnpm seed:portal-phase-4` (strict redaction +
+rate-limit test key, printed once).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Save settings on `/projects/:id/settings` | Redaction toggle + retention persist; secrets are never displayed |
+| 2 | POST a project twice with the same `Idempotency-Key` | Second call replays the original project (same id, no second write) |
+| 3 | POST engine `/events` twice with the same `Idempotency-Key` | 200 replay with `Idempotency-Replayed: true`; no duplicate rows |
+| 4 | Exceed the ingest rate limit (engine) | `429` + `Retry-After` + `X-RateLimit-*` headers |
+| 5 | Open `/projects/:id/audit` | New actions appear with actor/timestamp; cursor pagination works |
+
+Engine env: `OPENCLASS_RATE_LIMITS_ENABLED`, `OPENCLASS_RATE_LIMIT_INGEST_PER_MIN`
+(default 60), `OPENCLASS_RATE_LIMIT_CLASSIFY_PER_MIN` (default 300),
+`OPENCLASS_REDACTION_BLOCKLIST` (comma-separated terms). Request-content logging
+stays off; audit records never contain observation content or key values.

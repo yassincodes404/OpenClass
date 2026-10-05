@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Single source of truth for the Alembic revision readiness requires. Update this
 # constant (and only it) whenever a new migration becomes the expected head.
-EXPECTED_SCHEMA_REVISION = "0010_webhook_receipts"
+EXPECTED_SCHEMA_REVISION = "0011_idempotency_keys"
 
 
 class Settings(BaseSettings):
@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     )
     database_url: str = "postgresql+asyncpg://openclass:openclass@localhost:5432/openclass"
     database_connect_timeout: float = Field(default=5, gt=0, le=60)
+    redaction_enabled: bool = True
+    redaction_blocklist: str = ""
+    rate_limits_enabled: bool = True
+    rate_limit_ingest_per_minute: int = Field(default=60, ge=1)
+    rate_limit_classify_per_minute: int = Field(default=300, ge=1)
+    idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 30)
     novelty: NoveltyPolicy = NoveltyPolicy()
     decision_provider: Literal["mock", "jev", "laya"] = "laya"
     supervisor_provider: Literal["mock"] = "mock"

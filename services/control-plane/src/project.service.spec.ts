@@ -39,9 +39,15 @@ const classes = [
   { canonical_name: "refund", display_name: "Refund" },
 ];
 
+const auditStub = { record: vi.fn(async () => undefined), list: vi.fn(async () => ({ items: [], next_cursor: null })) } as unknown as import("./audit.service.js").AuditService;
+const idempotencyStub = { replay: vi.fn(async () => null), remember: vi.fn(async () => undefined) } as unknown as import("./idempotency.service.js").IdempotencyService;
+
 function serviceWith(pool: Pool, engine: EngineClient) {
   const apiKeys = new ApiKeyService(pool);
-  return { service: new ProjectService(pool, engine, apiKeys), apiKeys };
+  return {
+    service: new ProjectService(pool, engine, apiKeys, auditStub, idempotencyStub),
+    apiKeys,
+  };
 }
 
 describe("ProjectService", () => {

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from openclass_core.discovery import DiscoveryService
@@ -32,6 +32,7 @@ from openclass_server.api.projects import projects_router
 from openclass_server.api.providers import providers_router
 from openclass_server.api.system import system_router
 from openclass_server.persistence.database import create_database_engine
+from openclass_server.persistence.idempotency import IdempotencyStore
 from openclass_server.persistence.integration_repository import SQLIntegrationRepository
 from openclass_server.persistence.project_repository import SQLProjectRepository
 from openclass_server.persistence.repository import SQLRepository
@@ -40,6 +41,7 @@ from openclass_server.provider_config import discovery_provider as configured_di
 from openclass_server.provider_config import project_diagnosis_provider as configured_diagnosis
 from openclass_server.provider_config import project_teacher_provider as configured_teacher
 from openclass_server.provider_config import supervisor_provider as configured_supervisor
+from openclass_server.rate_limit import RateLimiter
 from openclass_server.settings import EXPECTED_SCHEMA_REVISION, Settings
 
 
@@ -118,6 +120,34 @@ def create_app(
     async def database_error(request: Request, exc: Exception) -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": "Database unavailable"})
 
+    limiter = RateLimiter(
+        ingest_per_minute=config.rate_limit_ingest_per_minute,
+        classify_per_minute=config.rate_limit_classify_per_minute,
+        enabled=config.rate_limits_enabled,
+    )
+
+    @app.middleware("http")
+    async def rate_limit_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        client = request.client.host if request.client else "unknown"
+        allowed, retry_after, limit, remaining = limiter.check(client, request.url.path)
+        if not allowed:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded; slow down and retry"},
+                headers={
+                    "Retry-After": str(retry_after),
+                    "X-RateLimit-Limit": str(limit),
+                    "X-RateLimit-Remaining": "0",
+                },
+            )
+        response = await call_next(request)
+        if limit:
+            response.headers["X-RateLimit-Limit"] = str(limit)
+            response.headers["X-RateLimit-Remaining"] = str(remaining)
+        return response
+
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": "0.0.1"}
@@ -140,7 +170,14 @@ def create_app(
         return JSONResponse(content={"status": "ready", "schema": EXPECTED_SCHEMA_REVISION})
 
     app.include_router(classifiers_router(config, repository, service, supervisor, discovery))
-    app.include_router(projects_router(config, projects, project_repository))
+    app.include_router(
+        projects_router(
+            config,
+            projects,
+            project_repository,
+            IdempotencyStore(async_sessionmaker(engine, expire_on_commit=False)),
+        )
+    )
     app.include_router(evolution_router(config, projects, project_repository, evolution))
     app.include_router(decisions_router(config, projects, default_decision_provider))
     app.include_router(evidence_router(config, projects, project_repository, diagnostician))

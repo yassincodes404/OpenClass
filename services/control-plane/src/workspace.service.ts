@@ -1,6 +1,7 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, NotFoundException, forwardRef } from "@nestjs/common";
 import type { Pool, PoolClient, QueryResult } from "pg";
 import type { Principal } from "./auth.js";
+import { AuditService } from "./audit.service.js";
 import { CONTROL_DB } from "./db.js";
 
 export type Role = "owner" | "admin" | "reviewer" | "analyst" | "developer" | "viewer";
@@ -14,7 +15,10 @@ export const ROLE_RANK: Record<Role, number> = { owner: 5, admin: 4, reviewer: 3
 
 @Injectable()
 export class WorkspaceService {
-  constructor(@Inject(CONTROL_DB) private readonly db: Pool) {}
+  constructor(
+    @Inject(CONTROL_DB) private readonly db: Pool,
+    @Inject(forwardRef(() => AuditService)) private readonly audit: AuditService,
+  ) {}
 
   async mine(principal: Principal): Promise<WorkspaceRow[]> {
     const result = await this.db.query(
@@ -41,7 +45,9 @@ export class WorkspaceService {
         [workspace.rows[0].id, principal.subject],
       );
       await client.query("COMMIT");
-      return { ...workspace.rows[0], role: "owner" };
+      const row = { ...workspace.rows[0], role: "owner" } as WorkspaceRow;
+      await this.audit.record({ workspaceId: row.id, actor: principal.subject, action: "workspace.created", target: `workspace:${row.slug}` });
+      return row;
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -66,6 +72,7 @@ export class WorkspaceService {
         " ON CONFLICT (workspace_id, subject) DO UPDATE SET role = EXCLUDED.role RETURNING subject, role",
       [workspaceId, subject, role],
     );
+    await this.audit.record({ workspaceId, actor: principal.subject, action: "member.invited", target: `member:${subject}:${role}` });
     return result.rows[0];
   }
 

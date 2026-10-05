@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { z } from "zod";
 import { API_KEY_SCOPES } from "./api-key.service.js";
 import { KeycloakGuard, type Principal } from "./auth.js";
@@ -51,9 +51,14 @@ export class ProjectController {
   }
 
   @Post()
-  create(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Body() body: unknown) {
+  create(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey?: string,
+  ) {
     const input = parseBody(createProjectSchema, body);
-    return this.projects.create(request.principal, workspaceId, input.name, input.description);
+    return this.projects.create(request.principal, workspaceId, input.name, input.description, idempotencyKey?.slice(0, 200));
   }
 
   @Get(":projectId")

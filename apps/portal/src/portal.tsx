@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import { ClassifierDetailPage, ClassifiersPage, ProjectOverview, Projects } from "./projects";
+import { ProjectAuditPage, ProjectProvidersPage, ProjectSettingsPage } from "./security-pages";
 
 function Home() {
   return (
@@ -52,7 +53,9 @@ export function Portal() {
         <Route path="/projects/:projectId/observations" element={<Placeholder label="Observation ingestion" />} />
         <Route path="/projects/:projectId/unknowns" element={<Placeholder label="The UNKNOWN workspace" />} />
         <Route path="/projects/:projectId/discoveries" element={<Placeholder label="Discovery & canonicalization" />} />
-        <Route path="/projects/:projectId/settings" element={<Placeholder label="Project settings" />} />
+        <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
+        <Route path="/projects/:projectId/providers" element={<ProjectProvidersPage />} />
+        <Route path="/projects/:projectId/audit" element={<ProjectAuditPage />} />
       </Routes>
     </>
   );
