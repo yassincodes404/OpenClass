@@ -1,6 +1,6 @@
 """Adapters implement these ports; they never receive a writable repository."""
 
-from typing import Protocol
+from typing import Literal, Protocol
 
 from openclass_core.models import (
     ChoiceRequest,
@@ -11,9 +11,20 @@ from openclass_core.models import (
     ReviewResult,
 )
 
+ProviderErrorKind = Literal[
+    "timeout", "rate_limit", "auth", "bad_response", "unsupported", "unknown"
+]
+
 
 class ProviderError(Exception):
-    """Safe public failure; adapters must not include secrets or request bodies."""
+    """Safe public failure; adapters must not include secrets or request bodies.
+
+    kind categorizes the failure for telemetry; the message stays safe to show.
+    """
+
+    def __init__(self, message: str, kind: ProviderErrorKind = "unknown") -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 class DecisionProvider(Protocol):

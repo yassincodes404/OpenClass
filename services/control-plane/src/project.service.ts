@@ -198,6 +198,12 @@ export class ProjectService {
     return { ...row, active_ontology_version_id: ontology.id, classes: ontology.classes };
   }
 
+  /** Public role gate for adjacent controllers (providers, etc.). */
+  async assertManager(principal: Principal, workspaceId: string, projectId: string): Promise<void> {
+    await this.requireRole(principal, workspaceId, "admin");
+    await this.byId(workspaceId, projectId);
+  }
+
   async createKey(principal: Principal, workspaceId: string, projectId: string, scopes: ApiKeyScope[]) {
     await this.requireRole(principal, workspaceId, "admin");
     await this.byId(workspaceId, projectId);

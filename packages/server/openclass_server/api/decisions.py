@@ -12,9 +12,10 @@ from openclass_core.projects import (
     DecisionService,
     DecisionServiceStatus,
     DecisionServiceUpdate,
+    ProjectRepository,
 )
 from openclass_core.projects import ProjectService as ProjectDomainService
-from openclass_core.providers import DecisionProvider
+from openclass_core.providers import DecisionProvider, ProviderError
 from openclass_core.repositories import NotFoundError
 
 from openclass_server.api.schemas import (
@@ -27,7 +28,10 @@ from openclass_server.settings import Settings
 
 
 def decisions_router(
-    config: Settings, projects: ProjectDomainService, default_decision_provider: DecisionProvider
+    config: Settings,
+    projects: ProjectDomainService,
+    default_decision_provider: DecisionProvider,
+    project_repository: ProjectRepository | None = None,
 ) -> APIRouter:
     router = APIRouter(tags=["decisions"])
 
@@ -116,7 +120,16 @@ def decisions_router(
             except NotFoundError as err:
                 msg = f"Event not found: {run_event_id}"
                 raise HTTPException(status_code=404, detail=msg) from err
-            run = await executor.execute(event, service)
+            try:
+                run = await executor.execute(event, service)
+            except ProviderError:
+                # Provider failures are observable (usage error counter + audit
+                # event) but never persist a run or leak provider details.
+                if project_repository is not None:
+                    await project_repository.record_provider_error(
+                        service.project_id, "provider", "", 0.0
+                    )
+                raise
             await projects.record_decision_run(run)
             runs.append(run)
         return runs

@@ -161,3 +161,24 @@ Manual checks:
 Runs accept `{ content }` (ingested first) or `{ raw_event_ids }`. The control
 plane rate-limits runs per caller (classify class, 300/min default) and audits
 service/creation and run executions without observation content.
+
+## Phase 7 provider protocol & costs testing
+
+Engine migration `0013_provider_usage` (daily rollups) and control-plane
+migration `0004_provider_configs.sql`. Seeder: `pnpm seed:portal-phase-7`
+(mock default labeled simulated + Jev env-ref config, honestly unconfigured).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | POST `/api/v1/providers/test {provider:"mock"}` | `{ok, model, latency_ms, normalized_preview, simulated:true}`; nothing persisted |
+| 2 | Open `/projects/:id/providers` | Config cards (mock DEFAULT + jev env ref), usage table from engine rollups |
+| 3 | Click Test provider | Safe result panel; failures show sanitized messages only |
+| 4 | Configure provider with raw URL instead of env ref | `400 endpoint_ref must be an environment variable name` |
+| 5 | Run decisions | Usage calls/latency increase; provider failures count as errors with no run persisted |
+
+Provider configs store environment-variable references only (`endpoint_ref`
+UPPER_SNAKE_CASE); secrets never round-trip. Provider failures raise structured
+`ProviderError` (kinds: timeout/rate_limit/auth/bad_response/unsupported/unknown)
+→ safe 502; malformed adapter output is normalized to `bad_response`.

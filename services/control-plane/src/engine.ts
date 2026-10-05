@@ -92,6 +92,18 @@ export class EngineClient {
     return this.request<Record<string, unknown>>("GET", "/api/v1/providers/status");
   }
 
+  async testProvider(provider: string): Promise<unknown> {
+    return this.request<unknown>("POST", "/api/v1/providers/test", { provider });
+  }
+
+  async providerUsage(engineProjectId: string, from?: string, to?: string): Promise<unknown[]> {
+    const params = new URLSearchParams();
+    if (from) params.set("date_from", from);
+    if (to) params.set("date_to", to);
+    const query = params.toString();
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/providers/usage${query ? `?${query}` : ""}`);
+  }
+
   async ingestEvent(
     engineProjectId: string,
     body: { content: string; source_type?: string; metadata?: Record<string, unknown> },

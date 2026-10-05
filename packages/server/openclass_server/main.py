@@ -179,9 +179,11 @@ def create_app(
         )
     )
     app.include_router(evolution_router(config, projects, project_repository, evolution))
-    app.include_router(decisions_router(config, projects, default_decision_provider))
+    app.include_router(
+        decisions_router(config, projects, default_decision_provider, project_repository)
+    )
     app.include_router(evidence_router(config, projects, project_repository, diagnostician))
-    app.include_router(providers_router(config))
+    app.include_router(providers_router(config, async_sessionmaker(engine, expire_on_commit=False)))
     app.include_router(integration_router(config, projects, integration_repository))
     app.include_router(system_router(config, engine))
     return app

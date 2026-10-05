@@ -4,12 +4,13 @@ Snapshot internals can become normalized tables through future explicit migratio
 No provider-specific fields are required by this schema.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -171,6 +172,24 @@ class DecisionRunRow(Base):
     latency_ms: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class ProviderUsageRow(Base):
+    __tablename__ = "provider_usage"
+    __table_args__ = (
+        Index("uq_provider_usage_day", "project_id", "provider", "usage_date", unique=True),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(100))
+    model: Mapped[str] = mapped_column(String(200), default="")
+    usage_date: Mapped[date] = mapped_column(Date)
+    calls: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[int] = mapped_column(Integer, default=0)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_cost: Mapped[float] = mapped_column(Float, default=0.0)
+    latency_ms_total: Mapped[float] = mapped_column(Float, default=0.0)
 
 
 class ProjectChoiceCandidateRow(Base):
