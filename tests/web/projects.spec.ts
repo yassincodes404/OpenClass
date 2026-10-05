@@ -15,7 +15,7 @@ test("projects list shows an empty state before anything exists", async ({ page 
   await page.route("**/api/v1/projects", (route) => route.fulfill({ json: [] }));
   await page.goto("/projects");
   await expect(page.getByRole("navigation", { name: "Portal navigation" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Workspace" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Workspace", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Projects" })).toHaveClass(/active/);
   await expect(page.getByText("No projects yet.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Projects", level: 1 })).toBeVisible();
