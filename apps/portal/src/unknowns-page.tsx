@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
 import { ProjectShell, type Project } from "./projects";
@@ -131,7 +131,7 @@ export function UnknownsPage() {
         <section className="signal">
           <p className="eyebrow">UNKNOWN / TRIAGE</p>
           <h2>What is the system failing to understand?</h2>
-          <p className="muted">Triage is descriptive only — a category is never a new-class proposal, and no promotion path exists here.</p>
+          <p className="muted">Triage is descriptive only — a category is never a new-class proposal, and no promotion path exists here. <Link to={`/projects/${projectId}/unknowns/clusters`}>View clusters →</Link></p>
           <div className="metrics">
             <div><b>{stats.data?.total_unknown ?? "…"}</b><span>UNKNOWN runs</span></div>
             <div><b>{((stats.data?.unknown_rate ?? 0) * 100).toFixed(1)}%</b><span>UNKNOWN rate ({stats.data?.total_runs ?? 0} runs)</span></div>

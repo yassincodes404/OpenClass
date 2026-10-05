@@ -307,3 +307,31 @@ class UnknownTriageRow(Base):
     assignee: Mapped[str | None] = mapped_column(String(200), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EmbeddingRow(Base):
+    __tablename__ = "embeddings"
+    run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), primary_key=True)
+    model: Mapped[str] = mapped_column(String(200))
+    dimensions: Mapped[int] = mapped_column(Integer)
+    vector: Mapped[list[float]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class UnknownClusterRow(Base):
+    __tablename__ = "unknown_clusters"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    algorithm: Mapped[str] = mapped_column(String(50))
+    model: Mapped[str] = mapped_column(String(200))
+    threshold: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ClusterMemberRow(Base):
+    __tablename__ = "cluster_members"
+    cluster_id: Mapped[str] = mapped_column(
+        ForeignKey("unknown_clusters.id", ondelete="CASCADE"), primary_key=True
+    )
+    run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), primary_key=True)
+    similarity: Mapped[float] = mapped_column(Float, default=0.0)

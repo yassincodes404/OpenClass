@@ -24,6 +24,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from openclass_server.api.classifiers import classifiers_router
+from openclass_server.api.clusters import clusters_router
 from openclass_server.api.decisions import decisions_router
 from openclass_server.api.evidence import evidence_router
 from openclass_server.api.evolution import evolution_router
@@ -32,6 +33,7 @@ from openclass_server.api.projects import projects_router
 from openclass_server.api.providers import providers_router
 from openclass_server.api.system import system_router
 from openclass_server.api.unknowns import unknowns_router
+from openclass_server.persistence.cluster_store import ClusterStore
 from openclass_server.persistence.database import create_database_engine
 from openclass_server.persistence.idempotency import IdempotencyStore
 from openclass_server.persistence.integration_repository import SQLIntegrationRepository
@@ -188,9 +190,16 @@ def create_app(
     app.include_router(providers_router(config, async_sessionmaker(engine, expire_on_commit=False)))
     app.include_router(integration_router(config, projects, integration_repository))
     app.include_router(system_router(config, engine))
+    # Literal cluster routes register before the parameterized unknowns routes
+    # so /unknowns/{run_id} cannot shadow them.
+    triage_store = UnknownTriageStore(async_sessionmaker(engine, expire_on_commit=False))
     app.include_router(
-        unknowns_router(
-            config, projects, UnknownTriageStore(async_sessionmaker(engine, expire_on_commit=False))
+        clusters_router(
+            config,
+            projects,
+            ClusterStore(async_sessionmaker(engine, expire_on_commit=False)),
+            triage_store,
         )
     )
+    app.include_router(unknowns_router(config, projects, triage_store))
     return app
