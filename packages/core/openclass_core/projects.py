@@ -8,6 +8,7 @@ authentication exists.
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from hashlib import sha256
 from typing import Any, Literal, Protocol
 from uuid import UUID, uuid4
 
@@ -26,6 +27,7 @@ from .evidence import (
     validate_status_transition,
 )
 from .models import Model
+from .repositories import ConflictError
 
 
 def now() -> datetime:
@@ -55,8 +57,17 @@ class RawEvent(Model):
     project_id: UUID
     source_type: Literal["text", "json", "csv", "webhook"] = "text"
     content: str = Field(min_length=1)
+    content_hash: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now)
+
+    @model_validator(mode="after")
+    def compute_content_hash(self) -> "RawEvent":
+        # Dedup identity: identical content inside a project commits once.
+        if not self.content_hash:
+            digest = sha256(self.content.strip().encode()).hexdigest()
+            object.__setattr__(self, "content_hash", digest)
+        return self
 
 
 class ProjectAuditEvent(Model):
@@ -369,6 +380,10 @@ class ProjectRepository(EvidenceRepository, Protocol):
 
     async def get_raw_event(self, project_id: UUID, event_id: UUID) -> RawEvent: ...
 
+    async def get_raw_event_by_hash(
+        self, project_id: UUID, content_hash: str
+    ) -> RawEvent | None: ...
+
     async def count_raw_events(self, project_id: UUID) -> int: ...
 
     async def create_decision_service(self, service: DecisionService) -> None: ...
@@ -501,7 +516,12 @@ class ProjectService:
         content: str,
         source_type: Literal["text", "json", "csv", "webhook"] = "text",
         metadata: dict[str, Any] | None = None,
-    ) -> RawEvent:
+    ) -> tuple[RawEvent, bool]:
+        """Ingest one observation; returns (event, deduped).
+
+        Identical content inside a project commits once: a repeat delivery
+        returns the original event with deduped=True.
+        """
         if not content.strip():
             raise ValueError("event content cannot be blank")
         project = await self.repository.get_project(identifier)
@@ -512,36 +532,49 @@ class ProjectService:
             metadata=metadata or {},
             created_at=self.clock(),
         )
-        await self.repository.create_raw_event(event)
-        return event
+        try:
+            await self.repository.create_raw_event(event)
+        except ConflictError:
+            existing = await self.repository.get_raw_event_by_hash(project.id, event.content_hash)
+            if existing is None:
+                raise
+            return existing, True
+        return event, False
 
     async def ingest_events_batch(
         self,
         identifier: str,
         items: list[dict[str, Any]],
         source_type: Literal["text", "json", "csv", "webhook"] = "text",
-    ) -> list[RawEvent]:
+    ) -> list[tuple[RawEvent, bool]]:
         project = await self.repository.get_project(identifier)
-        events: list[RawEvent] = []
+        results: list[tuple[RawEvent, bool]] = []
         for item in items:
             c = item.get("content", "")
             if not isinstance(c, str) or not c.strip():
                 continue
             meta = item.get("metadata", {})
             st = item.get("source_type", source_type)
-            events.append(
-                RawEvent(
-                    project_id=project.id,
-                    source_type=st,
-                    content=c.strip(),
-                    metadata=meta if isinstance(meta, dict) else {},
-                    created_at=self.clock(),
-                )
+            event = RawEvent(
+                project_id=project.id,
+                source_type=st,
+                content=c.strip(),
+                metadata=meta if isinstance(meta, dict) else {},
+                created_at=self.clock(),
             )
-        if not events:
+            try:
+                await self.repository.create_raw_event(event)
+                results.append((event, False))
+            except ConflictError:
+                existing = await self.repository.get_raw_event_by_hash(
+                    project.id, event.content_hash
+                )
+                if existing is None:
+                    raise
+                results.append((existing, True))
+        if not results:
             raise ValueError("no valid events to ingest")
-        await self.repository.create_raw_events(events)
-        return events
+        return results
 
     async def list_events(
         self, identifier: str, limit: int = 50, offset: int = 0

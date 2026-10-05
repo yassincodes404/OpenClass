@@ -22,6 +22,7 @@ def raw_event_row(event: RawEvent) -> RawEventRow:
         project_id=str(event.project_id),
         source_type=event.source_type,
         content=event.content,
+        content_hash=event.content_hash,
         metadata_=event.metadata,
         created_at=event.created_at,
         payload=event.model_dump(mode="json"),

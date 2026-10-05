@@ -57,10 +57,11 @@ def test_ingest_raw_events_batch(client: TestClient) -> None:
             "source_type": "json",
         },
     )
-    assert batch_resp.status_code == 201
-    events = batch_resp.json()
-    assert len(events) == 3
-    assert all(e["source_type"] == "json" for e in events)
+    assert batch_resp.status_code == 207
+    entries = batch_resp.json()["items"]
+    assert len(entries) == 3
+    assert all(entry["status"] == 201 for entry in entries)
+    assert all(entry["event"]["source_type"] == "json" for entry in entries)
 
     # List events with pagination
     list_resp = client.get(f"/api/v1/projects/{slug}/events?limit=2&offset=0")

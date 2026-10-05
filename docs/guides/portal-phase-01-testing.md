@@ -116,3 +116,27 @@ Engine env: `OPENCLASS_RATE_LIMITS_ENABLED`, `OPENCLASS_RATE_LIMIT_INGEST_PER_MI
 (default 60), `OPENCLASS_RATE_LIMIT_CLASSIFY_PER_MIN` (default 300),
 `OPENCLASS_REDACTION_BLOCKLIST` (comma-separated terms). Request-content logging
 stays off; audit records never contain observation content or key values.
+
+## Phase 5 observation ingestion testing
+
+Engine migration `0012_raw_event_content_hash` (content-hash dedup; run
+`uv run alembic upgrade head`). Seeder: `pnpm seed:portal-phase-5` — 25
+deterministic support texts (billing/refund/delivery/cancel/account_access plus
+unknowns); re-running reports all 25 as deduped.
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Ingest text from `/projects/:id/data` | Saved toast with event id; appears first in Observations |
+| 2 | Re-send identical content (same or no key) | `200 deduped: true`, same id, count unchanged |
+| 3 | Batch with one blank row | `207` per-item statuses (201/400/413) |
+| 4 | Search "refund" in Observations | Only matching rows |
+| 5 | Open detail drawer | Original content + metadata (members only) |
+| 6 | Ingest with an `oc_dev_` key scoped to another project | `404` |
+
+Programmatic ingestion accepts either a member JWT or a scoped API key
+(`Authorization: Bearer oc_dev_…`, requires the `ingest` scope). Engine limits:
+content 1–10,000 chars (blank 400/422, oversize 413), batch ≤ 500. The control
+plane enforces per-caller token buckets, a 10k/workspace/month simulated quota,
+and redacted list previews per project settings.

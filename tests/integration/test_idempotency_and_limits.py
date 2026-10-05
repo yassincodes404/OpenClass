@@ -29,16 +29,16 @@ def test_same_idempotency_key_replays_original_response(mock_client: TestClient)
     assert ids.count(first.json()["id"]) == 1  # no duplicate writes
 
 
-def test_different_key_creates_new_event(mock_client: TestClient):
+def test_different_key_with_different_content_creates_new_event(mock_client: TestClient):
     slug = _make_project(mock_client)
     first = mock_client.post(
         f"/api/v1/projects/{slug}/events",
-        json={"content": "same text"},
+        json={"content": "first text"},
         headers={"Idempotency-Key": "a"},
     )
     second = mock_client.post(
         f"/api/v1/projects/{slug}/events",
-        json={"content": "same text"},
+        json={"content": "second text"},
         headers={"Idempotency-Key": "b"},
     )
     assert second.status_code == 201
@@ -53,14 +53,17 @@ def test_batch_ingest_is_idempotent(mock_client: TestClient):
         json=payload,
         headers={"Idempotency-Key": "batch-1"},
     )
-    assert first.status_code == 201
+    assert first.status_code == 207
     second = mock_client.post(
         f"/api/v1/projects/{slug}/events/batch",
         json=payload,
         headers={"Idempotency-Key": "batch-1"},
     )
     assert second.status_code == 200
-    assert {e["id"] for e in second.json()} == {e["id"] for e in first.json()}
+    assert second.headers.get("Idempotency-Replayed") == "true"
+    first_ids = {entry["event"]["id"] for entry in first.json()["items"]}
+    second_ids = {entry["event"]["id"] for entry in second.json()["items"]}
+    assert first_ids == second_ids
     listing = mock_client.get(f"/api/v1/projects/{slug}/events")
     assert len(listing.json()) == 2
 

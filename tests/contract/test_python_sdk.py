@@ -72,7 +72,15 @@ def test_sdk_requests_events_and_provider_status() -> None:
         if request.url.path == "/api/v1/projects/my-proj/events/batch" and request.method == "POST":
             data = json.loads(request.content)
             assert len(data["items"]) == 2
-            return httpx.Response(201, json=[{"id": "evt-2"}, {"id": "evt-3"}])
+            return httpx.Response(
+                207,
+                json={
+                    "items": [
+                        {"index": 0, "status": 201, "deduped": False, "event": {"id": "evt-2"}},
+                        {"index": 1, "status": 201, "deduped": False, "event": {"id": "evt-3"}},
+                    ]
+                },
+            )
         if request.url.path == "/api/v1/projects/my-proj/events" and request.method == "GET":
             return httpx.Response(200, json=[{"id": "evt-1"}])
         if request.url.path == "/api/v1/projects/my-proj/events/evt-1":
