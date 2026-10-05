@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
 import { ProjectShell, type Project } from "./projects";
@@ -58,7 +58,7 @@ export function ClustersPage() {
         <section className="signal">
           <p className="eyebrow">UNKNOWN / CLUSTERS</p>
           <h2>Recurring unknowns group here — evidence, never classes.</h2>
-          <p className="muted">Cluster names (if any) are display-only. Grouping is deterministic and reruns are idempotent.</p>
+          <p className="muted">Cluster names (if any) are display-only. Grouping is deterministic and reruns are idempotent. <Link to={`/projects/${projectId}/discoveries`}>View discovery candidates →</Link></p>
           <div className="panel-head">
             <span className="muted">
               {clusters.data?.length

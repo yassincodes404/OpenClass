@@ -239,6 +239,29 @@ export class EngineClient {
     return this.request("GET", `/api/v1/projects/${engineProjectId}/unknowns/clusters/${clusterId}`);
   }
 
+  async discoverCluster(engineProjectId: string, clusterId: string): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/clusters/${clusterId}/discover`,
+      {},
+      201,
+    );
+  }
+
+  async listCandidates(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates`,
+    );
+  }
+
+  async candidateDetail(engineProjectId: string, candidateId: string): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates/${candidateId}`,
+    );
+  }
+
   private async requestStatus(
     method: string,
     path: string,

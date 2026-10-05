@@ -113,6 +113,46 @@ export class UnknownController {
     return this.engine.clusterDetail(project.engine_project_id, clusterId);
   }
 
+  @Post("clusters/:clusterId/discover")
+  async discover(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("clusterId") clusterId: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "admin");
+    const candidate = await this.engine.discoverCluster(project.engine_project_id, clusterId);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "candidate.discovered",
+      target: `cluster:${clusterId.slice(0, 8)}`,
+    });
+    return candidate;
+  }
+
+  @Get("candidates")
+  async candidates(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    return this.engine.listCandidates(project.engine_project_id);
+  }
+
+  @Get("candidates/:candidateId")
+  async candidateDetail(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    return this.engine.candidateDetail(project.engine_project_id, candidateId);
+  }
+
   @Get(":runId")
   async detail(
     @Req() request: RequestWithPrincipal,
