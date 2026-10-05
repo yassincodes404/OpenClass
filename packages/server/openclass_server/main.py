@@ -31,11 +31,13 @@ from openclass_server.api.integrations import integration_router
 from openclass_server.api.projects import projects_router
 from openclass_server.api.providers import providers_router
 from openclass_server.api.system import system_router
+from openclass_server.api.unknowns import unknowns_router
 from openclass_server.persistence.database import create_database_engine
 from openclass_server.persistence.idempotency import IdempotencyStore
 from openclass_server.persistence.integration_repository import SQLIntegrationRepository
 from openclass_server.persistence.project_repository import SQLProjectRepository
 from openclass_server.persistence.repository import SQLRepository
+from openclass_server.persistence.unknown_triage import UnknownTriageStore
 from openclass_server.provider_config import decision_provider as configured_decision
 from openclass_server.provider_config import discovery_provider as configured_discovery
 from openclass_server.provider_config import project_diagnosis_provider as configured_diagnosis
@@ -186,4 +188,9 @@ def create_app(
     app.include_router(providers_router(config, async_sessionmaker(engine, expire_on_commit=False)))
     app.include_router(integration_router(config, projects, integration_repository))
     app.include_router(system_router(config, engine))
+    app.include_router(
+        unknowns_router(
+            config, projects, UnknownTriageStore(async_sessionmaker(engine, expire_on_commit=False))
+        )
+    )
     return app

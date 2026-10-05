@@ -192,6 +192,39 @@ export class EngineClient {
     return this.request<EngineDecisionRun>("GET", `/api/v1/projects/${engineProjectId}/runs/${runId}`);
   }
 
+  async listUnknowns(
+    engineProjectId: string,
+    filters: { state?: string; category?: string; query?: string; limit?: number; offset?: number },
+  ): Promise<unknown> {
+    const params = new URLSearchParams();
+    if (filters.state) params.set("state", filters.state);
+    if (filters.category) params.set("category", filters.category);
+    if (filters.query) params.set("query", filters.query);
+    params.set("limit", String(filters.limit ?? 50));
+    params.set("offset", String(filters.offset ?? 0));
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/unknowns?${params}`);
+  }
+
+  async unknownStats(engineProjectId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/unknowns/stats`);
+  }
+
+  async unknownDetail(engineProjectId: string, runId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/unknowns/${runId}`);
+  }
+
+  async triageUnknown(
+    engineProjectId: string,
+    runId: string,
+    body: { category: string; assignee?: string; note?: string },
+  ): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/unknowns/${runId}/triage`, body, 200);
+  }
+
+  async transitionUnknown(engineProjectId: string, runId: string, to: string): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/unknowns/${runId}/transition`, { to }, 200);
+  }
+
   private async requestStatus(
     method: string,
     path: string,

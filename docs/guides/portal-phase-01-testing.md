@@ -182,3 +182,24 @@ Provider configs store environment-variable references only (`endpoint_ref`
 UPPER_SNAKE_CASE); secrets never round-trip. Provider failures raise structured
 `ProviderError` (kinds: timeout/rate_limit/auth/bad_response/unsupported/unknown)
 → safe 502; malformed adapter output is normalized to `bad_response`.
+
+## Phase 8 UNKNOWN workspace testing
+
+Engine migration `0014_unknown_triage`. Seeder: `pnpm seed:portal-phase-8` —
+30 UNKNOWN runs via an intake service whose ontology lacks those intents
+(15 cancel variants, 8 account-compromise, 7 ambiguous); 2 triaged to the
+reviewer.
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Open `/projects/:id/unknowns` | KPIs (volume, UNKNOWN rate, recurring phrases), SVG trend, table |
+| 2 | Filter category + search "cancel" | Only matching rows |
+| 3 | Triage as missing_info + assign reviewer | Status/category update; audit entry; ontology unchanged |
+| 4 | Look for a promote/activate action | None exists (by design) |
+
+Triage states: needs_evidence → triaged → dismissed (dismissed is terminal).
+Categories are advisory only (truly_novel/ambiguous/out_of_scope/missing_info/
+schema_problem). Viewer+ reads; reviewer+ triages. Run immutability is
+preserved — triage state lives in its own table.

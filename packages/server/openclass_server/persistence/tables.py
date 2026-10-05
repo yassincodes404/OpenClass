@@ -297,3 +297,13 @@ class IdempotencyKeyRow(Base):
     response: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class UnknownTriageRow(Base):
+    __tablename__ = "unknown_triage"
+    run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), primary_key=True)
+    status: Mapped[str] = mapped_column(String(30), index=True)
+    category: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    assignee: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
