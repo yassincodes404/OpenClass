@@ -1,15 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { NavLink, Route, Routes, useParams } from "react-router-dom";
+import { NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
-
-const slug = "acme-support-phase-01-demo";
-const sections = ["Overview", "Classifiers", "Observations", "Unknowns", "Discoveries", "Ontology", "Evaluations", "Integrations", "Usage & Billing", "Team & Access", "Settings"];
-
-export type Workspace = { id: string; slug: string; name: string; role: string };
-
-export function controlHeaders(token: string | undefined): HeadersInit {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { ClassifierDetailPage, ClassifiersPage, ProjectOverview, Projects } from "./projects";
 
 function Home() {
   return (
@@ -22,78 +13,18 @@ function Home() {
   );
 }
 
-function Projects() {
-  const auth = useAuth();
-  const workspaces = useQuery({
-    queryKey: ["workspaces"],
-    enabled: auth.ready && auth.authenticated,
-    queryFn: async (): Promise<Workspace[]> => {
-      const response = await fetch("/control/workspaces", { headers: controlHeaders(auth.token()) });
-      if (response.status === 401) {
-        auth.clearSession();
-        throw new Error("Session expired");
-      }
-      if (!response.ok) throw new Error("Workspaces are temporarily unavailable");
-      return response.json();
-    },
-  });
-
-  if (!auth.ready) return <main><p className="lede">Checking secure session…</p></main>;
-  if (!auth.authenticated) {
-    return (
-      <main className="access-gate">
-        <p className="eyebrow">SECURE PORTAL / PHASE 2</p>
-        <h1>Sign in to your workspace.</h1>
-        <p className="lede">Projects are visible only to authorized workspace members.</p>
-        <button onClick={() => void auth.login()}>Continue with Keycloak ↗</button>
-      </main>
-    );
-  }
-
+function Placeholder({ label }: { label: string }) {
   return (
-    <main>
-      <p className="eyebrow">WORKSPACES / AUTHENTICATED</p>
-      <h1>Projects</h1>
-      {workspaces.isPending && <p className="lede">Loading workspaces…</p>}
-      {workspaces.isError && <p className="lede">{(workspaces.error as Error).message}. Refresh to retry.</p>}
-      {workspaces.isSuccess && workspaces.data.length === 0 && (
-        <p className="lede">No workspaces yet. Create one via POST /control/workspaces, then reload.</p>
-      )}
-      {workspaces.data?.map((workspace) => (
-        <article key={workspace.id} className="project-card">
-          <p className="status"><i /> ACTIVE / {workspace.role.toUpperCase()}</p>
-          <h2>{workspace.name}</h2>
-          <p>Workspace slug <code>{workspace.slug}</code>. Product capabilities unlock across phases.</p>
-          <NavLink to={`/projects/${workspace.slug}`}>Open workspace →</NavLink>
-        </article>
-      ))}
-    </main>
+    <section className="signal">
+      <p className="eyebrow">STAGED / UPCOMING PHASE</p>
+      <h2>{label} arrives in its planned phase.</h2>
+      <p>Workspace access is protected; this capability is not claimed until its phase ships.</p>
+    </section>
   );
 }
 
-function Project() {
-  const { section = "overview" } = useParams();
-  return (
-    <main>
-      <div className="project-kicker">
-        <div>
-          <p className="eyebrow">ACME SUPPORT / PROJECT</p>
-          <h1>{section === "overview" ? "The decision system, in focus." : section.replaceAll("-", " ")}</h1>
-        </div>
-        <span className="status"><i /> ACTIVE</span>
-      </div>
-      <nav className="section-nav" aria-label="Project navigation">
-        {sections.map((item) => (
-          <NavLink key={item} to={`/projects/${slug}/${item.toLowerCase().replaceAll(" & ", "-").replaceAll(" ", "-")}`}>{item}</NavLink>
-        ))}
-      </nav>
-      <section className="signal">
-        <p className="eyebrow">PHASE 2 / IDENTITY READY</p>
-        <h2>Governed access starts here.</h2>
-        <p>Workspace access is protected; product capabilities remain staged until their planned phases.</p>
-      </section>
-    </main>
-  );
+export function ProjectPlaceholder({ label }: { label: string }) {
+  return <Placeholder label={label} />;
 }
 
 function Header() {
@@ -115,7 +46,13 @@ export function Portal() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/projects" element={<Projects />} />
-        <Route path="/projects/:id/:section?" element={<Project />} />
+        <Route path="/projects/:projectId" element={<ProjectOverview />} />
+        <Route path="/projects/:projectId/classifiers" element={<ClassifiersPage />} />
+        <Route path="/projects/:projectId/classifiers/:classifierId" element={<ClassifierDetailPage />} />
+        <Route path="/projects/:projectId/observations" element={<Placeholder label="Observation ingestion" />} />
+        <Route path="/projects/:projectId/unknowns" element={<Placeholder label="The UNKNOWN workspace" />} />
+        <Route path="/projects/:projectId/discoveries" element={<Placeholder label="Discovery & canonicalization" />} />
+        <Route path="/projects/:projectId/settings" element={<Placeholder label="Project settings" />} />
       </Routes>
     </>
   );

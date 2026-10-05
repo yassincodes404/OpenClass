@@ -9,6 +9,9 @@ export type WorkspaceRow = { id: string; slug: string; name: string; role?: Role
 
 const MANAGER_ROLES: readonly Role[] = ["owner", "admin"];
 
+/** Higher rank = more authority; "minimum role" checks use >= comparison. */
+export const ROLE_RANK: Record<Role, number> = { owner: 5, admin: 4, reviewer: 3, analyst: 2, developer: 1, viewer: 0 };
+
 @Injectable()
 export class WorkspaceService {
   constructor(@Inject(CONTROL_DB) private readonly db: Pool) {}

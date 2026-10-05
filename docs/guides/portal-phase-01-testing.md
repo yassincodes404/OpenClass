@@ -67,3 +67,30 @@ gate/list/logout Vitest), `pnpm typecheck`, `pnpm build`, `uv run ruff check scr
 | `http://127.0.0.1:5173/projects` | Anonymous: sign-in gate. Authenticated: workspace list. |
 | `http://127.0.0.1:5173/projects/:slug` | Project navigation lists all planned portal sections; only delivered phase messaging is claimed. |
 | `http://127.0.0.1:7400/control/health` | `{ "status": "ready", "service": "openclass-control-plane" }`. |
+
+## Phase 3 projects & classifiers testing
+
+Requires the Phase 2 stack plus the engine (`uv run openclass serve`, default
+`http://127.0.0.1:7331`, Postgres migrated to head) and migration `0002_projects.sql`
+applied to the control-plane database. Start the control plane with
+`ENGINE_BASE_URL=http://127.0.0.1:7331`.
+
+```bash
+docker exec -i <pg-container> psql -U openclass -d openclass \
+  < services/control-plane/migrations/0002_projects.sql
+pnpm seed:portal-phase-3   # workspace acme-support → project → classifier → dev key (printed once)
+```
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Owner creates project via `/projects` modal | Project card appears with unique slug |
+| 2 | `POST .../classifiers` with `unknown_fallback: false` | `400 UNKNOWN fallback is required and permanent` |
+| 3 | Valid classifier via UI | Detail lists all classes + locked UNKNOWN row + version id |
+| 4 | Create API key | Full key shown once; after reload only the prefix remains |
+| 5 | Reviewer creates project/classifier/key | `403 Workspace role cannot manage projects` |
+| 6 | Non-member resolves project id | `404 Project not found` |
+
+UNKNOWN is enforced as a permanent fallback state, never a class: requests may
+not opt out, and class canonical names `unknown`/`other` are rejected.
