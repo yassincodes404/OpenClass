@@ -15,9 +15,55 @@ uv run python scripts/seed_portal_phase_01.py
 
 No login is required in Phase 1.
 
+## Phase 2 access testing
+
+Keycloak backs portal sign-in. Realm import happens at container start; recreate
+the container after editing the realm JSON.
+
+```bash
+# 1. Postgres (engine schema already required by Phase 1; use port 55432 if 5432 is taken)
+docker compose up -d db   # or reuse an existing migrated instance
+
+# 2. Apply the control-plane identity migration (once)
+psql "postgresql://openclass:openclass@127.0.0.1:5432/openclass" \
+  -f services/control-plane/migrations/0001_identity.sql
+
+# 3. Keycloak with the local dev realm (realm: openclass-local)
+docker compose --profile portal-identity up -d --force-recreate keycloak
+
+# 4. Control plane (NestJS) with identity env
+KEYCLOAK_ISSUER_URL=http://127.0.0.1:8080/realms/openclass-local \
+KEYCLOAK_AUDIENCE=openclass-portal \
+CONTROL_PLANE_DATABASE_URL=postgresql://openclass:openclass@127.0.0.1:5432/openclass \
+pnpm dev:control-plane
+
+# 5. Portal + local-only credentials manifest
+pnpm dev:portal
+pnpm seed:portal-phase-02
+```
+
+Visit `/projects`: anonymous users see **Sign in to your workspace**. Sign in
+with `owner@acme.openclass.test` / `OpenClass-Local-Owner-2026`; expected result
+is the authenticated workspace list and a **Sign out** action. These are
+local-only simulated credentials.
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | `curl http://127.0.0.1:7400/control/workspaces` | `401 { "message": "Authentication required" }` |
+| 2 | Sign in as owner | Workspace list renders; header shows Sign out |
+| 3 | `POST /control/workspaces { "name": "Acme Support" }` with owner token | `201` with `role: "owner"` |
+| 4 | Reviewer token calls `POST /control/workspaces/:id/members` | `403 Workspace role cannot manage members` |
+| 5 | Non-member calls `GET /control/workspaces/:id/members` | `404 Workspace not found` |
+| 6 | Sign out | Portal returns to the sign-in gate |
+
+Automated checks: `pnpm test` (NestJS guard/service/controller Vitest, portal
+gate/list/logout Vitest), `pnpm typecheck`, `pnpm build`, `uv run ruff check scripts/`.
+
 | Route | Expected result |
 | --- | --- |
 | `http://127.0.0.1:5173/` | Genesis landing screen and **Open demo workspace** action. |
-| `http://127.0.0.1:5173/projects` | Simulated Acme Support project is visible. |
-| `http://127.0.0.1:5173/projects/acme-support-phase-01-demo` | Project navigation lists all planned portal sections; only Phase 1 foundation messaging is claimed. |
+| `http://127.0.0.1:5173/projects` | Anonymous: sign-in gate. Authenticated: workspace list. |
+| `http://127.0.0.1:5173/projects/:slug` | Project navigation lists all planned portal sections; only delivered phase messaging is claimed. |
 | `http://127.0.0.1:7400/control/health` | `{ "status": "ready", "service": "openclass-control-plane" }`. |
