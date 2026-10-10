@@ -398,3 +398,15 @@ class EvaluationExampleRow(Base):
     rationale: Mapped[str] = mapped_column(Text, default="")
     slice_tag: Mapped[str] = mapped_column(String(30), default="historical")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationRunRow(Base):
+    __tablename__ = "evaluation_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("evaluation_sets.id"))
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("cluster_candidates.id"))
+    overall_passed: Mapped[bool] = mapped_column(Boolean)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
+    gates: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

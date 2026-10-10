@@ -314,6 +314,21 @@ export class EngineClient {
     return this.request("POST", `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}/seal`, {}, 200);
   }
 
+  async runEvaluation(
+    engineProjectId: string,
+    body: { dataset_id: string; candidate_id: string; service_id?: string },
+  ): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/evaluations`, body, 201);
+  }
+
+  async listEvaluations(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/evaluations`);
+  }
+
+  async evaluationDetail(engineProjectId: string, evaluationId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/evaluations/${evaluationId}`);
+  }
+
   private async requestStatus(
     method: string,
     path: string,

@@ -95,6 +95,99 @@ export function EvaluationsPage() {
   );
 }
 
+export type EvaluationSummary = { id: string; dataset_id: string; candidate_id: string; overall_passed: boolean; created_at: string };
+export type Gate = { gate: string; passed: boolean; value?: number; threshold?: number; before?: number; after?: number; reason?: string };
+export type EvaluationDetail = {
+  id: string;
+  dataset_id: string;
+  candidate_id: string;
+  overall_passed: boolean;
+  metrics: {
+    examples: number;
+    simulated?: boolean;
+    baseline: { accuracy: number | null; macro_f1: number | null; coverage: number | null };
+    candidate: { accuracy: number | null; macro_f1: number | null; coverage: number | null; unknown_precision: number | null; unknown_recall: number | null };
+  };
+  gates: Gate[];
+};
+
+export function EvaluationDetailPage() {
+  const { projectId = "", evaluationId = "" } = useParams();
+  const token = useToken();
+  const project = useProjectQuery(projectId);
+  const evaluation = useQuery({
+    queryKey: ["evaluation", projectId, evaluationId],
+    enabled: project.isSuccess,
+    queryFn: async (): Promise<EvaluationDetail> =>
+      (await controlFetch(`/workspaces/${project.data!.workspace_id}/projects/${projectId}/evaluations/${evaluationId}`, token)) as EvaluationDetail,
+  });
+  if (project.isPending || evaluation.isPending) return <main><p className="lede">Loading evaluation…</p></main>;
+  if (!project.data || !evaluation.data) return <main><p className="lede">Evaluation unavailable.</p></main>;
+  const { metrics, gates, overall_passed: passed } = evaluation.data;
+  const pct = (value: number | null | undefined) => (value === null || value === undefined ? "—" : `${(value * 100).toFixed(1)}%`);
+  return (
+    <main>
+      <ProjectShell project={project.data} active="/evaluations">
+        <section className="signal">
+          <p className="eyebrow">EVALUATION / REPLAY · <Link to={`/projects/${projectId}/evaluations`}>← all datasets</Link></p>
+          <h2>{passed ? "All gates passed — ready for human approval" : "Blocked — failed gates"}</h2>
+          <p className={passed ? "muted" : "field-error"}>
+            {passed
+              ? "Ready for promotion review (Phase 14 still requires explicit human approval)."
+              : "A failed evaluation blocks promotion. Fix the regression before promoting."}
+            {metrics.simulated && <> · mock replay (simulated, deterministic)</>}
+          </p>
+          <div className="panel">
+            <div className="panel-head"><h3>Baseline vs candidate</h3></div>
+            <table className="table">
+              <thead><tr><th>Metric</th><th>Baseline</th><th>Candidate</th><th>Delta</th></tr></thead>
+              <tbody>
+                {(["accuracy", "macro_f1", "coverage"] as const).map((key) => {
+                  const before = metrics.baseline[key];
+                  const after = metrics.candidate[key];
+                  const delta = before !== null && after !== null ? after - before : null;
+                  return (
+                    <tr key={key}>
+                      <td>{key.replaceAll("_", " ")}</td>
+                      <td>{pct(before)}</td>
+                      <td>{pct(after)}</td>
+                      <td>
+                        {delta === null ? "—" : (
+                          <span className={delta >= 0 ? "chip locked" : "chip danger"}>{delta >= 0 ? "+" : ""}{(delta * 100).toFixed(1)}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr>
+                  <td>unknown precision / recall</td>
+                  <td>—</td>
+                  <td>{pct(metrics.candidate.unknown_precision)} / {pct(metrics.candidate.unknown_recall)}</td>
+                  <td>—</td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="muted">{metrics.examples} sealed examples replayed on both versions.</p>
+          </div>
+          <div className="panel">
+            <div className="panel-head"><h3>Gate checklist</h3></div>
+            <ul className="timeline">
+              {gates.map((gate) => (
+                <li key={gate.gate}>
+                  {gate.passed ? "✓" : "✕"} {gate.gate.replaceAll("_", " ")}
+                  {gate.reason ? ` — ${gate.reason}` : ""}
+                  {gate.value !== undefined && ` — value ${gate.value} vs threshold ${gate.threshold}`}
+                  {gate.before !== undefined && gate.after !== undefined && ` — ${(gate.before * 100).toFixed(0)}% → ${(gate.after * 100).toFixed(0)}%`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      </ProjectShell>
+    </main>
+  );
+}
+
 export function DatasetPage() {
   const { projectId = "", datasetId = "" } = useParams();
   const token = useToken();

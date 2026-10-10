@@ -56,6 +56,12 @@ const exampleSchema = z.object({
   slice_tag: z.enum(["historical", "recent", "rare", "hard", "unknown", "adversarial"]).optional().default("historical"),
 });
 
+const evaluationSchema = z.object({
+  dataset_id: z.string().uuid(),
+  candidate_id: z.string().uuid(),
+  service_id: z.string().optional(),
+});
+
 const runSchema = z
   .object({
     content: z.string().trim().min(1).max(10_000).optional(),
@@ -225,6 +231,38 @@ export class DecisionController {
       target: `dataset:${datasetId.slice(0, 8)}`,
     });
     return result;
+  }
+
+  @Get("evaluations")
+  async listEvaluations(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.listEvaluations(project.engine_project_id);
+  }
+
+  @Post("evaluations")
+  async runEvaluation(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(evaluationSchema, body);
+    const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
+    const result = await this.engine.runEvaluation(project.engine_project_id, input);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "evaluation.run",
+      target: `candidate:${input.candidate_id.slice(0, 8)}`,
+    });
+    return result;
+  }
+
+  @Get("evaluations/:evaluationId")
+  async evaluationDetail(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string, @Param("evaluationId") evaluationId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.evaluationDetail(project.engine_project_id, evaluationId);
   }
 
   @Get("runs/:runId")

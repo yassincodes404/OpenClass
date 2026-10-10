@@ -286,3 +286,25 @@ Manual checks:
 Ground truth accepts only `human` or `verified_external` sources with a named
 annotator; every row keeps its provenance. Admin+ creates/seals; reviewer+
 annotates; viewer reads.
+
+## Phase 13 replay evaluation testing
+
+Engine migration `0019_evaluation_runs`. Seeder: `pnpm seed:portal-phase-13`
+(one passing evaluation — cancel improves, billing holds — and one blocked
+evaluation where the false-novelty gate fails on a hard gold set).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Open the passing evaluation | All gates green, "ready for human approval" (no auto-promotion) |
+| 2 | Open the blocked evaluation | Red banner, failed gate highlighted, promotion stays blocked |
+| 3 | Evaluate an unsealed dataset | `400 dataset must be sealed before evaluation` |
+
+Replay is deterministic (mock provider, simulated): the same sealed dataset is
+replayed against the baseline ontology and baseline + candidate class. Metrics:
+accuracy, macro F1, coverage, UNKNOWN precision/recall. Gates: accuracy delta ≥
+0, false novelty (scoped to baseline-known classes) ≤ 0.2, and no per-class
+regression for every class present in the gold set. Undefined metrics fail
+closed. Gold sets may be annotated against a proposed candidate class (label =
+candidate canonical name).
