@@ -248,3 +248,22 @@ construction; providers cannot write the ontology; discovery uses the mock
 cluster provider (deterministic, simulated) with no per-unknown LLM calls.
 Engine routes are `/discovery-candidates` (the classifier-plane `/candidates`
 path stays with the existing evolution surface).
+
+## Phase 11 candidate lifecycle & review testing
+
+Engine migration `0017_candidate_reviews`. Seeder: `pnpm seed:portal-phase-11`
+(one reviewable candidate, one below the 5-evidence threshold).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Approve a 2-evidence candidate | `409 collect more evidence (2/5)` + blocking banner |
+| 2 | Attach evidence → Request review → approve | Status `approved` (still inactive; no Activate exists) |
+| 3 | Reject with reason | `rejected` + audited; terminal (repeat → 409) |
+| 4 | Review a candidate straight from `candidate` | 409 illegal transition — collect/request-review first |
+
+Lifecycle: `discovered → candidate → collecting_evidence → validating → approved
+→ active` (+ rejected terminal). Only human review decisions count (reviews are
+append-only rows with reviewer + rationale); every transition is event-logged.
+Reviewer+ role gates mutations; viewer reads only.

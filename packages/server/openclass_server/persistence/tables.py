@@ -361,3 +361,15 @@ class CandidateEvidenceRow(Base):
         ForeignKey("cluster_candidates.id", ondelete="CASCADE"), primary_key=True
     )
     run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), primary_key=True)
+
+
+class CandidateReviewRow(Base):
+    __tablename__ = "candidate_reviews"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("cluster_candidates.id", ondelete="CASCADE"), index=True
+    )
+    reviewer: Mapped[str] = mapped_column(String(200))
+    decision: Mapped[str] = mapped_column(String(20))
+    rationale: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

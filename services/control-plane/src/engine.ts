@@ -1,4 +1,10 @@
-import { BadGatewayException, BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
 export type EngineProject = { id: string; slug: string; name: string; description: string; status?: string };
 export type EngineClassifier = {
@@ -262,6 +268,27 @@ export class EngineClient {
     );
   }
 
+  async candidateAction(
+    engineProjectId: string,
+    candidateId: string,
+    action: "collect" | "request-review" | "review" | "reject",
+    body?: unknown,
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates/${candidateId}/${action}`,
+      body ?? {},
+      200,
+    );
+  }
+
+  async candidateHistory(engineProjectId: string, candidateId: string): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates/${candidateId}/history`,
+    );
+  }
+
   private async requestStatus(
     method: string,
     path: string,
@@ -305,6 +332,7 @@ export class EngineClient {
     if (response.status === expectedStatus) return (await response.json()) as T;
     const detail = await this.errorMessage(response);
     if (response.status === 404) throw new NotFoundException(detail);
+    if (response.status === 409) throw new ConflictException(detail);
     if (response.status >= 400 && response.status < 500) throw new BadRequestException(detail);
     throw new BadGatewayException("Engine request failed");
   }

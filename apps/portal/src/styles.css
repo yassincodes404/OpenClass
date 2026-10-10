@@ -12,3 +12,5 @@ button{cursor:pointer}button.ghost{background:transparent;border:1px solid var(-
 .prob-panel{margin-top:16px}.prob-row{display:grid;grid-template-columns:120px 1fr 56px;align-items:center;gap:10px;margin:7px 0;font-size:13px}.prob-track{background:#101411;border:1px solid var(--line);border-radius:99px;height:12px;overflow:hidden}.prob-fill{height:100%;background:var(--accent)}.prob-fill.unknown{background:#7a8a6a}.unknown-row code{color:#c9d6a8}.prob-row span{text-align:right;color:var(--muted)}
 
 .trend{margin-top:10px;display:block}
+
+.timeline{list-style:none;padding:0;margin:0}.timeline li{padding:8px 0;border-bottom:1px solid #222a23;color:var(--muted);font-size:13px}

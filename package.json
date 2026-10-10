@@ -24,6 +24,7 @@
     "seed:portal-phase-8": "uv run python scripts/seed_portal_phase_08.py",
     "seed:portal-phase-9": "uv run python scripts/seed_portal_phase_09.py",
     "seed:portal-phase-10": "uv run python scripts/seed_portal_phase_10.py",
+    "seed:portal-phase-11": "uv run python scripts/seed_portal_phase_11.py",
     "build": "pnpm --recursive --if-present run build",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --filter @openclass/control-plane --filter @openclass/portal --filter @openclass/sdk test",

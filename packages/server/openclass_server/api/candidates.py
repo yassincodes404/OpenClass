@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
@@ -12,12 +12,28 @@ from fastapi import APIRouter, HTTPException
 from openclass_core.candidates import (
     ClusterDiscoveryRequest,
     MockClusterDiscoveryProvider,
+    review_gaps,
+    validate_candidate_transition,
 )
 from openclass_core.projects import ProjectService as ProjectDomainService
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
 from openclass_server.settings import Settings
+
+
+class CollectRequest(BaseModel):
+    unknown_ids: list[str] = Field(min_length=1, max_length=100)
+
+
+class ReviewRequest(BaseModel):
+    decision: Literal["approve", "reject", "needs_evidence"]
+    rationale: str = Field(min_length=5, max_length=2000)
+
+
+class RejectRequest(BaseModel):
+    reason: str = Field(min_length=5, max_length=2000)
 
 
 def candidates_router(
@@ -28,6 +44,46 @@ def candidates_router(
 ) -> APIRouter:
     router = APIRouter(tags=["candidates"])
     provider = MockClusterDiscoveryProvider()
+
+    async def _candidate_row(project_id: UUID, candidate_id: str) -> dict[str, Any]:
+        async with sessions() as session:
+            row = await session.execute(
+                sa.text(
+                    "SELECT id, cluster_id, type, status FROM cluster_candidates"
+                    " WHERE id = :id AND project_id = :project_id"
+                ),
+                {"id": candidate_id, "project_id": str(project_id)},
+            )
+            record = row.first()
+        if record is None:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        return {
+            "id": record.id,
+            "cluster_id": record.cluster_id,
+            "type": record.type,
+            "status": record.status,
+        }
+
+    async def _evidence_count(candidate_id: str) -> int:
+        async with sessions() as session:
+            count = await session.execute(
+                sa.text("SELECT count(*) AS n FROM candidate_evidence WHERE candidate_id = :cid"),
+                {"cid": candidate_id},
+            )
+            return int(count.scalar() or 0)
+
+    async def _set_status(candidate_id: str, status: str) -> None:
+        async with sessions.begin() as session:
+            await session.execute(
+                sa.text("UPDATE cluster_candidates SET status = :status WHERE id = :id"),
+                {"status": status, "id": candidate_id},
+            )
+
+    def _transition(candidate: dict[str, Any], target: str) -> None:
+        try:
+            validate_candidate_transition(candidate["status"], target)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     async def _member_texts(project_id: str, cluster_id: str) -> list[str]:
         async with sessions() as session:
@@ -220,5 +276,162 @@ def candidates_router(
                 {"cluster_id": cluster_id},
             )
             return [row.run_id for row in rows]
+
+    @router.post("/api/v1/projects/{identifier}/discovery-candidates/{candidate_id}/collect")
+    async def collect_evidence(
+        identifier: str, candidate_id: str, body: CollectRequest
+    ) -> dict[str, Any]:
+        project = await projects.get(identifier)
+        candidate = await _candidate_row(project.id, candidate_id)
+        if candidate["status"] != "collecting_evidence":
+            _transition(candidate, "collecting_evidence")
+        async with sessions.begin() as session:
+            for run_id in body.unknown_ids:
+                owned = await session.execute(
+                    sa.text("SELECT 1 FROM decision_runs WHERE id = :id AND project_id = :pid"),
+                    {"id": run_id, "pid": str(project.id)},
+                )
+                if owned.first() is None:
+                    raise HTTPException(
+                        status_code=404, detail=f"Unknown event not found: {run_id}"
+                    )
+                await session.execute(
+                    sa.text(
+                        "INSERT INTO candidate_evidence (candidate_id, run_id)"
+                        " VALUES (:cid, :rid) ON CONFLICT DO NOTHING"
+                    ),
+                    {"cid": candidate_id, "rid": run_id},
+                )
+        await _set_status(candidate_id, "collecting_evidence")
+        await triage_store.append_audit(
+            project.id,
+            "portal-user",
+            "candidate.updated",
+            f"candidate:{candidate_id}",
+            {
+                "candidate_id": candidate_id,
+                "from": candidate["status"],
+                "to": "collecting_evidence",
+            },
+        )
+        return {
+            "candidate_id": candidate_id,
+            "status": "collecting_evidence",
+            "evidence": await _evidence_count(candidate_id),
+        }
+
+    @router.post("/api/v1/projects/{identifier}/discovery-candidates/{candidate_id}/request-review")
+    async def request_review(identifier: str, candidate_id: str) -> dict[str, Any]:
+        project = await projects.get(identifier)
+        candidate = await _candidate_row(project.id, candidate_id)
+        _transition(candidate, "validating")
+        await _set_status(candidate_id, "validating")
+        await triage_store.append_audit(
+            project.id,
+            "portal-user",
+            "candidate.updated",
+            f"candidate:{candidate_id}",
+            {"candidate_id": candidate_id, "from": candidate["status"], "to": "validating"},
+        )
+        return {"candidate_id": candidate_id, "status": "validating"}
+
+    @router.post("/api/v1/projects/{identifier}/discovery-candidates/{candidate_id}/review")
+    async def review(identifier: str, candidate_id: str, body: ReviewRequest) -> dict[str, Any]:
+        project = await projects.get(identifier)
+        candidate = await _candidate_row(project.id, candidate_id)
+        gap = review_gaps(await _evidence_count(candidate_id))
+        if gap:
+            raise HTTPException(status_code=409, detail=gap)
+        target = {
+            "approve": "approved",
+            "reject": "rejected",
+            "needs_evidence": "collecting_evidence",
+        }[body.decision]
+        _transition(candidate, target)
+        async with sessions.begin() as session:
+            await session.execute(
+                sa.text(
+                    "INSERT INTO candidate_reviews"
+                    " (id, candidate_id, reviewer, decision, rationale, created_at)"
+                    " VALUES (:id, :cid, :reviewer, :decision, :rationale, :created_at)"
+                ),
+                {
+                    "id": str(uuid4()),
+                    "cid": candidate_id,
+                    "reviewer": "portal-reviewer",
+                    "decision": body.decision,
+                    "rationale": body.rationale,
+                    "created_at": datetime.now(UTC),
+                },
+            )
+        await _set_status(candidate_id, target)
+        await triage_store.append_audit(
+            project.id,
+            "portal-user",
+            "candidate.updated",
+            f"candidate:{candidate_id}",
+            {
+                "candidate_id": candidate_id,
+                "from": candidate["status"],
+                "to": target,
+                "decision": body.decision,
+            },
+        )
+        return {"candidate_id": candidate_id, "status": target, "decision": body.decision}
+
+    @router.post("/api/v1/projects/{identifier}/discovery-candidates/{candidate_id}/reject")
+    async def reject(identifier: str, candidate_id: str, body: RejectRequest) -> dict[str, Any]:
+        project = await projects.get(identifier)
+        candidate = await _candidate_row(project.id, candidate_id)
+        _transition(candidate, "rejected")
+        await _set_status(candidate_id, "rejected")
+        await triage_store.append_audit(
+            project.id,
+            "portal-user",
+            "candidate.rejected",
+            f"candidate:{candidate_id}",
+            {
+                "candidate_id": candidate_id,
+                "from": candidate["status"],
+                "to": "rejected",
+                "reason": body.reason,
+            },
+        )
+        return {"candidate_id": candidate_id, "status": "rejected", "reason": body.reason}
+
+    @router.get("/api/v1/projects/{identifier}/discovery-candidates/{candidate_id}/history")
+    async def candidate_history(identifier: str, candidate_id: str) -> dict[str, Any]:
+        project = await projects.get(identifier)
+        await _candidate_row(project.id, candidate_id)
+        events = await triage_store.audit_history(project.id, "candidate.", candidate_id)
+        async with sessions() as session:
+            reviews = await session.execute(
+                sa.text(
+                    "SELECT reviewer, decision, rationale, created_at FROM candidate_reviews"
+                    " WHERE candidate_id = :cid ORDER BY created_at ASC"
+                ),
+                {"cid": candidate_id},
+            )
+        return {
+            "events": [
+                {
+                    "event": entry["event"],
+                    "actor": entry["actor"],
+                    "from": (entry["payload"] or {}).get("from"),
+                    "to": (entry["payload"] or {}).get("to"),
+                    "created_at": entry["created_at"],
+                }
+                for entry in events
+            ],
+            "reviews": [
+                {
+                    "reviewer": row.reviewer,
+                    "decision": row.decision,
+                    "rationale": row.rationale,
+                    "created_at": row.created_at,
+                }
+                for row in reviews
+            ],
+        }
 
     return router

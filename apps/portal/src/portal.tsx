@@ -6,7 +6,7 @@ import { DataIngestPage, ObservationsPage } from "./ingestion-pages";
 import { DecisionServicePage, DecisionsPage, RunsPage } from "./decision-pages";
 import { UnknownsPage } from "./unknowns-page";
 import { ClustersPage } from "./clusters-page";
-import { DiscoveriesPage } from "./discoveries-page";
+import { CandidateReviewPage, DiscoveriesPage } from "./discoveries-page";
 
 function Home() {
   return (
@@ -63,6 +63,7 @@ export function Portal() {
         <Route path="/projects/:projectId/unknowns" element={<UnknownsPage />} />
         <Route path="/projects/:projectId/unknowns/clusters" element={<ClustersPage />} />
         <Route path="/projects/:projectId/discoveries" element={<DiscoveriesPage />} />
+        <Route path="/projects/:projectId/discoveries/:candidateId" element={<CandidateReviewPage />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         <Route path="/projects/:projectId/providers" element={<ProjectProvidersPage />} />
         <Route path="/projects/:projectId/audit" element={<ProjectAuditPage />} />
