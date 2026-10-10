@@ -7,6 +7,7 @@ import { DecisionServicePage, DecisionsPage, RunsPage } from "./decision-pages";
 import { UnknownsPage } from "./unknowns-page";
 import { ClustersPage } from "./clusters-page";
 import { CandidateReviewPage, DiscoveriesPage } from "./discoveries-page";
+import { DatasetPage, EvaluationsPage } from "./evaluations-pages";
 
 function Home() {
   return (
@@ -57,6 +58,8 @@ export function Portal() {
         <Route path="/projects/:projectId/classifiers/:classifierId" element={<ClassifierDetailPage />} />
         <Route path="/projects/:projectId/data" element={<DataIngestPage />} />
         <Route path="/projects/:projectId/observations" element={<ObservationsPage />} />
+        <Route path="/projects/:projectId/evaluations" element={<EvaluationsPage />} />
+        <Route path="/projects/:projectId/evaluations/datasets/:datasetId" element={<DatasetPage />} />
         <Route path="/projects/:projectId/decisions" element={<DecisionsPage />} />
         <Route path="/projects/:projectId/decisions/:serviceId" element={<DecisionServicePage />} />
         <Route path="/projects/:projectId/runs" element={<RunsPage />} />

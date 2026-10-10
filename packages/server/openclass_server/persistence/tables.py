@@ -373,3 +373,28 @@ class CandidateReviewRow(Base):
     decision: Mapped[str] = mapped_column(String(20))
     rationale: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationSetRow(Base):
+    __tablename__ = "evaluation_sets"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    sealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationExampleRow(Base):
+    __tablename__ = "evaluation_examples"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("evaluation_sets.id", ondelete="CASCADE"), index=True
+    )
+    text: Mapped[str] = mapped_column(Text)
+    label: Mapped[str] = mapped_column(String(100))
+    source: Mapped[str] = mapped_column(String(30))
+    annotator: Mapped[str] = mapped_column(String(200))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    slice_tag: Mapped[str] = mapped_column(String(30), default="historical")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

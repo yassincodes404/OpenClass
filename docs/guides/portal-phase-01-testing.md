@@ -267,3 +267,22 @@ Lifecycle: `discovered → candidate → collecting_evidence → validating → 
 → active` (+ rejected terminal). Only human review decisions count (reviews are
 append-only rows with reviewer + rationale); every transition is event-logged.
 Reviewer+ role gates mutations; viewer reads only.
+
+## Phase 12 evaluation datasets testing
+
+Engine migration `0018_evaluation_sets`. Seeder: `pnpm seed:portal-phase-12`
+(support-gold-v1: 40 human-verified examples covering historical/recent/rare/
+hard/unknown/adversarial slices).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Add example with `source: prediction` | `400 predictions cannot be ground truth` |
+| 2 | Add example with an unknown-to-ontology label | `400 not an existing class or UNKNOWN` |
+| 3 | Duplicate text | `409` flagged |
+| 4 | Seal → add example | `409 dataset is sealed and immutable`; UI shows the sealed banner |
+
+Ground truth accepts only `human` or `verified_external` sources with a named
+annotator; every row keeps its provenance. Admin+ creates/seals; reviewer+
+annotates; viewer reads.

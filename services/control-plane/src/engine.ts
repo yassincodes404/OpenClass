@@ -289,6 +289,31 @@ export class EngineClient {
     );
   }
 
+  async listDatasets(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/eval-datasets`);
+  }
+
+  async createDataset(engineProjectId: string, body: { name: string; description?: string }): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/eval-datasets`, body, 201);
+  }
+
+  async datasetDetail(engineProjectId: string, datasetId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}`);
+  }
+
+  async addExample(engineProjectId: string, datasetId: string, body: unknown): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}/examples`,
+      body,
+      201,
+    );
+  }
+
+  async sealDataset(engineProjectId: string, datasetId: string): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}/seal`, {}, 200);
+  }
+
   private async requestStatus(
     method: string,
     path: string,

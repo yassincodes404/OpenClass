@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   HttpException,
   NotFoundException,
   Param,
@@ -39,6 +40,20 @@ const createServiceSchema = z.object({
     )
     .min(1)
     .max(49),
+});
+
+const datasetSchema = z.object({
+  name: z.string().trim().min(2).max(200),
+  description: z.string().trim().max(2000).optional().default(""),
+});
+
+const exampleSchema = z.object({
+  text: z.string().trim().min(1).max(10_000),
+  label: z.string().trim().min(1).max(100),
+  source: z.enum(["human", "verified_external"]),
+  annotator: z.string().trim().min(2).max(200),
+  rationale: z.string().trim().max(2000).optional().default(""),
+  slice_tag: z.enum(["historical", "recent", "rare", "hard", "unknown", "adversarial"]).optional().default("historical"),
 });
 
 const runSchema = z
@@ -153,6 +168,63 @@ export class DecisionController {
       items,
       next_cursor: runs.length === 200 ? Buffer.from(String(offset + limit)).toString("base64") : null,
     };
+  }
+
+  @Get("eval-datasets")
+  async listDatasets(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.listDatasets(project.engine_project_id);
+  }
+
+  @Post("eval-datasets")
+  async createDataset(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(datasetSchema, body);
+    const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
+    return this.engine.createDataset(project.engine_project_id, input);
+  }
+
+  @Get("eval-datasets/:datasetId")
+  async datasetDetail(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string, @Param("datasetId") datasetId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.datasetDetail(project.engine_project_id, datasetId);
+  }
+
+  @Post("eval-datasets/:datasetId/examples")
+  async addExample(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("datasetId") datasetId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(exampleSchema, body);
+    const project = await this.requireRole(request.principal, workspaceId, projectId, "reviewer");
+    return this.engine.addExample(project.engine_project_id, datasetId, input);
+  }
+
+  @Post("eval-datasets/:datasetId/seal")
+  @HttpCode(200)
+  async sealDataset(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("datasetId") datasetId: string,
+  ) {
+    const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
+    const result = await this.engine.sealDataset(project.engine_project_id, datasetId);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "evaluation.dataset_sealed",
+      target: `dataset:${datasetId.slice(0, 8)}`,
+    });
+    return result;
   }
 
   @Get("runs/:runId")
