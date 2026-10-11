@@ -31,6 +31,7 @@ export const sectionLinks = [
   { label: "Unknowns", path: "/unknowns" },
   { label: "Discoveries", path: "/discoveries" },
   { label: "Evaluations", path: "/evaluations" },
+  { label: "Ontology", path: "/ontology" },
   { label: "Providers", path: "/providers" },
   { label: "Audit", path: "/audit" },
   { label: "Settings", path: "/settings" },

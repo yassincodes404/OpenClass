@@ -308,3 +308,24 @@ accuracy, macro F1, coverage, UNKNOWN precision/recall. Gates: accuracy delta �
 regression for every class present in the gold set. Undefined metrics fail
 closed. Gold sets may be annotated against a proposed candidate class (label =
 candidate canonical name).
+
+## Phase 14 ontology promotion testing
+
+Engine migration `0020_service_versions` (+ append-only triggers). Seeder:
+`pnpm seed:portal-phase-14` (promotes the approved + passing-evaluated candidate
+to v2; verifies the canonical phrase now classifies known).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Promote without evaluation / approval / evidence | `409` with the specific guard reason |
+| 2 | Promote with passing eval + reviewer + rationale | v2 created, v1 unchanged, diff shows the added class |
+| 3 | Run a text containing the new canonical phrase | Now classifies known with v2 |
+| 4 | Roll back to v1 | v3 derived from v1 (history intact); classifying returns UNKNOWN |
+| 5 | Promote an already-active candidate / reference a stale evaluation | `409` |
+
+Guards (all required): approved status, ≥5 evidence, the LATEST evaluation
+passing (a newer failed evaluation blocks), explicit reviewer + rationale.
+Versions and events are append-only (DB triggers); rollback creates a new
+version derived from an older snapshot — history is never edited.

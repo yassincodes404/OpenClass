@@ -32,6 +32,7 @@ from openclass_server.api.evidence import evidence_router
 from openclass_server.api.evolution import evolution_router
 from openclass_server.api.integrations import integration_router
 from openclass_server.api.projects import projects_router
+from openclass_server.api.promotions import promotions_router
 from openclass_server.api.providers import providers_router
 from openclass_server.api.system import system_router
 from openclass_server.api.unknowns import unknowns_router
@@ -40,6 +41,7 @@ from openclass_server.persistence.database import create_database_engine
 from openclass_server.persistence.idempotency import IdempotencyStore
 from openclass_server.persistence.integration_repository import SQLIntegrationRepository
 from openclass_server.persistence.project_repository import SQLProjectRepository
+from openclass_server.persistence.promotion_store import PromotionStore
 from openclass_server.persistence.repository import SQLRepository
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
 from openclass_server.provider_config import decision_provider as configured_decision
@@ -212,6 +214,14 @@ def create_app(
     app.include_router(
         evaluations_router(
             config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+        )
+    )
+    app.include_router(
+        promotions_router(
+            config,
+            projects,
+            async_sessionmaker(engine, expire_on_commit=False),
+            PromotionStore(async_sessionmaker(engine, expire_on_commit=False)),
         )
     )
     return app

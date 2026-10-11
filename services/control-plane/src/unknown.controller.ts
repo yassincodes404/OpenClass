@@ -40,6 +40,17 @@ const reviewSchema = z.object({
 
 const rejectSchema = z.object({ reason: z.string().trim().min(5).max(2000) });
 
+const promoteSchema = z.object({
+  evaluation_id: z.string().uuid(),
+  reviewer: z.string().trim().min(3).max(200),
+  rationale: z.string().trim().min(5).max(2000),
+});
+
+const rollbackSchema = z.object({
+  from_version: z.number().int().min(1),
+  rationale: z.string().trim().min(5).max(2000),
+});
+
 function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) throw new BadRequestException("Invalid request body");
@@ -160,6 +171,71 @@ export class UnknownController {
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
     return this.engine.candidateDetail(project.engine_project_id, candidateId);
+  }
+
+  @Post("candidates/:candidateId/promote")
+  async promote(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(promoteSchema, body);
+    const project = await this.gate(request.principal, workspaceId, projectId, "admin");
+    const result = await this.engine.promoteCandidate(project.engine_project_id, candidateId, {
+      evaluation_id: input.evaluation_id,
+      reviewer: input.reviewer,
+      rationale: input.rationale,
+    });
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "ontology.promoted",
+      target: `candidate:${candidateId.slice(0, 8)}:reviewer:${input.reviewer}`,
+    });
+    return result;
+  }
+
+  @Get("ontology")
+  async ontology(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    return this.engine.ontology(project.engine_project_id);
+  }
+
+  @Get("ontology/diff")
+  async ontologyDiff(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    const fromVersion = Number(from ?? 1);
+    const toVersion = Number(to ?? 2);
+    return this.engine.ontologyDiff(project.engine_project_id, fromVersion, toVersion);
+  }
+
+  @Post("ontology/rollback")
+  async rollback(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(rollbackSchema, body);
+    const project = await this.gate(request.principal, workspaceId, projectId, "admin");
+    const result = await this.engine.rollbackOntology(project.engine_project_id, input.from_version, input.rationale);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "ontology.rolled_back",
+      target: `to:v${input.from_version}`,
+    });
+    return result;
   }
 
   @Post("candidates/:candidateId/collect")

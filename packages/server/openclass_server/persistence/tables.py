@@ -410,3 +410,31 @@ class EvaluationRunRow(Base):
     metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
     gates: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ServiceVersionRow(Base):
+    __tablename__ = "service_versions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    service_id: Mapped[str] = mapped_column(
+        ForeignKey("decision_services.id", ondelete="CASCADE"), index=True
+    )
+    version_number: Mapped[int] = mapped_column(Integer)
+    parent_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    choices: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    origin: Mapped[str] = mapped_column(String(20))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    actor: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class OntologyEventRow(Base):
+    __tablename__ = "service_ontology_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    service_id: Mapped[str] = mapped_column(String(36))
+    event_type: Mapped[str] = mapped_column(String(40))
+    actor: Mapped[str] = mapped_column(String(200))
+    from_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    to_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    detail: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

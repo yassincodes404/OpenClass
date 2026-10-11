@@ -329,6 +329,39 @@ export class EngineClient {
     return this.request("GET", `/api/v1/projects/${engineProjectId}/evaluations/${evaluationId}`);
   }
 
+  async promoteCandidate(
+    engineProjectId: string,
+    candidateId: string,
+    body: { evaluation_id: string; reviewer: string; rationale: string },
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates/${candidateId}/promote`,
+      body,
+      200,
+    );
+  }
+
+  async ontology(engineProjectId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/ontology`);
+  }
+
+  async ontologyDiff(engineProjectId: string, fromVersion: number, toVersion: number): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/ontology/diff?from_version=${fromVersion}&to_version=${toVersion}`,
+    );
+  }
+
+  async rollbackOntology(engineProjectId: string, fromVersion: number, rationale: string): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/ontology/rollback`,
+      { from_version: fromVersion, rationale },
+      200,
+    );
+  }
+
   private async requestStatus(
     method: string,
     path: string,

@@ -198,7 +198,9 @@ CandidateStatus = Literal[
 # v0.1 exposes candidate/rejected/approved, but storage allows the full enum.
 CANDIDATE_TRANSITIONS: dict[str, tuple[str, ...]] = {
     "discovered": ("candidate", "rejected"),
-    "candidate": ("collecting_evidence", "rejected"),
+    # Discovery already attaches cluster evidence, so a candidate with enough
+    # evidence can go straight to review without a redundant collect step.
+    "candidate": ("collecting_evidence", "validating", "rejected"),
     "collecting_evidence": ("validating", "rejected"),
     "validating": ("approved", "collecting_evidence", "rejected"),
     "approved": ("active",),

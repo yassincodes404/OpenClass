@@ -273,6 +273,18 @@ export function CandidateReviewPage() {
             {feedback && <p className="muted" role="status">{feedback}</p>}
           </div>
           <div className="panel">
+            <div className="panel-head"><h3>Promotion (Phase 14)</h3></div>
+            <p className="muted">
+              Requires: approved status, ≥5 evidence, and a passing evaluation — then an explicit human reviewer.
+              There is no automatic activation anywhere.
+            </p>
+            {detail.data.status === "approved" ? (
+              <PromotePanel projectId={projectId} candidateId={candidateId} token={token} />
+            ) : (
+              <p className="field-error">Promotion is disabled — candidate is {detail.data.status} (must be approved with a passing evaluation).</p>
+            )}
+          </div>
+          <div className="panel">
             <div className="panel-head"><h3>History (append-only)</h3></div>
             <ul className="timeline">
               <li>created · candidate proposed (discovery)</li>
@@ -291,5 +303,67 @@ export function CandidateReviewPage() {
         </section>
       </ProjectShell>
     </main>
+  );
+}
+
+
+export type EvaluationRow = { id: string; candidate_id: string; overall_passed: boolean };
+
+function PromotePanel({ projectId, candidateId, token }: { projectId: string; candidateId: string; token: string }) {
+  const auth = useAuth();
+  const workspace = useQuery({
+    queryKey: ["project", projectId],
+    queryFn: async (): Promise<{ workspace_id: string }> =>
+      (await controlFetch(`/projects/${projectId}`, token)) as { workspace_id: string },
+  });
+  const evaluations = useQuery({
+    queryKey: ["evaluations", projectId],
+    enabled: workspace.isSuccess,
+    queryFn: async (): Promise<EvaluationRow[]> =>
+      (await controlFetch(`/workspaces/${workspace.data!.workspace_id}/projects/${projectId}/evaluations`, token)) as EvaluationRow[],
+  });
+  const latest = evaluations.data?.find((row) => row.candidate_id === candidateId && row.overall_passed);
+  const [reviewer, setReviewer] = useState("owner@acme.openclass.test");
+  const [rationale, setRationale] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const promote = useMutation({
+    mutationFn: async () =>
+      controlFetch(
+        `/workspaces/${workspace.data!.workspace_id}/projects/${projectId}/unknowns/candidates/${candidateId}/promote`,
+        token,
+        { method: "POST", body: JSON.stringify({ evaluation_id: latest!.id, reviewer, rationale }) },
+      ),
+    onSuccess: (result) => {
+      const version = (result as { version?: { version_number?: number } }).version;
+      setMessage(`Promoted — ontology v${version?.version_number ?? "?"} created; candidate is now active.`);
+    },
+    onError: (error: Error) => setMessage(error.message),
+  });
+  if (!latest) {
+    return <p className="field-error">No passing evaluation found for this candidate — run a passing evaluation first.</p>;
+  }
+  return (
+    <>
+      <div className="panel-head">
+        <span className="muted">evaluation {latest.id.slice(0, 8)}… (passing)</span>
+      </div>
+      <label>
+        Reviewer
+        <input value={reviewer} onChange={(event) => setReviewer(event.target.value)} />
+      </label>
+      <label>
+        Rationale
+        <textarea rows={2} value={rationale} onChange={(event) => setRationale(event.target.value)} placeholder="Why this promotion is safe…" />
+      </label>
+      <div className="modal-actions">
+        <button
+          disabled={reviewer.trim().length < 3 || rationale.trim().length < 5 || promote.isPending}
+          onClick={() => promote.mutate()}
+        >
+          Promote to new ontology version
+        </button>
+      </div>
+      {message && <p className="muted" role="status">{message}</p>}
+    </>
   );
 }
