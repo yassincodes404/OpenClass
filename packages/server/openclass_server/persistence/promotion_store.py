@@ -33,7 +33,8 @@ class PromotionStore:
                     "INSERT INTO service_versions"
                     " (id, service_id, version_number, choices, origin,"
                     "  rationale, actor, created_at)"
-                    " VALUES (:id, :sid, 1, :choices, 'initial', 'genesis snapshot', 'system', :created)"
+                    " VALUES (:id, :sid, 1, :choices, 'initial',"
+                    " 'genesis snapshot', 'system', :created)"
                 ),
                 {
                     "id": str(uuid4()),
