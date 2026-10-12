@@ -56,6 +56,23 @@ const exampleSchema = z.object({
   slice_tag: z.enum(["historical", "recent", "rare", "hard", "unknown", "adversarial"]).optional().default("historical"),
 });
 
+// Genesis integration types are fixed (webhook/rest_api/...); a support
+// adapter (zendesk/intercom) is represented as a webhook integration whose
+// NAME is the source, routed by /webhooks/{source}.
+const integrationSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  type: z.enum(["webhook"]),
+  secret_ref: z.string().trim().regex(/^[A-Z][A-Z0-9_]{2,}$/).optional(),
+  endpoint: z.string().trim().url().optional(),
+});
+
+const routeSchema = z.object({
+  integration_id: z.string().uuid().optional(),
+  match_choice: z.string().trim().min(1).max(100),
+  action: z.enum(["tag", "assign_queue"]),
+  action_value: z.string().trim().max(200).optional().default(""),
+});
+
 const alertRuleSchema = z.object({
   metric: z.enum(["unknown_rate", "recurring_unknowns", "latency", "cost"]),
   threshold: z.number().positive(),
@@ -311,6 +328,67 @@ export class DecisionController {
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.opsEvents(project.engine_project_id, after);
+  }
+
+  @Get("integrations")
+  async listIntegrations(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.listIntegrations(project.engine_project_id);
+  }
+
+  @Post("integrations")
+  async createIntegration(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(integrationSchema, body);
+    const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
+    const created = await this.engine.createIntegration(project.engine_project_id, input);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "integration.connected",
+      target: `integration:${input.name}:${input.type}`,
+    });
+    return created;
+  }
+
+  @Get("integrations/adapters")
+  async listAdapters(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.listAdapters(project.engine_project_id);
+  }
+
+  @Get("integrations/routes")
+  async listRoutes(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.listRoutes(project.engine_project_id);
+  }
+
+  @Post("integrations/routes")
+  async createRoute(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(routeSchema, body);
+    if (input.integration_id === undefined) throw new BadRequestException("integration_id is required");
+    const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
+    return this.engine.createRoute(project.engine_project_id, input.integration_id, {
+      match_choice: input.match_choice,
+      action: input.action,
+      action_value: input.action_value,
+    });
+  }
+
+  @Get("integrations/outcomes")
+  async routingOutcomes(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.routingOutcomes(project.engine_project_id);
   }
 
   @Get("runs/:runId")

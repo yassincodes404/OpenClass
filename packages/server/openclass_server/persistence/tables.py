@@ -460,3 +460,28 @@ class AlertEventRow(Base):
     measured: Mapped[float] = mapped_column(Float)
     threshold: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class IntegrationRouteRow(Base):
+    __tablename__ = "integration_routes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    integration_id: Mapped[str] = mapped_column(
+        ForeignKey("project_integrations.id", ondelete="CASCADE")
+    )
+    match_choice: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(40))
+    action_value: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class RoutingOutcomeRow(Base):
+    __tablename__ = "routing_outcomes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    integration_id: Mapped[str] = mapped_column(String(36))
+    event_id: Mapped[str] = mapped_column(ForeignKey("raw_events.id"))
+    selected_choice: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(40))
+    detail: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

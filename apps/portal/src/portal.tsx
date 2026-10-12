@@ -8,6 +8,7 @@ import { UnknownsPage } from "./unknowns-page";
 import { ClustersPage } from "./clusters-page";
 import { OntologyPage } from "./ontology-page";
 import { AnalyticsPage } from "./analytics";
+import { IntegrationsPage } from "./integrations-page";
 import { CandidateReviewPage, DiscoveriesPage } from "./discoveries-page";
 import { DatasetPage, EvaluationDetailPage, EvaluationsPage } from "./evaluations-pages";
 
@@ -72,6 +73,7 @@ export function Portal() {
         <Route path="/projects/:projectId/ontology" element={<OntologyPage />} />
         <Route path="/projects/:projectId/discoveries" element={<DiscoveriesPage />} />
         <Route path="/projects/:projectId/discoveries/:candidateId" element={<CandidateReviewPage />} />
+        <Route path="/projects/:projectId/integrations" element={<IntegrationsPage />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         <Route path="/projects/:projectId/providers" element={<ProjectProvidersPage />} />
         <Route path="/projects/:projectId/audit" element={<ProjectAuditPage />} />

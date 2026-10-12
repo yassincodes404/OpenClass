@@ -34,6 +34,7 @@ from openclass_server.api.integrations import integration_router
 from openclass_server.api.operations import operations_router
 from openclass_server.api.projects import projects_router
 from openclass_server.api.promotions import promotions_router
+from openclass_server.api.support import support_router
 from openclass_server.api.providers import providers_router
 from openclass_server.api.system import system_router
 from openclass_server.api.unknowns import unknowns_router
@@ -193,6 +194,17 @@ def create_app(
     )
     app.include_router(evidence_router(config, projects, project_repository, diagnostician))
     app.include_router(providers_router(config, async_sessionmaker(engine, expire_on_commit=False)))
+    # Literal support routes (adapters/routes/outcomes) register before the
+    # parameterized Genesis integration routes so /{integration_id} cannot
+    # shadow them.
+    app.include_router(
+        support_router(
+            config,
+            projects,
+            async_sessionmaker(engine, expire_on_commit=False),
+            default_decision_provider,
+        )
+    )
     app.include_router(integration_router(config, projects, integration_repository))
     app.include_router(system_router(config, engine))
     # Literal cluster routes register before the parameterized unknowns routes
@@ -220,6 +232,14 @@ def create_app(
     app.include_router(
         operations_router(
             config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+        )
+    )
+    app.include_router(
+        support_router(
+            config,
+            projects,
+            async_sessionmaker(engine, expire_on_commit=False),
+            default_decision_provider,
         )
     )
     app.include_router(

@@ -349,3 +349,24 @@ All metrics are measured persisted values (undefined → null, never invented).
 Alert metrics: unknown_rate, recurring_unknowns, latency, cost. The event log
 lives under `/ops/events` (timestamp cursor; SSE at `/ops/events/stream` with
 idle close + reconnect).
+
+## Phase 16 support integrations testing
+
+Engine migration `0022_integration_routes`. Seeder: `pnpm seed:portal-phase-16`
+(mock Zendesk connection, BILLING→tag + REFUND→assign_queue rules, 3 deliveries
+including an UNKNOWN escalation). Start the engine with
+`OPENCLASS_WEBHOOK_TOKEN_ZENDESK=openclass-local-zendesk-token`.
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | POST /webhooks/zendesk with a known billing ticket | Tagged + routed per rule; outcome logged |
+| 2 | POST an unmatched ticket | Escalated to human triage; no auto-reply |
+| 3 | Bad/missing bearer token | `401`; nothing ingested |
+| 4 | Same event_key + same content | `200 deduplicated` (receipts); changed content → `409` |
+| 5 | Configure a rule for UNKNOWN | `400` — the escalation path is fixed |
+
+Adapters: zendesk/intercom connect as source-named webhook integrations
+(simulated); freshdesk/salesforce/slack show honest "not implemented" stubs.
+Support routes register before Genesis's `/{integration_id}` to avoid shadowing.

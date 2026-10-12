@@ -386,6 +386,42 @@ export class EngineClient {
     return this.request("GET", `/api/v1/projects/${engineProjectId}/ops/events${query}`);
   }
 
+  async listIntegrations(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations`);
+  }
+
+  async createIntegration(
+    engineProjectId: string,
+    body: { name: string; type: string; secret_ref?: string; endpoint?: string },
+  ): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/integrations`, body, 201);
+  }
+
+  async listAdapters(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/adapters`);
+  }
+
+  async listRoutes(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/routes`);
+  }
+
+  async createRoute(
+    engineProjectId: string,
+    integrationId: string,
+    body: { match_choice: string; action: string; action_value?: string },
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/integrations/${integrationId}/routes`,
+      body,
+      201,
+    );
+  }
+
+  async routingOutcomes(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/outcomes`);
+  }
+
   private async requestStatus(
     method: string,
     path: string,

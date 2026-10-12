@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 from fastapi.testclient import TestClient
 from openclass_core.alerting import AlertRule, evaluate_rule, evaluate_rules
 
