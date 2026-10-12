@@ -362,6 +362,30 @@ export class EngineClient {
     );
   }
 
+  async analyticsSummary(engineProjectId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/analytics/summary`);
+  }
+
+  async listAlertRules(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/alerts/rules`);
+  }
+
+  async createAlertRule(
+    engineProjectId: string,
+    body: { metric: string; threshold: number; window?: string },
+  ): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/alerts/rules`, body, 201);
+  }
+
+  async evaluateAlerts(engineProjectId: string): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/alerts/evaluate`, {}, 200);
+  }
+
+  async opsEvents(engineProjectId: string, after?: string): Promise<unknown> {
+    const query = after ? `?after=${encodeURIComponent(after)}` : "";
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/ops/events${query}`);
+  }
+
   private async requestStatus(
     method: string,
     path: string,

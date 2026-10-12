@@ -438,3 +438,25 @@ class OntologyEventRow(Base):
     to_version: Mapped[int] = mapped_column(Integer, nullable=False)
     detail: Mapped[dict[str, Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AlertRuleRow(Base):
+    __tablename__ = "alert_rules"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    metric: Mapped[str] = mapped_column(String(40))
+    threshold: Mapped[float] = mapped_column(Float)
+    window: Mapped[str] = mapped_column(String(20), default="1h")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AlertEventRow(Base):
+    __tablename__ = "alert_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    rule_id: Mapped[str] = mapped_column(ForeignKey("alert_rules.id", ondelete="CASCADE"))
+    metric: Mapped[str] = mapped_column(String(40))
+    measured: Mapped[float] = mapped_column(Float)
+    threshold: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

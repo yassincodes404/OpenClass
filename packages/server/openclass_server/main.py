@@ -31,6 +31,7 @@ from openclass_server.api.evaluations import evaluations_router
 from openclass_server.api.evidence import evidence_router
 from openclass_server.api.evolution import evolution_router
 from openclass_server.api.integrations import integration_router
+from openclass_server.api.operations import operations_router
 from openclass_server.api.projects import projects_router
 from openclass_server.api.promotions import promotions_router
 from openclass_server.api.providers import providers_router
@@ -213,6 +214,11 @@ def create_app(
     )
     app.include_router(
         evaluations_router(
+            config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+        )
+    )
+    app.include_router(
+        operations_router(
             config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
         )
     )

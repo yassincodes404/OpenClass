@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 from openclass_core.promotion import PromotionBlocked, diff_choices, ensure_promotion_guards
-
-import pytest
 
 
 def test_guard_logic_blocks_unapproved_and_unevaluated():

@@ -56,6 +56,12 @@ const exampleSchema = z.object({
   slice_tag: z.enum(["historical", "recent", "rare", "hard", "unknown", "adversarial"]).optional().default("historical"),
 });
 
+const alertRuleSchema = z.object({
+  metric: z.enum(["unknown_rate", "recurring_unknowns", "latency", "cost"]),
+  threshold: z.number().positive(),
+  window: z.string().trim().max(20).optional().default("1h"),
+});
+
 const evaluationSchema = z.object({
   dataset_id: z.string().uuid(),
   candidate_id: z.string().uuid(),
@@ -263,6 +269,48 @@ export class DecisionController {
   async evaluationDetail(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string, @Param("evaluationId") evaluationId: string) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.evaluationDetail(project.engine_project_id, evaluationId);
+  }
+
+  @Get("analytics/summary")
+  async analyticsSummary(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.analyticsSummary(project.engine_project_id);
+  }
+
+  @Get("alerts/rules")
+  async listAlertRules(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.listAlertRules(project.engine_project_id);
+  }
+
+  @Post("alerts/rules")
+  async createAlertRule(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(alertRuleSchema, body);
+    const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
+    return this.engine.createAlertRule(project.engine_project_id, input);
+  }
+
+  @Post("alerts/evaluate")
+  @HttpCode(200)
+  async evaluateAlerts(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.evaluateAlerts(project.engine_project_id);
+  }
+
+  @Get("ops/events")
+  async opsEvents(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Query("after") after?: string,
+  ) {
+    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    return this.engine.opsEvents(project.engine_project_id, after);
   }
 
   @Get("runs/:runId")

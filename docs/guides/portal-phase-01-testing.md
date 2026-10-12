@@ -329,3 +329,23 @@ Guards (all required): approved status, ≥5 evidence, the LATEST evaluation
 passing (a newer failed evaluation blocks), explicit reviewer + rationale.
 Versions and events are append-only (DB triggers); rollback creates a new
 version derived from an older snapshot — history is never edited.
+
+## Phase 15 operations dashboard testing
+
+Engine migration `0021_alert_rules`. Seeder: `pnpm seed:portal-phase-15`
+(unknown_rate rule at 10%, backdated 7-day run spread via local dev SQL —
+simulated spike — plus fresh UNKNOWN runs; evaluate fires the alert).
+
+Manual checks:
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1 | Open project overview | KPI cards: UNKNOWN rate with window delta, pending reviews, recurring unknown, cost |
+| 2 | Open `/projects/:id/analytics` | Runs-vs-UNKNOWN SVG trend, top classes, alert rules, fired alerts, recent versions, live tail |
+| 3 | Add rule + Evaluate now | Breached rules fire (measured > threshold), appear under Recent alerts, `quality.alert` audited |
+| 4 | Watch live tail | New events appear via the resumable `/ops/events` polling (SSE transport available on the engine) |
+
+All metrics are measured persisted values (undefined → null, never invented).
+Alert metrics: unknown_rate, recurring_unknowns, latency, cost. The event log
+lives under `/ops/events` (timestamp cursor; SSE at `/ops/events/stream` with
+idle close + reconnect).
