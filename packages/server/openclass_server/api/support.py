@@ -230,7 +230,8 @@ def support_router(
             await session.execute(
                 sa.text(
                     "INSERT INTO routing_outcomes"
-                    " (id, project_id, integration_id, event_id, selected_choice, action, detail, created_at)"
+                    " (id, project_id, integration_id, event_id, selected_choice,"
+                    "  action, detail, created_at)"
                     " VALUES (:id, :pid, :iid, :eid, :choice, :action, :detail, :created)"
                 ),
                 {
