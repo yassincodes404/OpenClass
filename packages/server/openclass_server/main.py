@@ -34,8 +34,8 @@ from openclass_server.api.integrations import integration_router
 from openclass_server.api.operations import operations_router
 from openclass_server.api.projects import projects_router
 from openclass_server.api.promotions import promotions_router
-from openclass_server.api.support import support_router
 from openclass_server.api.providers import providers_router
+from openclass_server.api.support import support_router
 from openclass_server.api.system import system_router
 from openclass_server.api.unknowns import unknowns_router
 from openclass_server.persistence.cluster_store import ClusterStore
