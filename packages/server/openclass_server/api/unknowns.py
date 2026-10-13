@@ -19,7 +19,7 @@ from openclass_core.unknown_pool import (
 from pydantic import BaseModel, Field
 
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
-from openclass_server.redaction import redact_text
+from openclass_server.redaction import configured_blocklist, redact_text
 from openclass_server.settings import Settings
 
 
@@ -119,10 +119,16 @@ def unknowns_router(
             needle = query.lower()
             items = [item for item in items if needle in item.content.lower()]
         page = items[offset : offset + limit]
+        blocklist = configured_blocklist(config.redaction_blocklist)
         # Previews are redacted; full content stays member-gated at the proxy.
         return {
             "items": [
-                {**item.model_dump(mode="json"), "content": redact_text(item.content)[:160]}
+                {
+                    **item.model_dump(mode="json"),
+                    "content": redact_text(
+                        item.content, blocklist, enabled=config.redaction_enabled
+                    )[:160],
+                }
                 for item in page
             ],
             "next_cursor": str(offset + limit) if offset + limit < len(items) else None,

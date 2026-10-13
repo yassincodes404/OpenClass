@@ -154,7 +154,9 @@ def create_app(
     ) -> Response:
         correlation_id = request.headers.get("X-Correlation-ID") or str(uuid4())
         client = request.client.host if request.client else "unknown"
-        allowed, retry_after, limit, remaining = limiter.check(client, request.url.path)
+        allowed, retry_after, limit, remaining = limiter.check(
+            client, request.url.path, method=request.method
+        )
         if not allowed:
             return JSONResponse(
                 status_code=429,

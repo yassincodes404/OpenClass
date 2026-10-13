@@ -21,10 +21,23 @@ SECRET_TOKEN = re.compile(
 _DEFAULT_PATTERNS: tuple[re.Pattern[str], ...] = (CREDIT_CARD, SSN, EMAIL, PHONE, SECRET_TOKEN)
 
 
+def configured_blocklist(raw: str) -> tuple[str, ...]:
+    """Parse comma-separated blocklist terms from Settings.redaction_blocklist."""
+    if not raw.strip():
+        return ()
+    return tuple(term.strip() for term in raw.split(",") if term.strip())
+
+
 def redact_text(
-    text: str, blocklist: tuple[str, ...] = (), *, extra_patterns: tuple[re.Pattern[str], ...] = ()
+    text: str,
+    blocklist: tuple[str, ...] = (),
+    *,
+    enabled: bool = True,
+    extra_patterns: tuple[re.Pattern[str], ...] = (),
 ) -> str:
     """Return a redacted copy of text; the input is never modified."""
+    if not enabled:
+        return text
     redacted = text
     for term in blocklist:
         if term.strip():
@@ -34,18 +47,26 @@ def redact_text(
     return redacted
 
 
-def redact_mapping(mapping: dict[str, Any], blocklist: tuple[str, ...] = ()) -> dict[str, Any]:
+def _redact_value(value: Any, blocklist: tuple[str, ...], *, enabled: bool = True) -> Any:
+    if not enabled:
+        return value
+    if isinstance(value, str):
+        return redact_text(value, blocklist, enabled=enabled)
+    if isinstance(value, dict):
+        return redact_mapping(value, blocklist, enabled=enabled)
+    if isinstance(value, list):
+        return [_redact_value(item, blocklist, enabled=enabled) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_value(item, blocklist, enabled=enabled) for item in value)
+    return value
+
+
+def redact_mapping(
+    mapping: dict[str, Any], blocklist: tuple[str, ...] = (), *, enabled: bool = True
+) -> dict[str, Any]:
     """Recursively redact every string value inside a JSON-like mapping."""
-    result: dict[str, Any] = {}
-    for key, value in mapping.items():
-        if isinstance(value, str):
-            result[key] = redact_text(value, blocklist)
-        elif isinstance(value, dict):
-            result[key] = redact_mapping(value, blocklist)
-        elif isinstance(value, list):
-            result[key] = [
-                redact_text(item, blocklist) if isinstance(item, str) else item for item in value
-            ]
-        else:
-            result[key] = value
-    return result
+    if not enabled:
+        return dict(mapping)
+    return {
+        key: _redact_value(value, blocklist, enabled=enabled) for key, value in mapping.items()
+    }

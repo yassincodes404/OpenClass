@@ -35,28 +35,61 @@ class TokenBucket:
 
 class RateLimiter:
     def __init__(
-        self, *, ingest_per_minute: int, classify_per_minute: int, enabled: bool = True
+        self,
+        *,
+        ingest_per_minute: int,
+        classify_per_minute: int,
+        enabled: bool = True,
+        max_buckets: int = 10_000,
     ) -> None:
         self.limits = {"ingest": ingest_per_minute, "classify": classify_per_minute}
         self.enabled = enabled
+        self.max_buckets = max_buckets
         self._buckets: dict[tuple[str, str], TokenBucket] = {}
 
-    def route_class(self, path: str) -> str | None:
-        if path.endswith("/events") or path.endswith("/events/batch") or "/events:" in path:
+    def route_class(self, path: str, method: str = "POST") -> str | None:
+        if method.upper() != "POST":
+            return None
+        if (
+            path.endswith("/events")
+            or path.endswith("/events/batch")
+            or "/events:" in path
+            or path.endswith("/webhook")
+            or "/webhooks/" in path
+        ):
             return "ingest"
         if "/classify" in path or path.endswith("/runs"):
             return "classify"
         return None
 
-    def check(self, key: str, path: str, *, now: float | None = None) -> tuple[bool, int, int, int]:
+    def _evict_stale(self, now: float) -> None:
+        if len(self._buckets) < self.max_buckets:
+            return
+        cutoff = now - 3600.0
+        stale_keys = [k for k, b in self._buckets.items() if b.updated < cutoff]
+        for k in stale_keys:
+            self._buckets.pop(k, None)
+        if len(self._buckets) >= self.max_buckets:
+            oldest_key = min(self._buckets, key=lambda k: self._buckets[k].updated)
+            self._buckets.pop(oldest_key, None)
+
+    def check(
+        self,
+        key: str,
+        path: str,
+        *,
+        method: str = "POST",
+        now: float | None = None,
+    ) -> tuple[bool, int, int, int]:
         """Return (allowed, retry_after_seconds, limit, remaining)."""
-        route_class = self.route_class(path)
+        route_class = self.route_class(path, method=method)
         if not self.enabled or route_class is None:
             return True, 0, 0, 0
         moment = time.monotonic() if now is None else now
         capacity = self.limits[route_class]
         bucket = self._buckets.get((key, route_class))
         if bucket is None or bucket.capacity != capacity:
+            self._evict_stale(moment)
             bucket = TokenBucket(
                 capacity=capacity,
                 refill_per_minute=capacity,
