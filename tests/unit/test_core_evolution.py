@@ -167,3 +167,129 @@ def test_evaluation_summary_retention_bounds() -> None:
         EvaluationSummary(passed=True, checks={"a": True}, knowledge_retention_rate=1.5)
     summary = EvaluationSummary(passed=True, checks={"a": True}, knowledge_retention_rate=1.0)
     assert summary.regressions == ()
+
+
+def test_apply_candidate_produces_versioned_policy_graph_and_enforces_guards() -> None:
+    from openclass_core.decision import (
+        Capability,
+        Choice,
+        DecisionNode,
+        Macro,
+        PolicyGraph,
+        Predicate,
+        StateFeature,
+        StateSchema,
+        Step,
+    )
+    from openclass_core.evolution import apply_candidate
+
+    schema = StateSchema(
+        id="ops_state",
+        version=1,
+        features=(StateFeature(id="service_up", kind="boolean", sensor_field="service_up"),),
+    )
+    macro = Macro(
+        id="restart_service",
+        purpose="Restart unhealthy service.",
+        steps=(Step(capability="systemctl", arguments={"action": "restart"}),),
+        safety_guards=(Predicate(field="service_up", equals=False),),
+        postconditions=(Predicate(field="service_up", equals=True),),
+    )
+    node = DecisionNode(
+        id="root",
+        question="Select operational action.",
+        choices=(
+            Choice(
+                id="restart",
+                meaning="Restart the service when it is down.",
+                target_kind="macro",
+                target_id="restart_service",
+            ),
+        ),
+    )
+    graph = PolicyGraph(
+        id="ops_graph",
+        version=1,
+        state_schema=schema,
+        entry_node="root",
+        nodes=(node,),
+        macros=(macro,),
+    )
+
+    # 1. ADD_STATE_FEATURE increments schema & graph version and links parent_hash
+    feat_env = envelope(
+        state_feature_proposal_proposal(),
+        base_policy_hash=graph.content_hash,
+    )
+    updated_feat = apply_candidate(
+        graph,
+        feat_env,
+        layer=FailureLayer.STATE_REPRESENTATION,
+        state_sources=SOURCES,
+    )
+    assert updated_feat.version == 2
+    assert updated_feat.parent_hash == graph.content_hash
+    assert updated_feat.state_schema.version == 2
+    assert len(updated_feat.state_schema.features) == 2
+
+    # 2. ADD_CHOICE adds choice to target node
+    add_choice_prop = TeacherProposal(
+        operator="add_choice",
+        target_id="root",
+        choice=Choice(
+            id="escalate_oncall",
+            meaning="Escalate to human on-call engineer.",
+            target_kind="terminal",
+        ),
+        semantic_description="Add escalation terminal choice.",
+        rationale="Some incidents require manual escalation.",
+        confidence=0.92,
+    )
+    choice_env = envelope(add_choice_prop, base_policy_hash=graph.content_hash)
+    updated_choice = apply_candidate(
+        graph,
+        choice_env,
+        layer=FailureLayer.DECISION_SPACE,
+    )
+    assert [c.id for c in updated_choice.nodes[0].choices] == ["restart", "escalate_oncall"]
+
+    # 3. REPLACE_PROCEDURE validates capability steps
+    cap = Capability(
+        id="systemctl",
+        arguments={"action": "string"},
+        permitted_values={"action": ("restart", "reload")},
+    )
+    proc_prop = TeacherProposal(
+        operator="replace_procedure",
+        target_id="restart_service",
+        steps=(Step(capability="systemctl", arguments={"action": "reload"}),),
+        semantic_description="Reload before restart.",
+        rationale="Reload is less disruptive.",
+        confidence=0.85,
+    )
+    proc_env = envelope(proc_prop, base_policy_hash=graph.content_hash)
+    updated_proc = apply_candidate(
+        graph,
+        proc_env,
+        layer=FailureLayer.PROCEDURE,
+        capabilities=(cap,),
+    )
+    assert updated_proc.macros[0].steps[0].arguments["action"] == "reload"
+
+    # 4. Removing an existing safety guard is rejected
+    bad_guard_prop = TeacherProposal(
+        operator="change_safety_guard",
+        target_id="restart_service",
+        predicates=(),
+        semantic_description="Drop safety guard.",
+        rationale="Unsafe removal.",
+        confidence=0.5,
+    )
+    bad_guard_env = envelope(bad_guard_prop, base_policy_hash=graph.content_hash)
+    with pytest.raises(ValueError, match="remove existing safety guards"):
+        apply_candidate(graph, bad_guard_env, layer=FailureLayer.SAFETY_GUARD)
+
+    # 5. Stale base_policy_hash is rejected
+    with pytest.raises(ValueError, match="stale candidate base"):
+        apply_candidate(graph, envelope(add_choice_prop, base_policy_hash="0" * 64))
+
