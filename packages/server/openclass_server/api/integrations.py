@@ -24,6 +24,10 @@ from openclass_server.integration_adapters import (
     WebhookAuthenticationError,
 )
 from openclass_server.provider_config import reject_credentials
+from openclass_server.security import (
+    is_allowed_integration_secret_ref,
+    validate_outbound_url,
+)
 from openclass_server.settings import Settings
 
 
@@ -44,6 +48,15 @@ def integration_router(
     @router.post("", response_model=IntegrationConfig, status_code=201)
     async def create_integration(identifier: str, body: IntegrationCreate) -> IntegrationConfig:
         reject_credentials(body.model_dump(mode="json"), config)
+        if body.secret_ref and not is_allowed_integration_secret_ref(body.secret_ref):
+            raise HTTPException(
+                status_code=422, detail="Secret reference is not permitted for integrations"
+            )
+        if body.type == IntegrationType.REST_API and body.endpoint:
+            try:
+                validate_outbound_url(body.endpoint, allow_loopback=False, resolve_dns=False)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from None
         secrets.reject_configured_content(body.secret_ref, body.model_dump(mode="json"))
         project = await projects.get(identifier)
         if body.type == IntegrationType.WEBHOOK and not body.secret_ref:
@@ -64,8 +77,17 @@ def integration_router(
         body: IntegrationUpdate,
     ) -> IntegrationConfig:
         reject_credentials(body.model_dump(mode="json"), config)
+        if body.secret_ref and not is_allowed_integration_secret_ref(body.secret_ref):
+            raise HTTPException(
+                status_code=422, detail="Secret reference is not permitted for integrations"
+            )
         project = await projects.get(identifier)
         current = await repository.get_integration(project.id, integration_id)
+        if current.type == IntegrationType.REST_API and body.endpoint:
+            try:
+                validate_outbound_url(body.endpoint, allow_loopback=False, resolve_dns=False)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from None
         secrets.reject_configured_content(current.secret_ref, body.model_dump(mode="json"))
         secrets.reject_configured_content(body.secret_ref, body.model_dump(mode="json"))
         if body.status in {IntegrationStatus.CONNECTED, IntegrationStatus.DEGRADED}:

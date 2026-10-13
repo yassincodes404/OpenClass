@@ -135,3 +135,25 @@ async def test_integrations_lifecycle_api(app, monkeypatch: pytest.MonkeyPatch) 
         assert "integration.updated" in audit_types
         assert "integration.tested" in audit_types
         assert "integration.deleted" in audit_types
+
+        # 13. Reject forbidden system secret_ref and SSRF REST endpoints at API boundary
+        bad_secret = await client.post(
+            f"/api/v1/projects/{slug}/integrations",
+            json={
+                "name": "Exfil Attempt",
+                "type": "webhook",
+                "secret_ref": "OPENCLASS_DATABASE_URL",
+            },
+        )
+        assert bad_secret.status_code == 422
+
+        ssrf_endpoint = await client.post(
+            f"/api/v1/projects/{slug}/integrations",
+            json={
+                "name": "Metadata SSRF",
+                "type": "rest_api",
+                "endpoint": "http://169.254.169.254/latest/meta-data/",
+            },
+        )
+        assert ssrf_endpoint.status_code == 422
+

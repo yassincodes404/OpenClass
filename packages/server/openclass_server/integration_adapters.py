@@ -4,7 +4,6 @@ import hmac
 import os
 import time
 from collections.abc import Mapping
-from urllib.parse import urlsplit
 
 import httpx
 from openclass_core.integrations import (
@@ -14,7 +13,11 @@ from openclass_core.integrations import (
     IntegrationType,
 )
 
-from .security import contains_secret
+from .security import (
+    contains_secret,
+    is_allowed_integration_secret_ref,
+    validate_outbound_url,
+)
 
 
 class WebhookAuthenticationError(Exception):
@@ -29,6 +32,10 @@ class EnvironmentSecrets:
     def resolve(self, reference: str | None) -> str:
         if reference is None:
             raise IntegrationConfigurationError("Webhook authentication is not configured")
+        if not is_allowed_integration_secret_ref(reference):
+            raise IntegrationConfigurationError(
+                "Secret reference is not permitted for integrations"
+            )
         secret = os.environ.get(reference, "")
         if not secret.strip():
             raise IntegrationConfigurationError("Integration credential is unavailable")
@@ -89,17 +96,14 @@ class HTTPIntegrationProbe:
         elif integration.type == IntegrationType.REST_API:
             endpoint = integration.endpoint or ""
             try:
-                parsed = urlsplit(endpoint)
-            except ValueError:
-                parsed = urlsplit("")
-            if (
-                parsed.scheme not in {"http", "https"}
-                or not parsed.hostname
-                or parsed.username
-                or parsed.password
-            ):
+                validated_endpoint = validate_outbound_url(
+                    endpoint,
+                    allow_loopback=False,
+                    resolve_dns=self.transport is None,
+                )
+            except ValueError as exc:
                 status = IntegrationStatus.DISCONNECTED
-                error = "A credential-free HTTP endpoint is required"
+                error = str(exc)
             else:
                 try:
                     headers = {}
@@ -113,7 +117,7 @@ class HTTPIntegrationProbe:
                         transport=self.transport,
                         trust_env=False,
                     ) as client:
-                        response = await client.get(endpoint, headers=headers)
+                        response = await client.get(validated_endpoint, headers=headers)
                     status = (
                         IntegrationStatus.CONNECTED
                         if 200 <= response.status_code < 300
