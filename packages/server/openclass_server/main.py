@@ -235,14 +235,6 @@ def create_app(
         )
     )
     app.include_router(
-        support_router(
-            config,
-            projects,
-            async_sessionmaker(engine, expire_on_commit=False),
-            default_decision_provider,
-        )
-    )
-    app.include_router(
         promotions_router(
             config,
             projects,

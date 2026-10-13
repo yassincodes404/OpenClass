@@ -180,7 +180,9 @@ async def test_invalid_shapes_fail_closed(ontology, mutation: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "content", [b"not-json", b"[]", b'{"model":"a","model":"b"}', b"x" * 1_000_001]
+    "content",
+    [b"not-json", b"[]", b'{"model":"a","model":"b"}', b"x" * 1_000_001],
+    ids=["not_json", "array", "duplicate_key", "oversized_1mb"],
 )
 async def test_malformed_json_is_safe(ontology, content: bytes) -> None:
     with pytest.raises(ProviderError):
