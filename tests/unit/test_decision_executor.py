@@ -120,3 +120,59 @@ async def test_decision_executor_with_mock_provider(sample_service: DecisionServ
     assert run.provider == "mock"
     assert run.supervision_outcome in ("TRUSTED", "REVIEW")
     assert run.margin >= 0
+
+
+async def test_decision_executor_propagates_instructions_to_jev_and_laya_payloads(
+    sample_service: DecisionService,
+) -> None:
+    import json
+
+    import httpx
+    from openclass_provider_jev import UNKNOWN as JEV_UNKNOWN
+    from openclass_provider_jev import JevDecisionProvider
+    from pydantic import SecretStr
+
+    captured_jev_instructions: list[str] = []
+
+    def jev_handle(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        captured_jev_instructions.append(body["questions"]["classification"]["instructions"])
+        return httpx.Response(
+            200,
+            json={
+                "model": "typesafe-ai/jev",
+                "answers": {
+                    "classification": {
+                        "type": "choice",
+                        "choice": "positive",
+                        "confidence": 0.9,
+                        "probabilities": {
+                            "positive": 0.9,
+                            "negative": 0.05,
+                            JEV_UNKNOWN: 0.05,
+                        },
+                    }
+                },
+            },
+        )
+
+    jev = JevDecisionProvider(
+        api_key=SecretStr("synthetic-test-key"),
+        base_url="https://ai-gateway.vercel.sh/typesafe",
+        model="typesafe-ai/jev",
+        transport=httpx.MockTransport(jev_handle),
+    )
+    event = RawEvent(
+        project_id=sample_service.project_id,
+        source_type="text",
+        content="Great customer experience!",
+    )
+    run = await DecisionExecutor(jev).execute(event, sample_service)
+    assert captured_jev_instructions
+    assert (
+        "Service instructions: Classify sentiment of user comment"
+        in captured_jev_instructions[0]
+    )
+    assert run.instructions_snapshot == "Classify sentiment of user comment"
+
+

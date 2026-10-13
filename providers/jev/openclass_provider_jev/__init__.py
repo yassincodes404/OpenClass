@@ -95,11 +95,20 @@ class JevDecisionProvider:
         criteria[UNKNOWN] = (
             "None of the known classes fits, ambiguous, or insufficient information."
         )
+        compiled_instructions = (
+            f"{INSTRUCTIONS}\n\nService instructions: {request.instructions.strip()}"
+            if request.instructions and request.instructions.strip()
+            else INSTRUCTIONS
+        )
         payload = {
             "model": self._model,
             "state": request.observation.content,
             "questions": {
-                QUESTION: {"type": "choice", "instructions": INSTRUCTIONS, "criteria": criteria}
+                QUESTION: {
+                    "type": "choice",
+                    "instructions": compiled_instructions,
+                    "criteria": criteria,
+                }
             },
         }
         # Never forward an accidentally supplied credential as observation/ontology content.
