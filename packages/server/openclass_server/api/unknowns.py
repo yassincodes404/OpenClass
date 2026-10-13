@@ -6,7 +6,9 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
+from openclass_core.evidence import EvidenceStatus
 from openclass_core.projects import ProjectService as ProjectDomainService
+from openclass_core.repositories import ConflictError
 from openclass_core.unknown_pool import (
     UnknownCategory,
     UnknownItem,
@@ -37,6 +39,33 @@ def unknowns_router(
     config: Settings, projects: ProjectDomainService, triage_store: UnknownTriageStore
 ) -> APIRouter:
     router = APIRouter(tags=["unknowns"])
+
+    async def _sync_evidence_transition(
+        identifier: str, run_uuid: UUID, target_unknown_status: UnknownStatus
+    ) -> None:
+        evidence_items = await projects.list_evidence(identifier=identifier, limit=200, offset=0)
+        matching = [item for item in evidence_items if item.decision_run_id == run_uuid]
+        for ev in matching:
+            try:
+                if target_unknown_status == "triaged" and ev.status == EvidenceStatus.PENDING:
+                    await projects.transition_evidence(
+                        identifier=identifier,
+                        evidence_id=ev.id,
+                        target_status=EvidenceStatus.TRIAGED,
+                        rationale="Synchronized from unknown workspace triaged transition",
+                    )
+                elif target_unknown_status == "dismissed" and ev.status in {
+                    EvidenceStatus.PENDING,
+                    EvidenceStatus.TRIAGED,
+                }:
+                    await projects.transition_evidence(
+                        identifier=identifier,
+                        evidence_id=ev.id,
+                        target_status=EvidenceStatus.DISMISSED,
+                        rationale="Synchronized from unknown workspace dismissed transition",
+                    )
+            except ConflictError:
+                pass
 
     async def _unknown_items(
         project_id: str, scan_limit: int = 1000
@@ -181,6 +210,7 @@ def unknowns_router(
             raise HTTPException(status_code=400, detail=str(error)) from error
         updated = existing.model_copy(update={"status": body.to})
         await triage_store.upsert(updated)
+        await _sync_evidence_transition(identifier, run_uuid, body.to)
         await triage_store.append_audit(
             project.id, "portal-user", "unknown.transitioned", f"run:{run_id}:{body.to}"
         )

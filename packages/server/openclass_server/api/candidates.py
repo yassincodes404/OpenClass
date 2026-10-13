@@ -11,7 +11,6 @@ import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException
 from openclass_core.candidates import (
     ClusterDiscoveryRequest,
-    MockClusterDiscoveryProvider,
     review_gaps,
     validate_candidate_transition,
 )
@@ -20,6 +19,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
+from openclass_server.provider_config import cluster_discovery_provider
 from openclass_server.settings import Settings
 
 
@@ -43,7 +43,7 @@ def candidates_router(
     triage_store: UnknownTriageStore,
 ) -> APIRouter:
     router = APIRouter(tags=["candidates"])
-    provider = MockClusterDiscoveryProvider()
+    provider, provider_name = cluster_discovery_provider(config)
 
     async def _candidate_row(project_id: UUID, candidate_id: str) -> dict[str, Any]:
         async with sessions() as session:
@@ -139,6 +139,7 @@ def candidates_router(
                 cluster_id=UUID(cluster_id),
                 member_texts=tuple(member_texts[:20]),
                 existing_classes=tuple(await _existing_classes(identifier)),
+                provider=provider_name,
             )
         )
         candidate_id = str(uuid4())
@@ -165,7 +166,7 @@ def candidates_router(
                     "existing_match": result.existing_match,
                     "confidence": result.confidence,
                     "reason": result.reason,
-                    "provider": "mock",
+                    "provider": provider_name,
                     "created_at": datetime.now(UTC),
                 },
             )
@@ -194,8 +195,8 @@ def candidates_router(
             "confidence": result.confidence,
             "reason": result.reason,
             "status": "candidate",
-            "provider": "mock",
-            "simulated": True,
+            "provider": provider_name,
+            "simulated": provider_name == "mock",
         }
 
     @router.get("/api/v1/projects/{identifier}/discovery-candidates")

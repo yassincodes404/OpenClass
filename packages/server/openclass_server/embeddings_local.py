@@ -12,6 +12,7 @@ model is unavailable.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from hashlib import md5
 
@@ -61,5 +62,5 @@ class SentenceTransformerEmbedder:
         self.dimensions = int(self._model.get_sentence_embedding_dimension())
 
     async def embed(self, texts: Sequence[str]) -> list[list[float]]:
-        embeddings = self._model.encode(list(texts))
+        embeddings = await asyncio.to_thread(self._model.encode, list(texts))
         return [vector.tolist() for vector in embeddings]

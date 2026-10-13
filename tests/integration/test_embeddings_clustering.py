@@ -116,3 +116,55 @@ def test_no_cross_project_leakage(mock_client: TestClient):
     mock_client.post(f"/api/v1/projects/{slug_a}/unknowns/cluster", json={"threshold": 0.5})
     clusters_b = mock_client.get(f"/api/v1/projects/{slug_b}/unknowns/clusters").json()
     assert clusters_b == []
+
+
+def test_cluster_run_reuses_cached_embeddings(
+    mock_client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    slug = _setup_project_with_unknowns(mock_client)
+    calls: list[int] = []
+    original_embed = HashLexicalEmbedder.embed
+
+    async def counting_embed(self, texts):
+        calls.append(len(texts))
+        return await original_embed(self, texts)
+
+    monkeypatch.setattr(HashLexicalEmbedder, "embed", counting_embed)
+
+    first = mock_client.post(f"/api/v1/projects/{slug}/unknowns/cluster", json={"threshold": 0.5})
+    assert first.status_code == 200
+    assert len(calls) == 1
+    assert calls[0] >= 2
+
+    second = mock_client.post(
+        f"/api/v1/projects/{slug}/unknowns/cluster", json={"threshold": 0.5}
+    )
+    assert second.status_code == 200
+    assert len(calls) == 1
+
+
+def test_unknown_transition_synchronizes_linked_evidence_status(mock_client: TestClient):
+    slug = _setup_project_with_unknowns(mock_client)
+    unknowns = mock_client.get(f"/api/v1/projects/{slug}/unknowns").json()["items"]
+    assert unknowns
+    run_id = unknowns[0]["run_id"]
+
+    triaged = mock_client.post(
+        f"/api/v1/projects/{slug}/unknowns/{run_id}/transition",
+        json={"to": "triaged"},
+    )
+    assert triaged.status_code == 200
+    evidence = mock_client.get(f"/api/v1/projects/{slug}/evidence").json()
+    linked = [ev for ev in evidence if ev["decision_run_id"] == run_id]
+    assert len(linked) == 1
+    assert linked[0]["status"] == "triaged"
+
+    dismissed = mock_client.post(
+        f"/api/v1/projects/{slug}/unknowns/{run_id}/transition",
+        json={"to": "dismissed"},
+    )
+    assert dismissed.status_code == 200
+    evidence_after = mock_client.get(f"/api/v1/projects/{slug}/evidence").json()
+    linked_after = [ev for ev in evidence_after if ev["decision_run_id"] == run_id]
+    assert linked_after[0]["status"] == "dismissed"
+

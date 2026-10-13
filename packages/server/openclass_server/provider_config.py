@@ -4,10 +4,15 @@ import os
 from typing import Any
 
 from fastapi import HTTPException
+from openclass_core.candidates import ClusterDiscoveryProvider, MockClusterDiscoveryProvider
+from openclass_core.embeddings import EmbeddingProvider
 from openclass_core.evidence import DiagnosisProvider
 from openclass_core.project_evolution import ChoiceTeacher
 from openclass_core.providers import DecisionProvider, DiscoveryProvider, SupervisorProvider
 from openclass_provider_glm import (
+    GatewayClusterDiscovery,
+    GatewayDecisionProvider,
+    GatewayEmbedder,
     GLMDiscoveryProvider,
     OpenAICompatibleChoiceTeacher,
     OpenAICompatibleDiagnosisProvider,
@@ -21,13 +26,29 @@ from openclass_provider_mock import (
     MockDiscoveryProvider,
     MockSupervisorProvider,
 )
+from pydantic import SecretStr
 
+from openclass_server.embeddings_local import HashLexicalEmbedder
 from openclass_server.security import contains_secret
 from openclass_server.settings import Settings
 
 
+def gateway_key(settings: Settings) -> SecretStr:
+    return SecretStr(
+        settings.discovery_api_key.get_secret_value()
+        or settings.glm_api_key.get_secret_value()
+        or os.getenv("AI_GATEWAY_API_KEY", "")
+    )
+
+
 def resolve_decision_provider(settings: Settings, override: str | None = None) -> DecisionProvider:
     choice = (override or settings.decision_provider).strip().lower()
+    gateway_model = settings.discovery_model or "openai/gpt-4.1-mini"
+    if choice.startswith("openai-compatible:"):
+        gateway_model = choice.split(":", 1)[1]
+        if gateway_model not in {"openai/gpt-4.1-mini", "google/gemini-2.5-flash"}:
+            raise ValueError("Unsupported gateway decision model")
+        choice = "openai-compatible"
     if choice == "mock":
         return MockDecisionProvider()
     if choice == "jev":
@@ -37,6 +58,13 @@ def resolve_decision_provider(settings: Settings, override: str | None = None) -
             model=settings.jev_model,
             timeout=settings.provider_timeout_seconds,
             max_retries=settings.provider_max_retries,
+        )
+    if choice == "openai-compatible":
+        return GatewayDecisionProvider(
+            api_key=gateway_key(settings),
+            base_url=settings.discovery_base_url or "https://ai-gateway.vercel.sh/v1",
+            model=gateway_model,
+            timeout=settings.discovery_timeout_seconds,
         )
     if choice == "laya":
         return LayaDecisionProvider(
@@ -51,6 +79,41 @@ def resolve_decision_provider(settings: Settings, override: str | None = None) -
 
 def decision_provider(settings: Settings) -> DecisionProvider:
     return resolve_decision_provider(settings)
+
+
+def embedding_provider(settings: Settings) -> EmbeddingProvider:
+    if settings.embedding_provider == "openai-compatible":
+        return GatewayEmbedder(
+            api_key=gateway_key(settings),
+            base_url=settings.discovery_base_url or "https://ai-gateway.vercel.sh/v1",
+            model=settings.embedding_model,
+            timeout=settings.discovery_timeout_seconds,
+        )
+    return HashLexicalEmbedder()
+
+
+def cluster_discovery_provider(
+    settings: Settings,
+) -> tuple[ClusterDiscoveryProvider, str]:
+    if settings.discovery_provider == "mock":
+        return MockClusterDiscoveryProvider(), "mock"
+    default_url = (
+        "https://ai-gateway.vercel.sh/v1"
+        if settings.discovery_provider == "openai-compatible"
+        else "https://api.z.ai/api/paas/v4"
+    )
+    default_model = (
+        "openai/gpt-4.1-mini"
+        if settings.discovery_provider == "openai-compatible"
+        else "glm-5.3-flash"
+    )
+    provider = GatewayClusterDiscovery(
+        api_key=gateway_key(settings),
+        base_url=settings.discovery_base_url or settings.glm_base_url or default_url,
+        model=settings.discovery_model or settings.glm_model or default_model,
+        timeout=settings.discovery_timeout_seconds,
+    )
+    return provider, f"{settings.discovery_provider}:{provider.model}"
 
 
 def supervisor_provider(settings: Settings) -> SupervisorProvider:

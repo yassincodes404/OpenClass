@@ -23,9 +23,13 @@ class Settings(BaseSettings):
     rate_limit_classify_per_minute: int = Field(default=300, ge=1)
     idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 30)
     novelty: NoveltyPolicy = NoveltyPolicy()
-    decision_provider: Literal["mock", "jev", "laya"] = "laya"
+    decision_provider: Literal["mock", "jev", "laya", "openai-compatible"] = "laya"
     supervisor_provider: Literal["mock"] = "mock"
     discovery_provider: Literal["mock", "glm", "openai-compatible"] = "mock"
+    embedding_provider: Literal["hash-lexical", "openai-compatible"] = "hash-lexical"
+    embedding_model: Literal["openai/text-embedding-3-small", "cohere/embed-v4.0"] = (
+        "openai/text-embedding-3-small"
+    )
     laya_base_url: str = "http://127.0.0.1:8000"
     laya_model: str = "laya-router"
     laya_timeout_seconds: float = Field(default=20, gt=0, le=60, allow_inf_nan=False)
@@ -55,13 +59,22 @@ class Settings(BaseSettings):
             raise ValueError("Unsupported Jev base URL")
         if self.decision_provider == "jev" and not self.jev_api_key.get_secret_value().strip():
             raise ValueError("Jev requires OPENCLASS_JEV_API_KEY")
-        if self.discovery_provider in {"glm", "openai-compatible"}:
+        if (
+            self.discovery_provider in {"glm", "openai-compatible"}
+            or self.decision_provider == "openai-compatible"
+            or self.embedding_provider == "openai-compatible"
+        ):
             key = (
                 self.discovery_api_key.get_secret_value().strip()
                 or self.glm_api_key.get_secret_value().strip()
                 or (
                     os.getenv("AI_GATEWAY_API_KEY", "")
-                    if self.discovery_provider == "openai-compatible"
+                    if "openai-compatible"
+                    in {
+                        self.discovery_provider,
+                        self.decision_provider,
+                        self.embedding_provider,
+                    }
                     else ""
                 )
             )
