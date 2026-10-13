@@ -120,6 +120,8 @@ class DecisionServiceChoice(Model):
     label: str = Field(min_length=1, max_length=100)
     description: str = Field(default="", max_length=1000)
     aliases: tuple[str, ...] = ()
+    target_node_id: UUID | None = None
+    target_node_name: str | None = None
 
     @model_validator(mode="after")
     def clean_aliases(self) -> "DecisionServiceChoice":
@@ -149,6 +151,11 @@ class DecisionServiceNode(Model):
     name: str = Field(min_length=1, max_length=100)
     instructions: str = Field(min_length=1, max_length=2000)
     choices: tuple[DecisionServiceChoice, ...] = Field(min_length=1, max_length=50)
+    risk_level: Literal["ordinary", "high"] = "ordinary"
+    min_margin: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    max_unknown_probability: float | None = Field(
+        default=None, ge=0.0, le=1.0, allow_inf_nan=False
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -250,6 +257,8 @@ class DecisionRun(Model):
     input_snapshot: dict[str, Any]
     instructions_snapshot: str
     choices_snapshot: list[dict[str, Any]]
+    steps: list[dict[str, Any]] = Field(default_factory=list)
+    state_snapshot: dict[str, Any] = Field(default_factory=dict)
 
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now)
