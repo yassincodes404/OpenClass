@@ -37,16 +37,27 @@ def operations_router(
 ) -> APIRouter:
     router = APIRouter(tags=["operations"])
 
-    async def _measurements(project_id: str, since: datetime) -> dict[str, float | None]:
+    async def _measurements(
+        project_id: str, since: datetime, until: datetime | None = None
+    ) -> dict[str, float | None]:
         """Measured persisted values only — no samples, no invention."""
         async with sessions() as session:
-            runs_rows = await session.execute(
-                sa.text(
-                    "SELECT payload FROM decision_runs WHERE project_id = :pid"
-                    " AND created_at >= :since"
-                ),
-                {"pid": project_id, "since": since},
-            )
+            if until is not None:
+                runs_rows = await session.execute(
+                    sa.text(
+                        "SELECT payload FROM decision_runs WHERE project_id = :pid"
+                        " AND created_at >= :since AND created_at < :until"
+                    ),
+                    {"pid": project_id, "since": since, "until": until},
+                )
+            else:
+                runs_rows = await session.execute(
+                    sa.text(
+                        "SELECT payload FROM decision_runs WHERE project_id = :pid"
+                        " AND created_at >= :since"
+                    ),
+                    {"pid": project_id, "since": since},
+                )
             unknown = total = 0
             recurring: dict[str, int] = {}
             latencies: list[float] = []
@@ -68,13 +79,27 @@ def operations_router(
                 latency = run.get("latency_ms")
                 if isinstance(latency, (int, float)):
                     latencies.append(float(latency))
-            cost = await session.execute(
-                sa.text(
-                    "SELECT COALESCE(SUM(estimated_cost), 0) FROM provider_usage"
-                    " WHERE project_id = :pid AND usage_date >= :since_date"
-                ),
-                {"pid": project_id, "since_date": since.date()},
-            )
+            if until is not None:
+                cost = await session.execute(
+                    sa.text(
+                        "SELECT COALESCE(SUM(estimated_cost), 0) FROM provider_usage"
+                        " WHERE project_id = :pid AND usage_date >= :since_date"
+                        " AND usage_date < :until_date"
+                    ),
+                    {
+                        "pid": project_id,
+                        "since_date": since.date(),
+                        "until_date": until.date(),
+                    },
+                )
+            else:
+                cost = await session.execute(
+                    sa.text(
+                        "SELECT COALESCE(SUM(estimated_cost), 0) FROM provider_usage"
+                        " WHERE project_id = :pid AND usage_date >= :since_date"
+                    ),
+                    {"pid": project_id, "since_date": since.date()},
+                )
             cost_value = float(cost.scalar() or 0.0)
         return {
             "unknown_rate": (unknown / total) if total else None,
@@ -93,7 +118,7 @@ def operations_router(
         week_ago = now - timedelta(days=days)
         two_weeks_ago = now - timedelta(days=days * 2)
         current = await _measurements(str(project.id), week_ago)
-        previous = await _measurements(str(project.id), two_weeks_ago)
+        previous = await _measurements(str(project.id), two_weeks_ago, until=week_ago)
         async with sessions() as session:
             top = await session.execute(
                 sa.text(

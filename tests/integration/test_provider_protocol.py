@@ -128,6 +128,52 @@ def test_provider_catalog_lists_registry(mock_client: TestClient):
     assert isinstance(names, list) and len(names) >= 3
 
 
+class RateLimitedProvider:
+    provider_name = "glm"
+    model = "glm-5.1"
+
+    async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+        raise ProviderError("upstream rate limited with secret sk-123", kind="rate_limit")
+
+
+def test_provider_rate_limit_returns_429_and_records_provider_telemetry(tmp_path, monkeypatch):
+    from alembic import command
+    from alembic.config import Config
+
+    url = f"sqlite+aiosqlite:///{tmp_path / 'ratelimit.db'}"
+    monkeypatch.setenv("OPENCLASS_DATABASE_URL", url)
+    command.upgrade(Config("alembic.ini"), "head")
+    settings = Settings(database_url=url, decision_provider="mock")
+    app = create_app(settings, provider=RateLimitedProvider())
+    with TestClient(app, raise_server_exceptions=False) as client:
+        slug = client.post("/api/v1/projects", json={"name": "Rate Co"}).json()["slug"]
+        service = client.post(
+            f"/api/v1/projects/{slug}/decision-services",
+            json={
+                "name": "R",
+                "instructions": "Route it.",
+                "choices": [{"key": "BILLING", "label": "Billing"}],
+            },
+        ).json()["id"]
+        response = client.post(
+            f"/api/v1/projects/{slug}/decision-services/{service}/runs",
+            json={"content": "billing help"},
+            headers={"X-Correlation-ID": "corr-test-429"},
+        )
+        assert response.status_code == 429
+        assert response.headers.get("X-Correlation-ID") == "corr-test-429"
+        body = response.json()
+        assert body["kind"] == "rate_limit"
+        assert "sk-123" not in response.text
+        assert client.get(f"/api/v1/projects/{slug}/runs").json() == []
+        usage = client.get(f"/api/v1/projects/{slug}/providers/usage").json()
+        assert len(usage) == 1
+        assert usage[0]["provider"] == "glm"
+        assert usage[0]["model"] == "glm-5.1"
+        assert usage[0]["errors"] == 1
+        assert usage[0]["calls"] == 0
+
+
 def _ontology_fixture() -> Any:
     return OntologyVersion(
         classifier_id=__import__("uuid").uuid4(),

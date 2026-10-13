@@ -38,9 +38,11 @@ def unknowns_router(
 ) -> APIRouter:
     router = APIRouter(tags=["unknowns"])
 
-    async def _unknown_items(project_id: str) -> tuple[list[UnknownItem], int]:
+    async def _unknown_items(
+        project_id: str, scan_limit: int = 1000
+    ) -> tuple[list[UnknownItem], int]:
         project = await projects.get(project_id)
-        runs = await projects.list_decision_runs(identifier=project_id, limit=200, offset=0)
+        runs = await projects.list_decision_runs(identifier=project_id, limit=scan_limit, offset=0)
         triage = await triage_store.list_all(project.id)
         items: list[UnknownItem] = []
         recurrence: dict[str, int] = {}
@@ -70,13 +72,42 @@ def unknowns_router(
         items.sort(key=lambda item: item.created_at, reverse=True)
         return items, len(runs)
 
+    async def _resolve_unknown_item(identifier: str, run_id: str) -> UnknownItem:
+        items, _ = await _unknown_items(identifier)
+        item = next((entry for entry in items if entry.run_id == run_id), None)
+        if item is not None:
+            return item
+        run_uuid = _uuid(run_id)
+        if run_uuid is None:
+            raise HTTPException(status_code=404, detail="Unknown event not found")
+        try:
+            run = await projects.get_decision_run(identifier=identifier, run_id=run_uuid)
+        except Exception as err:
+            raise HTTPException(status_code=404, detail="Unknown event not found") from err
+        if not run_is_unknown(run):
+            raise HTTPException(status_code=404, detail="Unknown event not found")
+        existing_triage = await triage_store.get(run_uuid) or UnknownTriage(run_id=str(run.id))
+        content = str(run.input_snapshot.get("content", ""))
+        return UnknownItem(
+            run_id=str(run.id),
+            raw_event_id=str(run.raw_event_id),
+            decision_service_id=str(run.decision_service_id),
+            content=content,
+            probabilities=dict(run.probabilities),
+            unknown_probability=run.unknown_probability,
+            supervision_reason=run.supervision_reason,
+            created_at=run.created_at,
+            triage=existing_triage,
+            recurrence=1,
+        )
+
     @router.get("/api/v1/projects/{identifier}/unknowns")
     async def list_unknowns(
         identifier: str,
         state: Annotated[str | None, Query()] = None,
         category: Annotated[str | None, Query()] = None,
         query: Annotated[str | None, Query(max_length=200)] = None,
-        limit: Annotated[int, Query(ge=1, le=100)] = 50,
+        limit: Annotated[int, Query(ge=1, le=200)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> dict[str, Any]:
         items, _total = await _unknown_items(identifier)
@@ -100,7 +131,7 @@ def unknowns_router(
     @router.get("/api/v1/projects/{identifier}/unknowns/stats")
     async def unknown_stats(
         identifier: str,
-        bucket: Annotated[str, Query(pattern=r"^(day)$")] = "day",
+        bucket: Annotated[str | None, Query(pattern=r"^(day)$")] = "day",
     ) -> dict[str, Any]:
         if bucket != "day":
             raise HTTPException(status_code=400, detail="only day buckets are supported")
@@ -110,18 +141,13 @@ def unknowns_router(
 
     @router.get("/api/v1/projects/{identifier}/unknowns/{run_id}")
     async def unknown_detail(identifier: str, run_id: str) -> dict[str, Any]:
-        items, _ = await _unknown_items(identifier)
-        item = next((entry for entry in items if entry.run_id == run_id), None)
-        if item is None:
-            raise HTTPException(status_code=404, detail="Unknown event not found")
+        item = await _resolve_unknown_item(identifier, run_id)
         return item.model_dump(mode="json")
 
     @router.post("/api/v1/projects/{identifier}/unknowns/{run_id}/triage")
     async def triage(identifier: str, run_id: str, body: TriageRequest) -> dict[str, Any]:
         project = await projects.get(identifier)
-        items, _ = await _unknown_items(identifier)
-        if not any(entry.run_id == run_id for entry in items):
-            raise HTTPException(status_code=404, detail="Unknown event not found")
+        await _resolve_unknown_item(identifier, run_id)
         run_uuid = _uuid(run_id)
         if run_uuid is None:
             raise HTTPException(status_code=404, detail="Unknown event not found")
@@ -138,9 +164,7 @@ def unknowns_router(
     @router.post("/api/v1/projects/{identifier}/unknowns/{run_id}/transition")
     async def transition(identifier: str, run_id: str, body: TransitionRequest) -> dict[str, Any]:
         project = await projects.get(identifier)
-        items, _ = await _unknown_items(identifier)
-        if not any(entry.run_id == run_id for entry in items):
-            raise HTTPException(status_code=404, detail="Unknown event not found")
+        await _resolve_unknown_item(identifier, run_id)
         run_uuid = _uuid(run_id)
         if run_uuid is None:
             raise HTTPException(status_code=404, detail="Unknown event not found")
