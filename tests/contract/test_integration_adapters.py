@@ -60,11 +60,25 @@ async def test_transport_errors_are_secret_safe() -> None:
 
 
 @pytest.mark.parametrize(
-    "endpoint", [None, "file:///etc/passwd", "https://user:password@example.invalid", "http://["]
+    "endpoint",
+    [
+        None,
+        "file:///etc/passwd",
+        "https://user:password@example.invalid",
+        "http://[",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://127.0.0.1:7331/health",
+        "http://localhost:8000/api/v1/system/health",
+        "http://10.0.0.1/internal",
+        "http://192.168.1.1/admin",
+        "http://[::1]:8000/",
+        "http://metadata.google.internal/computeMetadata/v1/",
+        "http://postgres:5432/",
+    ],
 )
 async def test_invalid_endpoint_is_not_contacted(endpoint: str | None) -> None:
     def handle(request: httpx.Request) -> httpx.Response:
-        pytest.fail("Invalid endpoint must not be contacted")
+        pytest.fail("Invalid or SSRF endpoint must not be contacted")
 
     report = await HTTPIntegrationProbe(EnvironmentSecrets(), httpx.MockTransport(handle)).check(
         IntegrationConfig(
@@ -72,6 +86,40 @@ async def test_invalid_endpoint_is_not_contacted(endpoint: str | None) -> None:
         )
     )
     assert report.status == IntegrationStatus.DISCONNECTED
+
+
+@pytest.mark.parametrize(
+    "forbidden_ref",
+    [
+        "OPENCLASS_DATABASE_URL",
+        "DATABASE_URL",
+        "OPENCLASS_JEV_API_KEY",
+        "OPENCLASS_GLM_API_KEY",
+        "AI_GATEWAY_API_KEY",
+        "AWS_SECRET_ACCESS_KEY",
+        "PATH",
+    ],
+)
+async def test_forbidden_system_secret_refs_cannot_be_exfiltrated(
+    monkeypatch: pytest.MonkeyPatch,
+    forbidden_ref: str,
+) -> None:
+    monkeypatch.setenv(forbidden_ref, "sensitive-system-secret-value")
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        pytest.fail("Probe must not contact external endpoint with forbidden system secret")
+
+    report = await HTTPIntegrationProbe(EnvironmentSecrets(), httpx.MockTransport(handle)).check(
+        IntegrationConfig(
+            project_id=uuid4(),
+            name="Exfil Probe",
+            type=IntegrationType.REST_API,
+            endpoint="https://example.invalid/exfil",
+            secret_ref=forbidden_ref,
+        )
+    )
+    assert report.status == IntegrationStatus.DISCONNECTED
+    assert "sensitive-system-secret-value" not in report.model_dump_json()
 
 
 @pytest.mark.parametrize(
@@ -90,3 +138,4 @@ def test_decoded_secret_content_cannot_escape_redaction(
     )
     with pytest.raises(ValueError, match="Input contains an integration credential"):
         EnvironmentSecrets().reject_secret_content(integration, {"metadata": {"nested": [secret]}})
+
