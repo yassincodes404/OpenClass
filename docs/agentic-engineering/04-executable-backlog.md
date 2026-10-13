@@ -7,97 +7,97 @@
 
 ## 1. Master Backlog Overview Table
 
-| ID | Priority | Workstream | Title | Status | Effort | Primary Affected Files |
-| :--- | :---: | :--- | :--- | :--- | :---: | :--- |
-| **OC-BG-001** | **P0** | WS-14 (CI / Tests) | Fix all 6 current `pytest` failures/errors on Windows & default settings, plus broken PostgreSQL test and `pnpm` CI job | Broken | S | `tests/contract/test_{jev,supervisor}_provider.py`, `tests/integration/test_{reviews,raw_events_postgres}.py`, `tests/unit/test_{decision_executor,automation_reuse}.py`, `.github/workflows/ci.yml`, `.gitattributes` |
-| **OC-BG-002** | **P0** | WS-09 / WS-08 (Persistence) | Fix `UnknownTriageStore.append_audit` schema corruption crashing `GET /audit` and `GET /summary` with HTTP 500 | Broken | S | `packages/server/openclass_server/persistence/unknown_triage.py:85-102`, `packages/core/openclass_core/projects.py:78-101`, `persistence/project_repository.py:116-123` |
-| **OC-BG-003** | **P0** | WS-11 (Security) | Fix Control-Plane `callerOf(request)` dropping `keyProjectId` (breaking all `oc_...` API keys), enforce granular API key scopes, and require `operator` role for ingestion | Broken | S | `services/control-plane/src/ingestion.controller.ts:26-35`, `services/control-plane/src/ingestion.service.ts:34-61,79,116,235-251`, `decision.controller.ts:58` |
-| **OC-BG-004** | **P0** | WS-10 / WS-11 (Security) | Eliminate SSRF and arbitrary env-var exfiltration in `HTTPIntegrationProbe.check`, `EnvironmentSecrets.resolve`, and provider `base_url` | Vulnerable | M | `packages/server/openclass_server/integration_adapters.py:25-37,89-126`, `api/providers.py:15,29-42`, `provider_config.py:71,97,123,194-213` |
-| **OC-BG-005** | **P0** | WS-03 / WS-05 (Execution) | Fix custom instruction propagation from `DecisionService`/`DecisionNode` through `DecisionExecutor` to `JevDecisionProvider`, `LayaDecisionProvider`, and `MockDecisionProvider` | Broken | M | `packages/core/openclass_core/decision_executor.py:58-85`, `projects.py:671-672`, `models.py:109-120`, `providers/jev/__init__.py:19-23,102`, `providers/laya/__init__.py:27-31,139` |
-| **OC-BG-006** | **P0** | WS-03 / WS-04 (Core Domain) | Fix `DecisionExecutor` tie-breaking bug (favoring known choice over `UNKNOWN`), ephemeral class UUID generation, and `evaluate_predicates` missing-vs-`None` & `bool`-vs-`int` bugs | Broken | S | `packages/core/openclass_core/decision_executor.py:58-80,102-115`, `packages/core/openclass_core/decision.py:217-235` |
-| **OC-BG-007** | **P0** | WS-12 / WS-13 (SDK / UI) | Fix broken SDK/API contracts: `ingestBatch` 207 response unwrapping, missing `POST /evidence-cases/{cid}/evidence` route (404), `transition_evidence` `note` vs `rationale`, and missing `POST /candidates/{cid}/reject` route | Broken | M | `packages/sdk-typescript/src/index.ts:573,773,800`, `packages/sdk-python/openclass_sdk/__init__.py:442,466`, `api/evidence.py`, `api/evolution.py`, `apps/web/app/projects/[id]/{data,evolution}/page.tsx` |
-| **OC-BG-008** | **P0** | WS-08 / WS-09 (Persistence) | Prevent `ClusterStore.replace_clusters` from cascade-deleting `cluster_candidates` and `candidate_evidence` on re-clustering | Data Loss | S | `packages/server/openclass_server/persistence/cluster_store.py:45-53`, `tables.py:344,361`, `migrations/versions/0016_cluster_candidates.py` |
-| **OC-BG-009** | **P0** | WS-05 / WS-07 (Providers) | Fix `provider_config.py` startup crash on empty `base_url`, silent fallback on missing diagnosis key, Jev `real_inference` metadata omission, and Laya `simulated: False` regex fallback | Broken | S | `packages/server/openclass_server/provider_config.py:54-125`, `providers/jev/__init__.py:102-120`, `providers/laya/__init__.py:251,280-287`, `providers/glm/{diagnosis,project_teacher}.py` |
-| **OC-BG-010** | **P0** | WS-09 (Persistence) | Implement immutable `DecisionServiceVersion` snapshots (`0017_decision_service_versions.py`), append-only triggers, and version lineage on `DecisionRun` | Missing Invariant | M | `packages/core/openclass_core/projects.py:176-237,470-705`, `persistence/tables.py`, `persistence/project_repository.py:207-290`, `migrations/versions/0017_decision_service_versions.py` |
-| **OC-BG-011** | **P1** | WS-08 (Evaluation) | Implement Verified Evaluation Datasets, strict label provenance (`human` / `verified_external`), dataset sealing, and holdout splits (`OC-008` Part 1) | Blocked (409) | L | `packages/core/openclass_core/evaluation.py` (new), `persistence/tables.py`, `migrations/versions/0018_evaluation_datasets_and_runs.py`, `api/evaluation.py` (new) |
-| **OC-BG-012** | **P1** | WS-08 (Evaluation) | Implement Deterministic Baseline vs. Candidate Replay Engine with Teacher disabled and regression gates (`OC-008` Part 2) | Blocked (409) | L | `packages/core/openclass_core/{project_evolution,discovery,evaluation}.py`, `api/evolution.py:90-98`, `api/classifiers.py:123-128`, `api/candidates.py` |
-| **OC-BG-013** | **P1** | WS-08 (Evolution) | Implement Human Approval Records, Transactional `SELECT ... FOR UPDATE` Promotion (`vN → vN+1`), Evidence Auto-Resolution, and Rollback (`OC-009`) | Blocked (409) | M | `packages/core/openclass_core/{project_evolution,discovery}.py`, `persistence/{repository,project_repository}.py`, `api/{evolution,classifiers,candidates}.py` |
-| **OC-BG-014** | **P1** | WS-08 (Evolution) | Unify the 4 fractured candidate pipelines (`Candidate`, `ChoiceCandidate`, `DiscoveryCandidate`, `CandidateEnvelope`) and synchronize `unknown_triage` with `evidence_items` | Duplicated | L | `packages/core/openclass_core/{evolution,project_evolution,candidates,unknown_pool,evidence}.py`, `api/{evolution,candidates,unknowns,evidence}.py` |
-| **OC-BG-015** | **P1** | WS-03 (Execution) | Upgrade `DecisionExecutor` to execute multi-node `PolicyGraph` transitions, cycle detection, step budgets (`max_steps`), and durable step traces | Disconnected | L | `packages/core/openclass_core/{decision,decision_executor,projects}.py`, `scripts/jev_contract/runtime.py:89-192` |
-| **OC-BG-016** | **P1** | WS-04 (State & Memory) | Implement `StateCompiler` with typed `StateSchema` validation, `RawEvent.metadata` propagation, source provenance, and context token/byte budgets | Missing | M | `packages/core/openclass_core/{decision,decision_executor,projects}.py`, `providers/{jev,laya}/__init__.py` |
-| **OC-BG-017** | **P1** | WS-05 (Calibration) | Replace hardcoded provider supervision in `DecisionExecutor._supervise` with data-driven `SupervisionPolicy` and calibrated `OperatingProfile` enforcement | Hardcoded | M | `packages/core/openclass_core/{decision,decision_executor}.py`, `providers/{jev,laya}/profile.py` |
-| **OC-BG-018** | **P1** | WS-06 (Capabilities) | Fix `AutomationLoop` macro validation/expansion, port 5-gate macro applicability & independent postcondition verifiers from `scripts/automation_*.py` to `packages/core` | Broken in Core | L | `packages/core/openclass_core/{automation,decision}.py`, `scripts/automation_{applicability,attempts,proof2b_cycle2}.py` |
-| **OC-BG-019** | **P1** | WS-06 (Sandbox) | Harden `SafeSandboxExecutor` with subprocess timeouts, output caps, strict env-var allowlisting, port range restrictions, and complete action handlers | Unsafe | M | `packages/server/openclass_server/automation_executor.py:21-105`, `tests/unit/test_automation_executor.py` |
-| **OC-BG-020** | **P1** | WS-07 (Teacher/Supervisor) | Wire real LLM `SupervisorProvider` (OpenAI-compatible / Ollama) in `provider_config.py` and add sampled/triggered continuous supervision (`OC-018`, `OC-020`) | Mock-Only | M | `packages/core/openclass_core/supervisor.py`, `providers/glm/openclass_provider_glm/supervisor.py` (new), `packages/server/openclass_server/provider_config.py:54-56` |
-| **OC-BG-021** | **P1** | WS-07 (Teacher) | Promote Teacher Protocol v1.1 (`TeacherProposal`, 10-layer `FailureLayer`, `LAYER_OPERATORS`, `apply_candidate`) from `scripts/jev_contract/teacher.py` into server runtime | Script-Only | L | `packages/core/openclass_core/evolution.py`, `providers/glm/openclass_provider_glm/project_teacher.py`, `scripts/jev_contract/teacher.py` |
-| **OC-BG-022** | **P1** | WS-08 (Embeddings) | Wire real semantic `EmbeddingProvider` (`OpenAICompatibleEmbedder` + async `SentenceTransformerEmbedder`), cache embeddings in `ClusterStore`, and use `pgvector` on PostgreSQL | Simulated | M | `packages/server/openclass_server/embeddings_local.py:48-65`, `persistence/cluster_store.py:18-37`, `api/clusters.py:35-59` |
-| **OC-BG-023** | **P1** | WS-11 (Security) | Authenticate Control-Plane-to-Engine traffic (`X-OpenClass-Internal-Token`), propagate `workspace_id` and `actor` headers, and isolate tenant project lookups | Unauthenticated | M | `packages/server/openclass_server/{security,main}.py`, `services/control-plane/src/engine.ts:274-301`, `docker-compose.yml:37-49` |
-| **OC-BG-024** | **P1** | WS-09 / WS-10 (Webhooks & Idempotency) | Fix webhook `409 Conflict` on duplicate content hash across distinct `event_key`s, and fix `IdempotencyStore` request-hash validation, TOCTOU race, and expiry refresh | Buggy | M | `packages/server/openclass_server/persistence/{integration_repository,idempotency}.py`, `api/projects.py:113-198`, `services/control-plane/src/idempotency.service.ts` |
-| **OC-BG-025** | **P1** | WS-09 (Transactions) | Wrap multi-step `ProjectService` mutations in atomic Unit-of-Work transactions, add `SELECT ... FOR UPDATE`, and add `UNIQUE(decision_run_id)` on `evidence_items` | Race Condition | M | `packages/server/openclass_server/persistence/{project_repository,repository,tables}.py`, `packages/core/openclass_core/projects.py` |
-| **OC-BG-026** | **P1** | WS-09 (Schema Alignment) | Reconcile Engine Alembic vs. Control-Plane SQL migrations (`include_name` filter, control-plane migration runner, scoped slug uniqueness, append-only triggers) | Split-Brain | M | `packages/server/openclass_server/migrations/env.py`, `services/control-plane/migrations/0002..0003.sql`, `services/control-plane/src/project.service.ts` |
-| **OC-BG-027** | **P1** | WS-13 (Dual Stack) | Reconcile `apps/portal` + `services/control-plane` vs. `apps/web`: synchronize project creation, replace raw `fetch()` in `apps/portal/src/api.ts` with `@openclass/sdk`, and surface missing tabs | Split-Brain | L | `apps/portal/src/{api.ts,portal.tsx}`, `services/control-plane/src/{project.service.ts,engine.ts}`, `packages/sdk-typescript/src/index.ts` |
-| **OC-BG-028** | **P1** | WS-12 (SDK / CLI Parity) | Achieve 100% endpoint parity across Python SDK, TypeScript SDK, and `openclass` CLI for all 50 server routes | Partial | M | `packages/sdk-python/openclass_sdk/__init__.py`, `packages/sdk-typescript/src/index.ts`, `packages/cli/openclass_cli/main.py` |
-| **OC-BG-029** | **P1** | WS-14 (Observability) | Fix `record_provider_error` hardcoded `"provider"` rollup bug, include `model` in `uq_provider_usage_day`, and add structured logging + `X-Correlation-ID` propagation | Buggy | S | `packages/server/openclass_server/api/decisions.py:125-132`, `persistence/{project_repository,tables}.py`, `main.py`, `services/control-plane/src/engine.ts` |
-| **OC-BG-030** | **P1** | WS-09 (Pagination & Perf) | Replace silent 200-row truncation caps (`unknowns`, `clusters`, `discovery`) and unbounded in-memory table loads (`analytics_runs`, `summary` audit count) with SQL pagination/aggregation | Truncation / OOM | M | `packages/server/openclass_server/api/{unknowns,clusters}.py`, `persistence/project_repository.py:416-421`, `packages/core/openclass_core/{discovery,projects}.py` |
-| **OC-BG-031** | **P2** | WS-11 (Security Hardening) | Wire `Settings.redaction_enabled` & `redaction_blocklist`, fix recursive `redact_mapping`, fix `RateLimiter.route_class` HTTP method check & bucket eviction, and add prompt-injection boundaries | Partial | M | `packages/server/openclass_server/{redaction,rate_limit,settings}.py`, `providers/glm/openclass_provider_glm/{__init__,diagnosis}.py` |
-| **OC-BG-032** | **P2** | WS-10 (Integrations) | Implement transactional webhook/action outbox with retries, vendor webhook HMAC normalizers (Zendesk, Intercom, Freshdesk), and MCP/Database connectivity probes | Stubbed | L | `packages/server/openclass_server/integration_adapters.py:78-80`, `persistence/tables.py` |
-| **OC-BG-033** | **P2** | WS-14 (Full-Stack Tests) | Add real PostgreSQL integration tests for `services/control-plane`, authenticated component tests for `apps/portal`, and live-backend Playwright E2E tests | Mock-Only | M | `services/control-plane/src/*.spec.ts`, `apps/portal/src/portal.test.tsx`, `playwright.config.ts`, `tests/web/*.spec.ts` |
-| **OC-BG-034** | **P2** | WS-14 (Benchmarks & Docker) | Make `benchmarks/jev-contract/v1` self-contained without gitignored `build/` paths, add `COPY benchmarks examples` to `Dockerfile`, and add containers for `control-plane`/`portal`/`web` | Broken on Clean Clone | M | `Dockerfile:21-32`, `docker-compose.yml`, `scripts/jev_contract/audit.py`, `scripts/release.py`, `pyproject.toml:42` |
-| **OC-BG-035** | **P2** | WS-03 (Durable Runs) | Add durable multi-step run checkpoints (`WAITING_HUMAN`, `PAUSED`, `CANCELLED`), human-in-the-loop step approval, and resume API | Absent | L | `packages/core/openclass_core/{decision_executor,projects}.py`, `persistence/tables.py`, `api/decisions.py` |
-| **OC-BG-036** | **P2** | WS-08 (Drift & Monitoring) | Implement post-promotion drift monitoring, confidence/unknown-rate anomaly alerts, and automated rollback triggers (Phase 13) | Absent | M | `packages/core/openclass_core/analytics.py`, `packages/server/openclass_server/api/projects.py` |
-| **OC-BG-037** | **P3** | WS-05 (Provider Packaging) | Consolidate or implement standalone `providers/ollama` and `providers/openai-compatible` packages (currently README-only) | Placeholder | S | `providers/ollama/`, `providers/openai-compatible/`, `providers/glm/` |
-| **OC-BG-038** | **P3** | WS-12 (Terminal UI) | Implement `packages/tui` terminal inspector using `openclass-sdk` (`OC-013`) | Placeholder | M | `packages/tui/` |
+| ID            | Priority | Workstream                                      | Title                                                                                                                                                                                                                                                                                                     | Status                           | Effort | Primary Affected Files                                                                                                                                                                                                            |
+| :------------ | :------: | :---------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------- | :----: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **OC-BG-001** |  **P0**  | WS-14 (`OC-034` / Phase 00)                     | Fix remaining local/Windows `pytest` failures (2MB parametrize IDs, `test_reviews.py:96`, `test_automation_reuse.py` CRLF/`SO_REUSEADDR`) & remove duplicate `support_router` in `main.py:237` (building on `oc-034-ci-baseline` `c6545bf`)                                                               | Partial (`c6545bf` in CI)        |   S    | `tests/contract/test_{jev,supervisor}_provider.py`, `tests/integration/test_reviews.py`, `tests/unit/test_automation_reuse.py`, `packages/server/openclass_server/main.py:200,237`, `.gitattributes`                              |
+| **OC-BG-002** |  **P0**  | WS-09 / WS-08 (Impl Phase 04)                   | Fix `UnknownTriageStore.append_audit` schema corruption across all 10 Phase 08–15 event types crashing `GET /audit` and `GET /summary` (`REPORT.md` Finding #9)                                                                                                                                           | Broken                           |   S    | `packages/server/openclass_server/persistence/unknown_triage.py:86-110`, `packages/core/openclass_core/projects.py:78-101`, `persistence/project_repository.py:116-123`                                                           |
+| **OC-BG-003** |  **P0**  | WS-11 (Impl Phase 01)                           | Fix Control-Plane `callerOf(request)` dropping `keyProjectId` (breaking all `oc_...` API keys), enforce granular API key scopes, and require `operator` role for ingestion                                                                                                                                | Broken                           |   S    | `services/control-plane/src/ingestion.controller.ts:26-35`, `services/control-plane/src/ingestion.service.ts:34-61,79,116,235-251`, `decision.controller.ts:58`                                                                   |
+| **OC-BG-004** |  **P0**  | WS-10 / WS-11 (Impl Phase 01/02)                | Eliminate SSRF and arbitrary env-var exfiltration in `HTTPIntegrationProbe.check`, `EnvironmentSecrets.resolve`, and provider `base_url`                                                                                                                                                                  | Vulnerable                       |   M    | `packages/server/openclass_server/integration_adapters.py:25-37,89-126`, `api/providers.py:15,29-42`, `provider_config.py:71,97,123`                                                                                              |
+| **OC-BG-005** |  **P0**  | WS-03 / WS-05 (Impl Phase 02)                   | Fix custom instruction propagation from `DecisionService`/`DecisionNode` through `DecisionExecutor` to `JevDecisionProvider`, `LayaDecisionProvider`, and `MockDecisionProvider` (`REPORT.md` Finding #5)                                                                                                 | Broken                           |   M    | `packages/core/openclass_core/decision_executor.py:58-85`, `projects.py:671-672`, `models.py:109-120`, `providers/jev/__init__.py:19-23,102`, `providers/laya/__init__.py:27-31,139`                                              |
+| **OC-BG-006** |  **P0**  | WS-03 / WS-04 (Impl Phase 02/03)                | Fix `DecisionExecutor` tie-breaking bug (favoring known choice over `UNKNOWN`), ephemeral class UUID generation, and `evaluate_predicates` missing-vs-`None` & `bool`-vs-`int` bugs                                                                                                                       | Broken                           |   S    | `packages/core/openclass_core/decision_executor.py:58-80,102-115`, `packages/core/openclass_core/decision.py:217-235`                                                                                                             |
+| **OC-BG-007** |  **P0**  | WS-12 / WS-13 (Impl Phase 06)                   | Fix broken SDK/API contracts: `ingestBatch` 207 response unwrapping, missing `POST /evidence-cases/{cid}/evidence` route (404), `transition_evidence` `note` vs `rationale`, and missing `POST /candidates/{cid}/reject` route                                                                            | Broken                           |   M    | `packages/sdk-typescript/src/index.ts:573,773,800`, `packages/sdk-python/openclass_sdk/__init__.py:442,466`, `api/evidence.py`, `api/evolution.py`, `apps/web/app/projects/[id]/{data,evolution}/page.tsx`                        |
+| **OC-BG-008** |  **P0**  | WS-08 / WS-09 (Impl Phase 05)                   | Prevent `ClusterStore.replace_clusters` from cascade-deleting `cluster_candidates`, `candidate_evidence`, and `candidate_reviews` on re-clustering (`0023_preserve_cluster_candidates.py`; `REPORT.md` Finding #10)                                                                                       | Data Loss                        |   S    | `packages/server/openclass_server/persistence/cluster_store.py:45-53`, `tables.py:344,361`, `migrations/versions/0023_preserve_cluster_candidates.py`                                                                             |
+| **OC-BG-009** |  **P0**  | WS-05 / WS-07 (Impl Phase 02)                   | Fix `provider_config.py` startup crash on empty `base_url`, silent fallback on missing diagnosis key, Jev `real_inference` metadata omission, and Laya `simulated: False` regex fallback                                                                                                                  | Broken                           |   S    | `packages/server/openclass_server/provider_config.py:56-129`, `providers/jev/__init__.py:102-120`, `providers/laya/__init__.py:251,280-287`, `providers/glm/{diagnosis,project_teacher}.py`                                       |
+| **OC-BG-010** |  **P0**  | WS-09 (`OC-017` / Impl Phase 02 & 08)           | Complete `DecisionServiceVersion` & alias lineage on top of `0020_service_versions.py` (`0024_decision_run_version_lineage.py`): add `aliases` to `DecisionChoiceSpec`, stop stripping aliases in `promotions.py:148`/`promotion_store.py:160`, and record `decision_service_version_id` on `DecisionRun` | Partial (`0020` strips aliases)  |   M    | `packages/core/openclass_core/projects.py:157-237,470-705`, `api/promotions.py:148-157`, `persistence/promotion_store.py:154-178`, `persistence/tables.py`, `migrations/versions/0024_decision_run_version_lineage.py`            |
+| **OC-BG-011** |  **P1**  | WS-08 (`OC-008` / Impl Phase 07)                | Extend `0018_evaluation_sets.py` & `evaluation.py` with holdout splits (`split`), deterministic `dataset_hash`, structured `metadata`, and ORM declarations (`0025_evaluation_holdouts_and_provenance.py`)                                                                                                | Partial (`0018`)                 |   M    | `packages/core/openclass_core/evaluation.py:1-84`, `api/evaluations.py:35-265`, `persistence/tables.py`, `migrations/versions/0025_evaluation_holdouts_and_provenance.py`                                                         |
+| **OC-BG-012** |  **P1**  | WS-08 (`OC-008` / Impl Phase 07)                | Replace hardcoded `MockDecisionProvider()` in `api/evaluations.py:306` with real `DecisionExecutor` replay (Teacher disabled) over `0019_evaluation_runs.py` and wire `ProjectEvolutionService.evaluate` & `DiscoveryService.evaluate`                                                                    | Simulated (`evaluations.py:306`) |   L    | `packages/server/openclass_server/api/evaluations.py:266-453`, `packages/core/openclass_core/{evaluation_metrics,project_evolution,discovery}.py`, `api/{evolution,classifiers}.py`                                               |
+| **OC-BG-013** |  **P1**  | WS-08 (`OC-009` / Impl Phase 08)                | Harden `api/promotions.py` & `ProjectEvolutionService.promote` over `0017_candidate_reviews` & `0020_service_versions` with `SELECT ... FOR UPDATE`, `base_service_hash` check, alias preservation, and evidence auto-resolution                                                                          | Partial (`0020`)                 |   M    | `packages/server/openclass_server/api/promotions.py:101-269`, `persistence/promotion_store.py`, `packages/core/openclass_core/{promotion,project_evolution,discovery}.py`                                                         |
+| **OC-BG-014** |  **P1**  | WS-08 (Impl Phase 05 & 06)                      | Unify the 4 fractured candidate pipelines (`Candidate`, `ChoiceCandidate`, `DiscoveryCandidate`, `CandidateEnvelope`), merge `GatewayClusterDiscovery` from `provider-wiring.patch`, and synchronize `unknown_triage` with `evidence_items`                                                               | Duplicated                       |   L    | `packages/core/openclass_core/{evolution,project_evolution,candidates,unknown_pool,evidence}.py`, `api/{evolution,candidates,unknowns,evidence}.py`, `artifacts/application-proofs/scikit-learn-2026-10-02/provider-wiring.patch` |
+| **OC-BG-015** |  **P1**  | WS-03 (`OC-035` / Impl Phase 02)                | Upgrade `DecisionExecutor` to execute multi-node `PolicyGraph` transitions, cycle detection, step budgets (`max_steps`), and durable step traces                                                                                                                                                          | Disconnected                     |   L    | `packages/core/openclass_core/{decision,decision_executor,projects}.py`, `scripts/jev_contract/runtime.py:89-192`                                                                                                                 |
+| **OC-BG-016** |  **P1**  | WS-04 (`OC-035` / Impl Phase 01/02)             | Implement `StateCompiler` with typed `StateSchema` validation, persisted `StateSnapshot` (`0026_state_snapshots.py`), `RawEvent.metadata` propagation, source/freshness provenance, and context budgets                                                                                                   | Missing                          |   M    | `packages/core/openclass_core/{decision,decision_executor,projects}.py`, `providers/{jev,laya}/__init__.py`                                                                                                                       |
+| **OC-BG-017** |  **P1**  | WS-05 (Impl Phase 03)                           | Replace hardcoded provider supervision in `DecisionExecutor._supervise` with data-driven `SupervisionPolicy` and calibrated `OperatingProfile` enforcement (`REPORT.md` Finding #4: `23.5%`/`19.4%` trusted error rate)                                                                                   | Hardcoded                        |   M    | `packages/core/openclass_core/{decision,decision_executor}.py`, `providers/{jev,laya}/profile.py`                                                                                                                                 |
+| **OC-BG-018** |  **P1**  | WS-06 (`OC-035` / Impl Phase 09)                | Fix `AutomationLoop` macro validation/expansion, port 5-gate macro applicability & independent postcondition verifiers from `scripts/automation_*.py` to `packages/core`                                                                                                                                  | Broken in Core                   |   L    | `packages/core/openclass_core/{automation,decision}.py`, `scripts/automation_{applicability,attempts,proof2b_cycle2}.py`                                                                                                          |
+| **OC-BG-019** |  **P1**  | WS-06 (`OC-035` / Impl Phase 09)                | Harden `SafeSandboxExecutor` with subprocess timeouts, output caps, strict env-var allowlisting, port range restrictions, and complete action handlers                                                                                                                                                    | Unsafe                           |   M    | `packages/server/openclass_server/automation_executor.py:21-105`, `tests/unit/test_automation_executor.py`                                                                                                                        |
+| **OC-BG-020** |  **P1**  | WS-07 (`OC-018`, `OC-020` / Impl Phase 03 & 06) | Wire real LLM `SupervisorProvider` (OpenAI-compatible / Ollama) in `provider_config.py` and add sampled/triggered continuous supervision                                                                                                                                                                  | Mock-Only                        |   M    | `packages/core/openclass_core/supervisor.py`, `providers/glm/openclass_provider_glm/supervisor.py` (new), `packages/server/openclass_server/provider_config.py:56-58`                                                             |
+| **OC-BG-021** |  **P1**  | WS-07 (Impl Phase 06)                           | Promote Teacher Protocol v1.1 (`TeacherProposal`, 10-layer `FailureLayer`, `LAYER_OPERATORS`, `apply_candidate`) from `scripts/jev_contract/teacher.py` into server runtime                                                                                                                               | Script-Only                      |   L    | `packages/core/openclass_core/evolution.py`, `providers/glm/openclass_provider_glm/project_teacher.py`, `scripts/jev_contract/teacher.py`                                                                                         |
+| **OC-BG-022** |  **P1**  | WS-08 (`OC-005` / Impl Phase 05)                | Merge & harden `GatewayEmbedder` (`provider-wiring.patch`) + async `SentenceTransformerEmbedder`, cache embeddings in `ClusterStore`, and use `pgvector` on PostgreSQL                                                                                                                                    | Simulated                        |   M    | `packages/server/openclass_server/embeddings_local.py:48-65`, `persistence/cluster_store.py:18-37`, `api/clusters.py:35-59`, `artifacts/application-proofs/scikit-learn-2026-10-02/provider-wiring.patch`                         |
+| **OC-BG-023** |  **P1**  | WS-11 (Impl Phase 01)                           | Authenticate Control-Plane-to-Engine traffic (`X-OpenClass-Internal-Token`), propagate `workspace_id` and `actor` headers, and isolate tenant project lookups (`0027_project_workspace_isolation.py`)                                                                                                     | Unauthenticated                  |   M    | `packages/server/openclass_server/{security,main}.py`, `services/control-plane/src/engine.ts:274-301`, `docker-compose.yml:37-49`                                                                                                 |
+| **OC-BG-024** |  **P1**  | WS-09 / WS-10 (`OC-036` / Impl Phase 01)        | Fix webhook `409 Conflict` on duplicate content hash across distinct `event_key`s, and fix `IdempotencyStore` request-hash validation, TOCTOU race, and expiry refresh                                                                                                                                    | Buggy                            |   M    | `packages/server/openclass_server/persistence/{integration_repository,idempotency}.py`, `api/projects.py:113-198`, `services/control-plane/src/idempotency.service.ts`                                                            |
+| **OC-BG-025** |  **P1**  | WS-09 (Impl Phase 01 & 04)                      | Wrap multi-step `ProjectService` mutations in atomic Unit-of-Work transactions, add `SELECT ... FOR UPDATE`, and add `UNIQUE(decision_run_id)` on `evidence_items`                                                                                                                                        | Race Condition                   |   M    | `packages/server/openclass_server/persistence/{project_repository,repository,tables}.py`, `packages/core/openclass_core/projects.py`                                                                                              |
+| **OC-BG-026** |  **P1**  | WS-09 (Impl Phase 01)                           | Reconcile Engine Alembic vs. Control-Plane SQL migrations (`include_name` filter, control-plane migration runner, scoped slug uniqueness, append-only triggers)                                                                                                                                           | Split-Brain                      |   M    | `packages/server/openclass_server/migrations/env.py`, `services/control-plane/migrations/0002..0003.sql`, `services/control-plane/src/project.service.ts`                                                                         |
+| **OC-BG-027** |  **P1**  | WS-13 (Impl Phase 10)                           | Reconcile `apps/portal` + `services/control-plane` vs. `apps/web`: synchronize project creation, replace raw `fetch()` in `apps/portal/src/api.ts` with `@openclass/sdk`, and raise Express batch payload byte limit (`REPORT.md` Finding #3)                                                             | Split-Brain                      |   L    | `apps/portal/src/{api.ts,portal.tsx}`, `services/control-plane/src/{project.service.ts,engine.ts,main.ts}`, `packages/sdk-typescript/src/index.ts`                                                                                |
+| **OC-BG-028** |  **P1**  | WS-12 (`OC-010`)                                | Achieve 100% endpoint parity across Python SDK, TypeScript SDK, and `openclass` CLI for all server routes (including Phase 05–16 routes)                                                                                                                                                                  | Partial                          |   M    | `packages/sdk-python/openclass_sdk/__init__.py`, `packages/sdk-typescript/src/index.ts`, `packages/cli/openclass_cli/main.py`                                                                                                     |
+| **OC-BG-029** |  **P1**  | WS-14 (`OC-037` / Impl Phase 04)                | Fix `record_provider_error` hardcoded `"provider"` rollup bug, preserve HTTP `429` upstream rate-limit semantics (`REPORT.md` Finding #2), include `model` in `uq_provider_usage_day`, and add `X-Correlation-ID` logging                                                                                 | Buggy                            |   S    | `packages/server/openclass_server/api/decisions.py:125-132`, `persistence/{project_repository,tables}.py`, `main.py:123-125`, `services/control-plane/src/engine.ts`                                                              |
+| **OC-BG-030** |  **P1**  | WS-09 (Impl Phase 05)                           | Replace silent 200-row truncation caps (`unknowns`, `clusters`, `discovery`; `REPORT.md` Finding #6) and unbounded in-memory table loads (`analytics_runs`, `operations._measurements`, `summary` audit count) with SQL pagination/aggregation                                                            | Truncation / OOM                 |   M    | `packages/server/openclass_server/api/{unknowns,clusters,operations}.py`, `persistence/project_repository.py:416-421`, `packages/core/openclass_core/{discovery,projects}.py`                                                     |
+| **OC-BG-031** |  **P2**  | WS-11 (Impl Phase 10)                           | Wire `Settings.redaction_enabled` & `redaction_blocklist`, fix recursive `redact_mapping`, fix `RateLimiter.route_class` HTTP method check & bucket eviction, and add prompt-injection boundaries                                                                                                         | Partial                          |   M    | `packages/server/openclass_server/{redaction,rate_limit,settings}.py`, `providers/glm/openclass_provider_glm/{__init__,diagnosis}.py`                                                                                             |
+| **OC-BG-032** |  **P2**  | WS-10 (`OC-036` / Impl Phase 09)                | Upgrade Phase 16 simulated routing (`0022_integration_routes.py`, `api/support.py`) with shared integration manifests, transactional outbox, real HTTP/webhook/PostgreSQL/MQTT adapters, and independent postcondition verification                                                                       | Simulated (`0022`)               |   L    | `packages/core/openclass_core/routing.py`, `packages/server/openclass_server/api/support.py`, `integration_adapters.py:78-80`, `persistence/tables.py`                                                                            |
+| **OC-BG-033** |  **P2**  | WS-14 (Impl Phase 01..10)                       | Add real PostgreSQL integration tests for `services/control-plane`, authenticated component tests for `apps/portal`, and live-backend Playwright E2E tests                                                                                                                                                | Mock-Only                        |   M    | `services/control-plane/src/*.spec.ts`, `apps/portal/src/portal.test.tsx`, `playwright.config.ts`, `tests/web/*.spec.ts`                                                                                                          |
+| **OC-BG-034** |  **P2**  | WS-14 (`OC-038`, `OC-039`)                      | Make `benchmarks/jev-contract/v1` self-contained without gitignored `build/` paths, add `COPY benchmarks examples` to `Dockerfile`, and execute Customer/DevOps/Smart-Home/Robot application proofs                                                                                                       | Partial                          |   M    | `Dockerfile:21-32`, `docker-compose.yml`, `scripts/jev_contract/audit.py`, `pyproject.toml:42`, `artifacts/application-proofs/`                                                                                                   |
+| **OC-BG-035** |  **P2**  | WS-03 (`OC-035` / Impl Phase 09)                | Add durable multi-step run checkpoints (`WAITING_HUMAN`, `PAUSED`, `CANCELLED`), human-in-the-loop step approval, and resume API                                                                                                                                                                          | Absent                           |   L    | `packages/core/openclass_core/{decision_executor,projects}.py`, `persistence/tables.py`, `api/decisions.py`                                                                                                                       |
+| **OC-BG-036** |  **P2**  | WS-08 (`OC-037` / Impl Phase 10)                | Fix `api/operations.py:92-96` `two_weeks_ago` window bug (missing `< week_ago` upper bound), implement persisted `OC-037` application proof reports, and add post-promotion drift triggers                                                                                                                | Partial (`0021`)                 |   M    | `packages/server/openclass_server/api/operations.py:40-174`, `packages/core/openclass_core/{alerting,analytics}.py`                                                                                                               |
+| **OC-BG-037** |  **P3**  | WS-05 (Provider Packaging)                      | Consolidate or implement standalone `providers/ollama` and `providers/openai-compatible` packages (currently README-only)                                                                                                                                                                                 | Placeholder                      |   S    | `providers/ollama/`, `providers/openai-compatible/`, `providers/glm/`                                                                                                                                                             |
+| **OC-BG-038** |  **P3**  | WS-12 (`OC-011` / `OC-013`)                     | Implement `packages/tui` terminal inspector using `openclass-sdk`                                                                                                                                                                                                                                         | Placeholder                      |   M    | `packages/tui/`                                                                                                                                                                                                                   |
 
 ---
 
 ## 2. Detailed Executable Backlog Specifications
 
-### OC-BG-001 — Fix All 6 Current `pytest` Failures/Errors, Broken Postgres Test & `pnpm` CI Pipeline
-- **Workstream & Subsystem:** WS-14 (`tests/`, `.github/workflows/`, `Makefile`)
-- **Priority:** `P0` | **Current Status:** Broken in local Windows runs and GitHub Actions CI
+### OC-BG-001 — Fix Remaining Local/Windows `pytest` Failures & Duplicate `support_router` Registration (Completing `OC-034`)
+
+- **Workstream & Subsystem:** WS-14 (`tests/`, `packages/server/openclass_server/main.py`, `.gitattributes`)
+- **Priority:** `P0` | **Current Status:** CI Repaired on `oc-034-ci-baseline` (`c6545bf`, run `37051177668`); 5 Local Windows `pytest` Failures & Duplicate Router Remain
 - **Concrete Problem & Evidence:**
-  1. `tests/contract/test_jev_provider.py:86` and `tests/contract/test_supervisor_provider.py:72` parametrize `payload` with `"x" * 2_000_000` without `ids=...`. Pytest embeds the 2MB string into `PYTEST_CURRENT_TEST`, causing `ValueError: the environment variable is longer than 32767 characters` on Windows when `anyio` spawns a thread/process.
-  2. `tests/integration/test_reviews.py:96` (`test_supervisor_failures_are_safe_and_persist_nothing`) calls `create_app(Settings(database_url=database_url), supervisor_provider=LeakingSupervisor())` without `decision_provider=MockDecisionProvider()`. Because `Settings.decision_provider` defaults to `"laya"` (`settings.py:13`), `/classify` fails before reaching `/reviews`.
-  3. `tests/unit/test_decision_executor.py:95` (`test_decision_executor_provenance_recording`) asserts `real_run.execution_mode == "in_process"` on `LayaDecisionProvider(allow_fallback=True)` when `laya` is not installed (`execution_mode` is `"deterministic_test_fallback"`).
-  4. `tests/unit/test_automation_reuse.py:142` (`test_frozen_fixture_unchanged`) hashes raw bytes of `scripts/automation_replay_fixture.py`, which fails when Git checks out CRLF (`\r\n`) on Windows.
-  5. `tests/unit/test_automation_reuse.py:160` (`test_transfer_fixture_has_real_failure_and_truthful_report`) binds two sockets on `127.0.0.1` without `SO_EXCLUSIVEADDRUSE` on Windows, so the second bind succeeds instead of failing with `"Address already in use"`.
-  6. `tests/integration/test_raw_events_postgres.py:59-60` asserts `resp.status_code == 201` and `len(resp.json()) == 2` on `POST /events/batch`, which now returns `207` and `{"items": [...]}` (`api/projects.py:137-198`).
-  7. `.github/workflows/ci.yml:56-62` and `.github/workflows/artifacts.yml:20-23` run `npm ci` on a `pnpm` workspace (`apps/web/package.json:12` has `"@openclass/sdk": "workspace:*"`).
-- **Root Cause:** Missing `ids=` on large parametrized strings, missing `.gitattributes` `eol=lf` enforcement, Windows vs POSIX socket flags, and unupdated CI/test assertions after Phase 5 & `pnpm` workspace migration.
-- **Target Behavior:** `uv run pytest`, `pnpm test`, and all GitHub Actions jobs (`python`, `postgres`, `web`) pass 100% on Linux, macOS, and Windows.
+  - _Already resolved by `oc-034-ci-baseline` (`6f61ce0`, `4bd07f9`, `dbb0ab8`, `8fc3507`)_: `pnpm` in `.github/workflows/ci.yml` and `Makefile`, `OPENCLASS_DECISION_PROVIDER=mock` in CI/Compose, `providers/glm/LICENSE`, `test_raw_events_postgres.py:59` (`207`), `test_decision_executor.py` Laya skip guard, and fail-closed `resolve_decision_provider()`.
+  - _Remaining defects in the merged working tree_:
+    1. `tests/contract/test_jev_provider.py:86` and `tests/contract/test_supervisor_provider.py:72` parametrize `payload` with `"x" * 2_000_000` without `ids=...`. Pytest embeds the 2MB string into `PYTEST_CURRENT_TEST`, causing `ValueError: the environment variable is longer than 32767 characters` on Windows when `anyio` spawns a thread/process.
+    2. `tests/integration/test_reviews.py:96` (`test_supervisor_failures_are_safe_and_persist_nothing`) calls `create_app(Settings(database_url=database_url), supervisor_provider=LeakingSupervisor())` without `provider=MockDecisionProvider()`. When `OPENCLASS_DECISION_PROVIDER` is not set in the local shell, `Settings.decision_provider` defaults to `"laya"` (`settings.py:26`), failing before `/reviews` is reached.
+    3. `tests/unit/test_automation_reuse.py:142` (`test_frozen_fixture_unchanged`) hashes raw bytes of `scripts/automation_replay_fixture.py`, which fails when Git checks out CRLF (`\r\n`) on Windows.
+    4. `tests/unit/test_automation_reuse.py:160` (`test_transfer_fixture_has_real_failure_and_truthful_report`) binds two sockets on `127.0.0.1` without `SO_EXCLUSIVEADDRUSE` on Windows, so the second bind succeeds instead of failing with `"Address already in use"`.
+    5. `packages/server/openclass_server/main.py:200,237` calls `app.include_router(support_router(...))` **twice**, registering duplicate route entries for all 5 support endpoints.
+- **Target Behavior:** `uv run pytest -q` passes 100% on Windows, macOS, and Linux even without shell env overrides, and `support_router` is mounted exactly once.
 - **Detailed Implementation Approach:**
   1. Add `ids=["truncated_json", "wrong_type", "oversized_2mb"]` to `@pytest.mark.parametrize` in `test_jev_provider.py:86` and `test_supervisor_provider.py:72`.
-  2. Pass `decision_provider=MockDecisionProvider()` in `tests/integration/test_reviews.py:96`.
+  2. Pass `provider=MockDecisionProvider()` in `tests/integration/test_reviews.py:96`.
   3. Normalize `\r\n` to `\n` before hashing in `test_automation_reuse.py:142` and add `.gitattributes` (`* text=auto eol=lf`).
-  4. In `scripts/automation_transfer_fixture.py` (or socket binder), set `socket.SO_EXCLUSIVEADDRUSE` on Windows (`sys.platform == "win32"`) instead of `SO_REUSEADDR`.
-  5. Update `tests/integration/test_raw_events_postgres.py:59-60` to assert `resp.status_code == 207` and `len(resp.json()["items"]) == 2`, and add `pytestmark = pytest.mark.postgres` to all 6 unmarked `test_*_postgres.py` files.
-  6. Update `.github/workflows/ci.yml` and `artifacts.yml` to use `pnpm/action-setup@v4` and `pnpm install --frozen-lockfile`.
+  4. In `scripts/automation_transfer_fixture.py`, set `socket.SO_EXCLUSIVEADDRUSE` on Windows (`sys.platform == "win32"`) instead of `SO_REUSEADDR`.
+  5. Remove the duplicate `app.include_router(support_router(...))` call at `packages/server/openclass_server/main.py:237-244` (keeping the registration at `L200-207` before `integration_router`).
 - **Dependencies:** None (Stage 0 entry gate).
-- **Verification & Acceptance Criteria:** `uv run pytest -q` reports `0 failed, 0 errors`; `pnpm test` and `pnpm build` succeed.
-- **Effort / Risk / Blast Radius:** Small (S) | Low risk | Test & CI files only.
+- **Verification & Acceptance Criteria:** `uv run pytest -q` reports `0 failed, 0 errors`; OpenAPI route table contains each `/integrations/*` route once.
+- **Effort / Risk / Blast Radius:** Small (S) | Low risk | Test files & duplicate router cleanup.
 
 ---
 
-### OC-BG-002 — Fix `UnknownTriageStore.append_audit` Schema Corruption Breaking `/audit` and `/summary`
-- **Workstream & Subsystem:** WS-09 / WS-08 (`packages/server/openclass_server/persistence/unknown_triage.py`, `packages/core/openclass_core/projects.py`)
-- **Priority:** `P0` | **Current Status:** Critical Runtime Crash (HTTP 500)
+### OC-BG-002 — Fix `UnknownTriageStore.append_audit` Schema Corruption Across All 10 Event Types
+
+- **Workstream & Subsystem:** WS-09 / WS-08 (`packages/server/openclass_server/persistence/unknown_triage.py`, `packages/core/openclass_core/projects.py`, `persistence/project_repository.py`)
+- **Priority:** `P0` | **Current Status:** Critical Runtime Failure (`scikit-learn-2026-10-02/REPORT.md` Finding #9)
 - **Concrete Problem & Evidence:**
   - `SQLProjectRepository.audit_events` (`persistence/project_repository.py:116-123`) deserializes every row in `audit_events` via `ProjectAuditEvent.model_validate(row.payload)`.
-  - `UnknownTriageStore.append_audit` (`persistence/unknown_triage.py:85-102`) executes raw SQL `INSERT INTO audit_events` with `payload = json.dumps({"target": target})` and event types `"unknown.triaged"`, `"unknown.transitioned"`, `"cluster.updated"`, and `"candidate.created"`.
-  - None of those 4 event types exist in `ProjectAuditEvent.event_type` (`projects.py:78-101`), and `{"target": target}` omits required `ProjectAuditEvent` fields (`id`, `project_id`, `event_type`, `actor`, `created_at`).
+  - `UnknownTriageStore.append_audit` (`persistence/unknown_triage.py:86-110`) executes raw SQL `INSERT INTO audit_events` with `payload = json.dumps({"target": target, **(data or {})})` across **10 event types** (`"unknown.triaged"`, `"unknown.transitioned"`, `"cluster.updated"`, `"candidate.created"`, `"candidate.updated"`, `"candidate.rejected"`, `"evaluation.dataset_created"`, `"evaluation.dataset_sealed"`, `"evaluation.completed"`, `"quality.alert"`).
+  - None of those 10 event types exist in `ProjectAuditEvent.event_type` (`projects.py:78-101`), and `{"target": target, ...}` omits required `ProjectAuditEvent` fields (`id`, `project_id`, `event_type`, `actor`, `created_at`).
 - **Root Cause:** `UnknownTriageStore` bypassed `SQLProjectRepository.append_audit_event` and `to_audit_event_row` (`persistence/mappers.py:8-16`).
-- **Target Behavior:** All audit writes produce valid `ProjectAuditEvent` envelopes; `GET /api/v1/projects/{id}/audit` and `GET /api/v1/projects/{id}/summary` succeed after unknown triage, clustering, and candidate discovery.
+- **Target Behavior:** All audit writes produce valid `ProjectAuditEvent` envelopes; `GET /api/v1/projects/{id}/audit` and `GET /api/v1/projects/{id}/summary` succeed after unknown triage, clustering, candidate review, evaluation, and alert evaluation.
 - **Detailed Implementation Approach:**
-  1. Add `"unknown.triaged"`, `"unknown.transitioned"`, `"cluster.updated"`, and `"candidate.created"` to `ProjectAuditEvent.event_type` literal in `packages/core/openclass_core/projects.py:78-101`.
-  2. Update `UnknownTriageStore.append_audit` (`unknown_triage.py:85-102`) to instantiate `ProjectAuditEvent` and serialize `event.model_dump(mode="json")` into `payload`.
-  3. Add fallback normalization in `SQLProjectRepository.audit_events` (`project_repository.py:116-123`) so if a legacy row's `payload` lacks `"id"`, it reconstructs `ProjectAuditEvent` from the row's columns (`row.id`, `row.project_id`, `row.event_type`, `row.actor`, `row.payload`, `row.created_at`).
-- **Data / Migration Changes:** Optional data cleanup in `0017` or runtime mapper fallback in `project_repository.py:116-123`.
-- **Verification & Acceptance Criteria:** In `tests/integration/test_unknown_workspace.py` and `test_embeddings_clustering.py`, call `GET /api/v1/projects/{slug}/audit` and `GET /api/v1/projects/{slug}/summary` after triaging and clustering and assert `200 OK` with valid audit entries.
-- **Effort / Risk / Blast Radius:** Small (S) | Low risk | Fixes P0 500 crash.
+  1. Add all 10 Portal event types (`"unknown.triaged"`, `"unknown.transitioned"`, `"cluster.updated"`, `"candidate.created"`, `"candidate.updated"`, `"candidate.rejected"`, `"evaluation.dataset_created"`, `"evaluation.dataset_sealed"`, `"evaluation.completed"`, `"quality.alert"`) to `ProjectAuditEvent.event_type` literal in `packages/core/openclass_core/projects.py:78-101`.
+  2. Update `UnknownTriageStore.append_audit` (`unknown_triage.py:86-110`) to construct a valid `ProjectAuditEvent` (storing `{"target": target, **(data or {})}` inside `event.details`) while keeping `UnknownTriageStore.audit_history` (`L112-140`) compatible with both `payload["details"]` and legacy top-level `payload` keys.
+  3. Add fallback normalization in `SQLProjectRepository.audit_events` (`project_repository.py:116-123`) so if an existing row's `payload` lacks `"id"`, it reconstructs `ProjectAuditEvent` from the row's columns (`row.id`, `row.project_id`, `row.event_type`, `row.actor`, `row.payload`, `row.created_at`).
+- **Verification & Acceptance Criteria:** Calling `GET /api/v1/projects/{slug}/audit` and `GET /api/v1/projects/{slug}/summary` after triaging, clustering, candidate review, dataset sealing, evaluation, and alert firing returns `200 OK`.
+- **Effort / Risk / Blast Radius:** Small (S) | Low risk | Fixes P0 audit crash confirmed in `REPORT.md` Finding #9.
 
 ---
 
 ### OC-BG-003 — Fix Control-Plane API Key Authorization (`callerOf`), Scope Enforcement & RBAC Roles
+
 - **Workstream & Subsystem:** WS-11 (`services/control-plane/src/`)
 - **Priority:** `P0` | **Current Status:** Broken in production HTTP calls
 - **Concrete Problem & Evidence:**
@@ -118,6 +118,7 @@
 ---
 
 ### OC-BG-004 — Eliminate SSRF and Arbitrary Env-Var Exfiltration in Integrations & Provider Config
+
 - **Workstream & Subsystem:** WS-10 / WS-11 (`packages/server/openclass_server/integration_adapters.py`, `api/providers.py`, `provider_config.py`)
 - **Priority:** `P0` | **Current Status:** Critical Security Vulnerability
 - **Concrete Problem & Evidence:**
@@ -134,8 +135,9 @@
 ---
 
 ### OC-BG-005 — Fix Service & Node Instruction Propagation Across `DecisionExecutor` and Providers
+
 - **Workstream & Subsystem:** WS-03 / WS-05 (`decision_executor.py`, `projects.py`, `models.py`, `providers/{jev,laya,mock}`)
-- **Priority:** `P0` | **Current Status:** Broken (Instructions silently dropped before inference)
+- **Priority:** `P0` | **Current Status:** Broken (`scikit-learn-2026-10-02/REPORT.md` Finding #5: Instructions silently dropped before inference)
 - **Concrete Problem & Evidence:**
   1. `DecisionExecutor.execute` (`packages/core/openclass_core/decision_executor.py:58-85`) constructs `ChoiceRequest(observation=observation, ontology=ontology)` without passing `service.instructions` or `node.instructions`.
   2. `ChoiceRequest` (`packages/core/openclass_core/models.py:109-120`) has no `instructions: str | None` field.
@@ -152,6 +154,7 @@
 ---
 
 ### OC-BG-006 — Fix `DecisionExecutor` Tie-Breaking, Ephemeral UUIDs & `evaluate_predicates` Bugs
+
 - **Workstream & Subsystem:** WS-03 / WS-04 (`packages/core/openclass_core/decision_executor.py`, `decision.py`)
 - **Priority:** `P0` | **Current Status:** Broken Invariants
 - **Concrete Problem & Evidence:**
@@ -168,6 +171,7 @@
 ---
 
 ### OC-BG-007 — Fix SDK, Server & Web Contract Drift (`ingestBatch`, Evidence Case Attach, Transition Rationale, Candidate Reject)
+
 - **Workstream & Subsystem:** WS-12 / WS-13 (`packages/sdk-typescript`, `packages/sdk-python`, `packages/server/openclass_server/api/{evidence,evolution}.py`, `apps/web`)
 - **Priority:** `P0` | **Current Status:** Broken in production UI/SDK calls
 - **Concrete Problem & Evidence:**
@@ -185,31 +189,33 @@
 
 ---
 
-### OC-BG-008 — Prevent Re-Clustering from Cascade-Deleting `cluster_candidates` and `candidate_evidence`
+### OC-BG-008 — Prevent Re-Clustering from Cascade-Deleting `cluster_candidates`, `candidate_evidence`, and `candidate_reviews`
+
 - **Workstream & Subsystem:** WS-08 / WS-09 (`persistence/cluster_store.py`, `tables.py`, `migrations/versions/`)
-- **Priority:** `P0` | **Current Status:** Destructive Data Loss Bug
+- **Priority:** `P0` | **Current Status:** Destructive Data Loss Bug (`scikit-learn-2026-10-02/REPORT.md` Finding #10)
 - **Concrete Problem & Evidence:**
   - `ClusterStore.replace_clusters` (`packages/server/openclass_server/persistence/cluster_store.py:50-53`) runs `DELETE FROM unknown_clusters WHERE project_id = :project_id`.
-  - `cluster_candidates.cluster_id` (`0016_cluster_candidates.py:20-23`, `tables.py:344`) has `ForeignKey("unknown_clusters.id", ondelete="CASCADE")`, and `candidate_evidence.candidate_id` (`tables.py:361`) has `ondelete="CASCADE"`. Re-running clustering wipes out all discovered candidates and evidence links for the project.
+  - `cluster_candidates.cluster_id` (`0016_cluster_candidates.py:20-23`, `tables.py:344`) has `ForeignKey("unknown_clusters.id", ondelete="CASCADE")`, `candidate_evidence.candidate_id` (`tables.py:361`) has `ondelete="CASCADE"`, and `candidate_reviews.candidate_id` (`0017_candidate_reviews.py:20`) has `ondelete="CASCADE"`. Re-running clustering wipes out all discovered candidates, evidence links, and human reviews for the project!
 - **Detailed Implementation Approach:**
-  1. Create migration `0017_preserve_cluster_candidates.py` changing `cluster_candidates.cluster_id` to `nullable=True` with `ondelete="SET NULL"` (and adding `decision_service_id` to `unknown_clusters`).
-  2. In `ClusterStore.replace_clusters` (`cluster_store.py:45-55`), only delete `unknown_clusters` rows that are not referenced by an active candidate, or mark prior clusters `status = 'superseded'` while detaching `cluster_id` safely.
-- **Verification & Acceptance Criteria:** Integration test in `tests/integration/test_discovery_candidates.py` that discovers a candidate from a cluster, re-runs `POST /unknowns/cluster`, and asserts `GET /discovery-candidates` still returns the candidate and its `candidate_evidence` rows intact.
-- **Effort / Risk / Blast Radius:** Small (S) | Low risk | Stops silent candidate deletion.
+  1. Create migration `0023_preserve_cluster_candidates.py` (building on `0022_integration_routes.py`) changing `cluster_candidates.cluster_id` to `nullable=True` with `ondelete="SET NULL"` (and adding `decision_service_id` to `unknown_clusters`).
+  2. In `ClusterStore.replace_clusters` (`cluster_store.py:45-55`), detach `cluster_id = NULL` on `cluster_candidates` before replacing clusters (or only delete `unknown_clusters` rows not referenced by an active candidate).
+- **Verification & Acceptance Criteria:** Integration test in `tests/integration/test_discovery_candidates.py` that discovers and reviews a candidate from a cluster, re-runs `POST /unknowns/cluster`, and asserts `GET /discovery-candidates` and `GET /discovery-candidates/{id}/history` still return the candidate, its `candidate_evidence`, and its `candidate_reviews` intact.
+- **Effort / Risk / Blast Radius:** Small (S) | Low risk | Stops silent candidate and review deletion.
 
 ---
 
 ### OC-BG-009 — Fix Provider Configuration, Provenance Metadata & Malformed Response Handling
+
 - **Workstream & Subsystem:** WS-05 / WS-07 (`provider_config.py`, `providers/{jev,laya,glm}`)
 - **Priority:** `P0` | **Current Status:** Buggy / Misleading Provenance
 - **Concrete Problem & Evidence:**
-  1. `provider_config.py:95-99` crashes startup when `OPENCLASS_DISCOVERY_PROVIDER=openai-compatible` and `OPENCLASS_DISCOVERY_BASE_URL` is unset (`base_url=""`).
-  2. `provider_config.py:118-119` silently falls back to `RuleBasedDiagnosisProvider` when `OPENCLASS_DIAGNOSIS_API_KEY` is missing.
+  1. `provider_config.py:97-102` crashes startup when `OPENCLASS_DISCOVERY_PROVIDER=openai-compatible` and `OPENCLASS_DISCOVERY_BASE_URL` / `OPENCLASS_GLM_BASE_URL` are unset (`base_url=""`).
+  2. `provider_config.py:120-121` silently falls back to `MockDiagnosisProvider` when diagnosis API keys are missing.
   3. `JevDecisionProvider` (`providers/jev/openclass_provider_jev/__init__.py:102-120`) omits `"real_inference": True` and `"execution_mode": "api"`, causing `DecisionExecutor` (`L142-146`) to record live Jev runs as `real_inference=False, execution_mode="daemon"`.
   4. `LayaDecisionProvider._local_fallback_choice` (`providers/laya/openclass_provider_laya/__init__.py:251`) sets `"simulated": False` on regex fallback output, and `_normalize_response` (`L280-287`) silently renormalizes uncalibrated numbers instead of rejecting distributions where `abs(total - 1.0) > 0.05`.
   5. `OpenAICompatibleDiagnosisProvider` (`providers/glm/openclass_provider_glm/diagnosis.py:86-93`) silently substitutes `DiagnosisCategory.ANALYTICAL_GAP` on invalid enum values, and `project_teacher.py:121-122` leaks `str(exc)` in `ProviderError`.
 - **Detailed Implementation Approach:**
-  1. Validate required `base_url` and API key env vars explicitly in `provider_config.py` and raise `ProviderError(kind="configuration")` without silent fallback unless `OPENCLASS_DIAGNOSIS_PROVIDER=mock`.
+  1. Validate required `base_url` and API key env vars explicitly in `provider_config.py` and raise `ProviderError(kind="configuration")` without silent fallback unless `OPENCLASS_DISCOVERY_PROVIDER=mock`.
   2. Set `"real_inference": True`, `"simulated": False`, `"execution_mode": "api"` in `JevDecisionProvider` response metadata (`providers/jev/__init__.py:115`).
   3. Set `"simulated": True` in `LayaDecisionProvider._local_fallback_choice` (`providers/laya/__init__.py:251`) and raise `ProviderError("Laya probability distribution does not sum to 1.0", kind="malformed_response")` in `_normalize_response` when `abs(total - 1.0) > 0.05`.
   4. Raise `ProviderError(kind="malformed_response")` on unknown diagnosis categories in `diagnosis.py:86-93` and sanitize exception messages in `project_teacher.py:121-122`.
@@ -218,214 +224,245 @@
 
 ---
 
-### OC-BG-010 — Implement Immutable `DecisionServiceVersion` Snapshots & Run Lineage
-- **Workstream & Subsystem:** WS-09 (`packages/core/openclass_core/projects.py`, `persistence/tables.py`, `persistence/project_repository.py`)
-- **Priority:** `P0` | **Current Status:** Missing Core Invariant (`AGENTS.md`: *"Ontology snapshots and audit history are append-only"*)
+### OC-BG-010 — Complete Immutable `DecisionServiceVersion` Lineage, Alias Preservation & ORM Alignment (`OC-017` / `0020` + `0024`)
+
+- **Workstream & Subsystem:** WS-09 (`packages/core/openclass_core/projects.py`, `api/promotions.py`, `persistence/promotion_store.py`, `persistence/tables.py`)
+- **Priority:** `P0` | **Current Status:** Partially Implemented in `0020_service_versions.py` (Strips Aliases & Lacks Run Version Lineage)
 - **Concrete Problem & Evidence:**
-  - `DecisionServiceRow` (`persistence/tables.py:133-147`) is overwritten in-place by `SQLProjectRepository.update_decision_service` (`persistence/project_repository.py:230-246`).
-  - `DecisionRun` (`projects.py:216-237`) has no `decision_service_version_id` or `service_hash`, making it impossible to know which version of a `DecisionService` produced a historical run after the service is edited or promoted.
-  - Furthermore, `ProjectService.create_decision_service` (`projects.py:597-637`) and `update_decision_service` (`L639-679`) emit **no `ProjectAuditEvent`**.
+  - `feat/portal-phase-17` added migration `0020_service_versions.py` (`service_versions` and `service_ontology_events` with `openclass_immutable` triggers) and `PromotionStore` (`persistence/promotion_store.py:14-200`).
+  - **Defect 1 (Alias Stripping)**: Because `DecisionChoiceSpec` (`projects.py:157-168`) has `extra="forbid"` and lacks an `aliases` field, `api/promotions.py:148-149` and `promotion_store.py:159-162` explicitly strip `"aliases"` when writing promoted choices into `decision_services.payload`! As a result, promoted aliases are never passed to `DecisionExecutor` during live inference.
+  - **Defect 2 (Missing Run Version Lineage & Unversioned Direct Edits)**: `DecisionRun` (`projects.py:216-237`) still has no `decision_service_version_id` or `service_hash`, and `SQLProjectRepository.update_decision_service` (`project_repository.py:230-246`) mutates `decision_services.payload` in-place without recording a new row in `service_versions`.
+  - **Defect 3 (Missing ORM Table Declarations)**: None of the 9 tables added in `0017`..`0022` are declared in `persistence/tables.py`.
 - **Detailed Implementation Approach:**
-  1. Add `DecisionServiceVersion` model in `projects.py` (`id`, `project_id`, `decision_service_id`, `version_number`, `parent_version_id`, `service_hash`, `instructions`, `nodes`, `created_by`, `created_at`).
-  2. Add `active_version_id: UUID` and `version_number: int = 1` to `DecisionService`, and `decision_service_version_id: UUID` + `service_hash: str` to `DecisionRun`.
-  3. Create Alembic migration `0017_decision_service_versions.py` adding table `decision_service_versions` with PostgreSQL & SQLite `BEFORE UPDATE`/`BEFORE DELETE` immutability triggers, backfilling `v1` for existing services, and adding `GET /versions`, `GET /versions/{vid}`, and `POST /rollback` routes.
-  4. Emit `decision_service.created`, `decision_service.version_created`, and `decision_service.rolled_back` `ProjectAuditEvent`s.
+  1. Add `aliases: tuple[str, ...] = ()` to `DecisionChoiceSpec` (`projects.py:157-168`) and pass `aliases=c.aliases` when `DecisionExecutor.execute` (`decision_executor.py:66-74`) constructs `OntologyClass`.
+  2. Remove the `k != "aliases"` stripping filter in `api/promotions.py:148` and include `"aliases"` in `promotion_store.py:160` (`if k in ("key", "label", "description", "aliases")`).
+  3. Add `active_version_id: UUID | None = None` and `version_number: int = 1` to `DecisionService`, and `decision_service_version_id: UUID | None = None` + `service_hash: str` to `DecisionRun`.
+  4. Create Alembic migration `0024_decision_run_version_lineage.py` adding `active_version_id` and `version_number` to `decision_services` and `decision_service_version_id` to `decision_runs`, declare all `0017`..`0024` tables in `persistence/tables.py`, and ensure `ProjectService.create_decision_service` / `update_decision_service` write append-only rows to `service_versions`.
 - **Dependencies:** Prerequisite for `OC-BG-012` (Replay Evaluation) and `OC-BG-013` (Candidate Promotion).
-- **Verification & Acceptance Criteria:** Integration tests verifying that updating a `DecisionService` creates `version_number = 2`, direct SQL `UPDATE`/`DELETE` on `decision_service_versions` is rejected by DB triggers, and `DecisionRun` records `decision_service_version_id`.
-- **Effort / Risk / Blast Radius:** Medium (M) | Medium risk | Core `DecisionService` persistence.
+- **Verification & Acceptance Criteria:** Integration tests verifying that promoting a candidate with aliases preserves `aliases` on the live `DecisionService`, updating a `DecisionService` increments `service_versions.version_number`, and `DecisionRun` records `decision_service_version_id`.
+- **Effort / Risk / Blast Radius:** Medium (M) | Low risk | Builds directly on `0020_service_versions.py`.
 
 ---
 
-### OC-BG-011 — Implement Verified Evaluation Datasets, Label Provenance & Holdouts (`OC-008` Part 1)
-- **Workstream & Subsystem:** WS-08 (`packages/core/openclass_core/evaluation.py`, `persistence/tables.py`, `api/evaluation.py`)
-- **Priority:** `P1` | **Current Status:** Blocked / Absent
+### OC-BG-011 — Extend Verified Evaluation Datasets (`0018`) with Holdout Splits, Dataset Hash & Metadata (`OC-008` Part 1)
+
+- **Workstream & Subsystem:** WS-08 (`packages/core/openclass_core/evaluation.py`, `api/evaluations.py`, `persistence/tables.py`)
+- **Priority:** `P1` | **Current Status:** Partially Implemented in `0018_evaluation_sets.py`
 - **Concrete Problem & Evidence:**
-  - Zero tables or routes exist for storing human-verified evaluation datasets or holdout splits.
+  - `feat/portal-phase-17` implemented `0018_evaluation_sets.py` (`evaluation_sets`, `evaluation_examples` with `openclass_immutable` and `openclass_sealed_set_immutable` triggers), `packages/core/openclass_core/evaluation.py`, and `api/evaluations.py:136-265`.
+  - However, `EvaluationExample` (`evaluation.py:33-43`) lacks `split: Literal["evaluation", "holdout"] = "evaluation"` and `metadata: dict[str, Any] = {}`, `EvaluationSet` (`L24-31`) lacks a deterministic SHA-256 `dataset_hash` computed on seal, and `EvaluationExample` allows labels from unapproved `cluster_candidates` (`api/evaluations.py:88-102`) but not from Track 2 `project_choice_candidates`.
 - **Detailed Implementation Approach:**
-  1. Create `packages/core/openclass_core/evaluation.py` defining:
-     - `LabelSource = Literal["human", "verified_external"]` (Pydantic validator explicitly rejects `"prediction"`, `"model"`, or `"unverified"`).
-     - `EvaluationSlice = Literal["historical", "recent", "rare", "hard", "unknown", "target_candidate", "adversarial"]`.
-     - `EvaluationSplit = Literal["evaluation", "holdout"]`.
-     - `EvaluationExample(id, dataset_id, content, metadata, expected_choice, slice_tag, split, label_source, verified_by, verified_at, rationale)`.
-     - `EvaluationDataset(id, project_id, decision_service_id, name, status: Literal["draft", "sealed"], dataset_hash, created_at, sealed_at)`.
-  2. Create Alembic migration `0018_evaluation_datasets_and_runs.py` adding `evaluation_datasets`, `evaluation_examples`, `evaluation_runs`, and `candidate_approvals`, with immutability triggers on sealed datasets and `evaluation_runs`.
-  3. Expose CRUD + `POST /api/v1/projects/{id}/evaluation-datasets/{did}/seal` in `api/evaluation.py`.
+  1. Extend `EvaluationExample` and `ExampleDraft` (`evaluation.py:33-72`) with `split: Literal["evaluation", "holdout"] = "evaluation"` and `metadata: dict[str, Any] = Field(default_factory=dict)`, plus `"target_candidate"` in `VALID_SLICES`.
+  2. Create Alembic migration `0025_evaluation_holdouts_and_provenance.py` adding `dataset_hash` to `evaluation_sets` and `split` + `metadata` to `evaluation_examples`.
+  3. Compute and persist a canonical SHA-256 `dataset_hash` over ordered `(id, text, label, source, slice_tag, split)` in `POST /api/v1/projects/{identifier}/eval-datasets/{dataset_id}/seal` (`api/evaluations.py:209-226`).
 - **Dependencies:** `OC-BG-010`.
-- **Verification & Acceptance Criteria:** Unit & integration tests proving that `label_source="prediction"` is rejected with `422`, sealing computes a deterministic SHA-256 `dataset_hash`, and sealed datasets reject mutations.
-- **Effort / Risk / Blast Radius:** Large (L) | Low risk | New evaluation persistence layer.
+- **Verification & Acceptance Criteria:** Unit & integration tests proving that `source="prediction"` is rejected with `400`/`422`, sealing records a deterministic SHA-256 `dataset_hash`, and holdout examples are tracked separately from evaluation examples.
+- **Effort / Risk / Blast Radius:** Medium (M) | Low risk | Extends `0018_evaluation_sets.py`.
 
 ---
 
-### OC-BG-012 — Implement Deterministic Baseline vs. Candidate Replay Engine & Regression Gates (`OC-008` Part 2)
-- **Workstream & Subsystem:** WS-08 (`packages/core/openclass_core/{evaluation,project_evolution,discovery}.py`, `api/{evolution,classifiers,candidates}.py`)
-- **Priority:** `P1` | **Current Status:** Blocked (Unconditionally raises `ConflictError` / HTTP 409 at `project_evolution.py:206` and `discovery.py:79`)
-- **Detailed Implementation Approach:**
-  1. Implement `ReplayEvaluationService.evaluate_choice_candidate(project_id, candidate_id, dataset_id, gate_policy, actor)`:
-     - Verify `dataset.status == "sealed"` and `service_hash(active_service) == candidate.base_service_hash`.
-     - Construct an in-memory candidate `DecisionService` applying `NEW_CHOICE` or `ALIAS` (without persisting it as active).
-     - Run `DecisionExecutor.execute` (with Teacher/discovery disabled) across all examples in `dataset` against both `active_service` (baseline) and `candidate_service` (candidate).
-     - Compute `accuracy_on_knowns_{before,after}`, `macro_f1_{before,after}`, `unknown_recall_{before,after}`, `false_novelty_rate_{before,after}`, `disambiguation_rate`, `knowledge_retention_rate`, and `regressions: tuple[str, ...]`.
-     - Evaluate all 6 deterministic regression gates (`error_count == 0`, `regressions == ()`, `known_accuracy_after >= known_accuracy_before`, `disambiguation_rate >= 0.80`, `false_novelty_rate_after <= 0.05`, `holdout_regressions == ()`).
-     - Persist immutable `EvaluationRun` and update `candidate.status = "evaluated"`.
-  2. Wire `ProjectEvolutionService.evaluate` (`project_evolution.py:204-206`) and `DiscoveryService.evaluate` (`discovery.py:76-79`) to `ReplayEvaluationService`.
-- **Dependencies:** `OC-BG-010`, `OC-BG-011`.
-- **Verification & Acceptance Criteria:** End-to-end integration test where a candidate that regresses a known example fails (`passed=False`), and a candidate that resolves `UNKNOWN` examples with zero regressions passes (`passed=True`).
-- **Effort / Risk / Blast Radius:** Large (L) | Medium risk | Unlocks `OC-008`.
+### OC-BG-012 — Replace Hardcoded `MockDecisionProvider` in `api/evaluations.py:306` with Real `DecisionExecutor` Replay (`OC-008` Part 2)
 
----
-
-### OC-BG-013 — Implement Human Approval Records, Transactional `vN+1` Promotion, Evidence Auto-Resolution & Rollback (`OC-009`)
-- **Workstream & Subsystem:** WS-08 (`packages/core/openclass_core/{project_evolution,discovery}.py`, `persistence/{project_repository,repository}.py`)
-- **Priority:** `P1` | **Current Status:** Blocked (HTTP 409 at `project_evolution.py:239` and `discovery.py:74`)
-- **Detailed Implementation Approach:**
-  1. Require `PromoteCandidateRequest(evaluation_run_id: str, reviewer: str, rationale: str)` on `POST /api/v1/projects/{id}/candidates/{cid}/promote` and `POST /api/v1/classifiers/{id}/candidates/{cid}/approve`.
-  2. Inside a single database transaction with `SELECT ... FOR UPDATE` on `DecisionServiceRow` and `ProjectChoiceCandidateRow`:
-     - Verify `candidate.status == "evaluated"`, `evaluation_run.candidate_id == candidate.id`, `evaluation_run.passed is True`, and `evaluation_run.base_service_hash == candidate.base_service_hash == service_hash(active_service)`.
-     - Persist `CandidateApprovalRow` (`id`, `candidate_id`, `evaluation_run_id`, `reviewer`, `rationale`, `approved_at`).
-     - Insert new immutable `DecisionServiceVersionRow` (`version_number = active.version_number + 1`, `parent_version_id = active.active_version_id`).
-     - Update `DecisionServiceRow.active_version_id`, set `candidate.status = "promoted"`, transition linked `EvidenceItem`s from `READY_FOR_EVOLUTION` to `RESOLVED`, and append `ProjectAuditEvent` (`choice_candidate.promoted` & `decision_service.version_created`).
-- **Dependencies:** `OC-BG-010`, `OC-BG-012`.
-- **Verification & Acceptance Criteria:** Promoting without a passing `evaluation_run_id` returns `409`; promoting after concurrent service modification returns `409`; valid promotion creates `vN+1`, resolves linked evidence items, and subsequent Teacher-disabled replay classifies the new choice as `TRUSTED`.
-- **Effort / Risk / Blast Radius:** Medium (M) | Medium risk | Unlocks `OC-009`.
-
----
-
-### OC-BG-014 — Unify the 4 Fractured Candidate Pipelines & Synchronize `unknown_triage` with `evidence_items`
-- **Workstream & Subsystem:** WS-08 (`evolution.py`, `project_evolution.py`, `candidates.py`, `unknown_pool.py`, `evidence.py`, `api/{candidates,evolution,unknowns,evidence}.py`)
-- **Priority:** `P1` | **Current Status:** Duplicated / Split-Brain
+- **Workstream & Subsystem:** WS-08 (`packages/server/openclass_server/api/evaluations.py`, `packages/core/openclass_core/{evaluation_metrics,project_evolution,discovery}.py`, `api/{evolution,classifiers}.py`)
+- **Priority:** `P1` | **Current Status:** Simulated on Track 3 (`api/evaluations.py:306`); Blocked with HTTP 409 on Tracks 1 & 2
 - **Concrete Problem & Evidence:**
-  - Candidates discovered from clusters via `POST /api/v1/projects/{id}/clusters/{cid}/discover` (`api/candidates.py:63-143`) are written via raw SQL into `cluster_candidates` (`0016`) using a hardcoded `MockClusterDiscoveryProvider` (`api/candidates.py:30`) and never appear in `/api/v1/projects/{id}/candidates` (`project_choice_candidates`, `0007`).
+  - `feat/portal-phase-17` implemented `0019_evaluation_runs.py` and `POST /api/v1/projects/{identifier}/evaluations` (`api/evaluations.py:266-371`).
+  - **Critical Flaw**: `api/evaluations.py:306` hardcodes `provider = MockDecisionProvider()` and sets `"simulated": True` (`L339`), and `_replay` (`L433-452`) calls `MockDecisionProvider.choice()` directly without `DecisionExecutor`, custom service instructions, or the project's configured `DecisionProvider`!
+  - Meanwhile, `ProjectEvolutionService.evaluate` (`project_evolution.py:204-206`) and `DiscoveryService.evaluate` (`discovery.py:76-79`) still unconditionally raise `ConflictError("Verified replay evaluation is not implemented")` (HTTP 409).
+- **Detailed Implementation Approach:**
+  1. Inject `default_decision_provider` (and per-project provider resolution) into `evaluations_router` (`main.py:228-230`, `api/evaluations.py:55-60`).
+  2. Replace `_replay` (`api/evaluations.py:306, 433-452`) with `DecisionExecutor(provider).execute(raw_event, service_snapshot)` (with Teacher/discovery disabled, preserving `service.instructions` and `choice.aliases`) across both `baseline_service` and in-memory `candidate_service`.
+  3. Record `provider`, `model`, `simulated: provider_is_mock`, `base_service_hash`, per-example `regressions`, and holdout metrics in `evaluation_runs.metrics` (`0019_evaluation_runs.py`).
+  4. Wire `ProjectEvolutionService.evaluate` (`project_evolution.py:204-206`) and `DiscoveryService.evaluate` (`discovery.py:76-79`) to the shared replay evaluation engine.
+- **Dependencies:** `OC-BG-010`, `OC-BG-011`.
+- **Verification & Acceptance Criteria:** End-to-end integration test verifying that `POST /api/v1/projects/{id}/evaluations` executes the configured `DecisionProvider` via `DecisionExecutor`, fails (`overall_passed=False`) when a candidate causes a known-class regression, and passes (`overall_passed=True`) when `UNKNOWN` examples are resolved with zero regressions.
+- **Effort / Risk / Blast Radius:** Large (L) | Medium risk | Unlocks real provider-backed `OC-008` replay.
+
+---
+
+### OC-BG-013 — Harden Ontology Promotion (`0020`) with `SELECT ... FOR UPDATE`, Alias Preservation & Evidence Auto-Resolution (`OC-009`)
+
+- **Workstream & Subsystem:** WS-08 (`packages/server/openclass_server/api/promotions.py`, `persistence/promotion_store.py`, `packages/core/openclass_core/{promotion,project_evolution,discovery}.py`)
+- **Priority:** `P1` | **Current Status:** Partially Implemented on Track 3 (`api/promotions.py`); Blocked at HTTP 409 on Tracks 1 & 2
+- **Concrete Problem & Evidence:**
+  - `feat/portal-phase-17` added `0017_candidate_reviews.py`, `0020_service_versions.py`, `promotion.py`, `PromotionStore`, and `POST /api/v1/projects/{identifier}/discovery-candidates/{candidate_id}/promote` (`api/promotions.py:101-174`).
+  - However:
+    1. `promotions.py:148-157` and `promotion_store.py:160` strip `"aliases"` from `decision_services.payload`.
+    2. `promotions.py:102-168` executes 6 separate `sessions.begin()` transactions without `SELECT ... FOR UPDATE`, allowing concurrent promotions to overwrite `decision_services.payload` or race on `version_number`.
+    3. Promoting a candidate does not verify that the service's current choices match the baseline evaluated in `evaluation_runs`, nor does it transition linked `unknown_triage` / `evidence_items` rows to `resolved`.
+    4. Track 2 `POST /api/v1/projects/{id}/candidates/{cid}/promote` (`project_evolution.py:208-240`) and Track 1 `POST /api/v1/classifiers/{id}/candidates/{cid}/approve` (`discovery.py:69-74`) still raise `ConflictError` (HTTP 409).
+- **Detailed Implementation Approach:**
+  1. Wrap `PromotionStore.promote` in a single atomic database transaction using `SELECT ... FOR UPDATE` on `decision_services` and `cluster_candidates` / `project_choice_candidates`.
+  2. Verify that the active `DecisionService` hash matches the baseline evaluated in `evaluation_runs` (rejecting stale evaluations with `409 Conflict`).
+  3. Preserve `aliases` in `decision_services.payload` (via `OC-BG-010`), transition linked `unknown_triage` and `evidence_items` rows to `resolved` / `RESOLVED`, and wire `ProjectEvolutionService.promote` and `DiscoveryService.approve` to the unified promotion store.
+- **Dependencies:** `OC-BG-010`, `OC-BG-012`.
+- **Verification & Acceptance Criteria:** Concurrent or stale promotions return `409 Conflict`; valid promotion creates immutable `vN+1` with aliases preserved, auto-resolves linked evidence/unknowns, and subsequent Teacher-disabled replay classifies the promoted class and its aliases as `TRUSTED`.
+- **Effort / Risk / Blast Radius:** Medium (M) | Medium risk | Completes `OC-009` over `0017` & `0020`.
+
+---
+
+### OC-BG-014 — Unify the 4 Fractured Candidate Pipelines, Merge `GatewayClusterDiscovery` & Synchronize `unknown_triage` with `evidence_items`
+
+- **Workstream & Subsystem:** WS-08 (`evolution.py`, `project_evolution.py`, `candidates.py`, `unknown_pool.py`, `evidence.py`, `api/{candidates,evolution,unknowns,evidence}.py`)
+- **Priority:** `P1` | **Current Status:** Duplicated / Split-Brain (`REPORT.md` Finding #1)
+- **Concrete Problem & Evidence:**
+  - Candidates discovered from clusters via `POST /api/v1/projects/{id}/clusters/{cid}/discover` (`api/candidates.py:120-200`) are written via raw SQL into `cluster_candidates` (`0016`) using a hardcoded `MockClusterDiscoveryProvider` (`api/candidates.py:46`) and never appear in `/api/v1/projects/{id}/candidates` (`project_choice_candidates`, `0007`).
+  - Real LLM cluster discovery (`GatewayClusterDiscovery`) was written in `artifacts/application-proofs/scikit-learn-2026-10-02/provider-wiring.patch` (`L14-83`) but remains unmerged.
   - Triaging an unknown in `/unknowns/{run_id}/triage` (`unknown_triage` table, `0014`) does not update `evidence_items` (`0008`), and vice versa.
   - `ProjectEvolutionService.propose` (`project_evolution.py:118`) rejects `READY_FOR_EVOLUTION` evidence items if they originated from `LOW_TRUST` or `HUMAN_CORRECTION` runs (`run.selected_choice != "UNKNOWN"`).
 - **Detailed Implementation Approach:**
-  1. Expand `ChoiceProposal` / `ProposalKind` (`project_evolution.py:22-44`) to include `ALIAS`, `OUT_OF_DOMAIN`, and `SCHEMA_ISSUE`, plus `aliases: tuple[str, ...] = ()`, `cluster_id: str | None = None`, and `evidence_ids: tuple[str, ...] = ()`.
-  2. Route `POST /api/v1/projects/{id}/clusters/{cid}/discover` through `ProjectEvolutionService.propose_from_cluster` using the configured `ChoiceTeacher` (`glm` or `mock`) and persist into the unified candidate store.
+  1. Merge and harden `GatewayClusterDiscovery` (from `provider-wiring.patch`) into `providers/glm` and wire provider selection in `provider_config.py` and `api/candidates.py:46`.
+  2. Bridge `cluster_candidates` (`0016`) and `project_choice_candidates` (`0007`) under a unified candidate repository so candidates created via `/clusters/{cid}/discover` or `/evolution/propose` share the same review (`0017`), evaluation (`0018`–`0019`), and promotion (`0020`) lifecycle.
   3. Relax `project_evolution.py:118` to accept runs linked to `READY_FOR_EVOLUTION` evidence regardless of whether the trigger was `SEMANTIC_UNKNOWN`, `LOW_TRUST`, or `HUMAN_CORRECTION`.
-  4. Synchronize `UnknownTriageStore.set_triage` with `EvidenceService.triage_evidence` / `dismiss_evidence`.
+  4. Synchronize `UnknownTriageStore.upsert` with `EvidenceItem` status transitions.
 - **Dependencies:** `OC-BG-002`, `OC-BG-008`.
-- **Verification & Acceptance Criteria:** Cluster discovery uses the configured provider and creates candidates visible and promotable via `/api/v1/projects/{id}/candidates`; triaging in `/unknowns` updates `/evidence`.
-- **Effort / Risk / Blast Radius:** Large (L) | Medium risk | Unifies Portal Phase 7–10 with Core Evolution.
+- **Verification & Acceptance Criteria:** Cluster discovery uses the configured provider (`mock`, `glm`, `openai-compatible`), and triaging in `/unknowns` synchronizes with `/evidence`.
+- **Effort / Risk / Blast Radius:** Large (L) | Medium risk | Unifies Portal Phase 8–14 with Core Evolution.
 
 ---
 
 ### OC-BG-015 through OC-BG-038 — Concise Executable Specifications
 
-#### OC-BG-015 (P1, WS-03): Multi-Node `PolicyGraph` Execution in `DecisionExecutor`
+#### OC-BG-015 (P1, WS-03 — `OC-035` / Impl Phase 02): Multi-Node `PolicyGraph` Execution in `DecisionExecutor`
+
 - **Problem:** `DecisionExecutor.execute` (`decision_executor.py:38-50`) only executes `service.nodes[0]` and ignores `PolicyGraph` (`decision.py:130-330`).
 - **Implementation:** Port the multi-hop traversal loop (`max_steps=8`, `visited_nodes` cycle detection, `TransitionTargetKind` dispatch for `NODE`, `CAPABILITY`, `MACRO`, `HUMAN`, `TERMINAL`) from `scripts/jev_contract/runtime.py:89-192` into `DecisionExecutor.execute_graph` in `packages/core/openclass_core/decision_executor.py`. Persist `steps: list[DecisionStepTrace]` in `DecisionRun.payload`.
 - **Verification:** Multi-node routing test (root router → specialist node → terminal choice) via `POST /api/v1/projects/{id}/decision-services/{sid}/runs`.
 
-#### OC-BG-016 (P1, WS-04): `StateCompiler` & Metadata Context Propagation
-- **Problem:** `DecisionExecutor` (`decision_executor.py:58-65`) drops `RawEvent.metadata`, and `DecisionNode` lacks state compilation.
-- **Implementation:** Add `StateCompiler.compile(raw_event, prior_steps, schema)` in `packages/core/openclass_core/decision.py` enforcing `StateFieldSpec` types, missing-vs-false semantics, provenance tags, and a configurable max byte/token budget (`4096` chars per field). Pass compiled `state_facts` in `Observation.metadata` and serialize them into `JevDecisionProvider` and `LayaDecisionProvider` prompts.
-- **Verification:** Unit & contract tests proving structured metadata facts change node precondition evaluation and model prompt context.
+#### OC-BG-016 (P1, WS-04 — `OC-035` / Impl Phase 01 & 02): `StateCompiler`, Persisted `StateSnapshot` (`0026`) & Metadata Context Propagation
 
-#### OC-BG-017 (P1, WS-05): Data-Driven `SupervisionPolicy` & `OperatingProfile` Enforcement
-- **Problem:** `DecisionExecutor._supervise` (`decision_executor.py:169-197`) hardcodes `if provider_name == "laya"` and `if provider_name == "jev"`, ignoring `SupervisionPolicy.max_unknown_probability` and `DecisionNode.risk_level`.
-- **Implementation:** Replace hardcoded provider name checks in `decision_executor.py:169-197` with `evaluate_supervision(policy, profile, probabilities, unknown_prob, risk_level)` from `decision.py:254-329`, parameterized by each provider's `OperatingProfile` (`calibration_status`, `temperature`, `min_margin`, `max_unknown_probability`, `max_choices`).
-- **Verification:** Unit tests verifying that `HIGH` risk nodes require higher margin or human review and `max_unknown_probability` triggers `UNKNOWN`/`REVIEW` across all providers.
+- **Problem:** `DecisionExecutor` (`decision_executor.py:58-65`) drops `RawEvent.metadata`, and `state_snapshots` persistence is missing (`phase-0-baseline-and-oc-034.md:43`).
+- **Implementation:** Add `StateCompiler.compile(raw_event, prior_steps, schema)` in `packages/core/openclass_core/decision.py` enforcing `StateFieldSpec` types, missing-vs-false semantics, source/freshness provenance, and a configurable max byte/token budget (`4096` chars per field); persist `state_snapshots` (`0026_state_snapshots.py`); pass compiled `state_facts` in `Observation.metadata` and serialize them into `JevDecisionProvider` and `LayaDecisionProvider` prompts.
+- **Verification:** Unit & contract tests proving structured metadata facts change node precondition evaluation, persist in `state_snapshots`, and appear in model prompt context.
 
-#### OC-BG-018 (P1, WS-06): `AutomationLoop` Macro Expansion, 5-Gate Applicability & Independent Verifiers
+#### OC-BG-017 (P1, WS-05 — Impl Phase 03): Data-Driven `SupervisionPolicy` & `OperatingProfile` Enforcement
+
+- **Problem:** `DecisionExecutor._supervise` (`decision_executor.py:169-197`) hardcodes `if provider_name == "laya"` and `if provider_name == "jev"`, ignoring `SupervisionPolicy.max_unknown_probability` and `DecisionNode.risk_level` and causing `23.5%` (GPT) and `19.4%` (Gemini) of reference errors in `scikit-learn-2026-10-02/REPORT.md` (Finding #4) to be labeled `TRUSTED`.
+- **Implementation:** Replace hardcoded provider name checks in `decision_executor.py:169-197` with `evaluate_supervision(policy, profile, probabilities, unknown_prob, risk_level)` from `decision.py:254-329`, parameterized by each provider's `OperatingProfile` (`calibration_status`, `temperature`, `min_margin`, `max_unknown_probability`, `max_choices`), routing uncalibrated providers through `"REVIEW"`.
+- **Verification:** Unit tests verifying that uncalibrated providers or `HIGH` risk nodes require review and `max_unknown_probability` triggers `UNKNOWN`/`REVIEW` across all providers.
+
+#### OC-BG-018 (P1, WS-06 — `OC-035` / Impl Phase 09): `AutomationLoop` Macro Expansion, 5-Gate Applicability & Independent Verifiers
+
 - **Problem:** `AutomationDecision.action` (`automation.py:54`) is typed as `AutomationActionName` enum, rejecting macro names; `AutomationLoop.step()` (`L120-138`) never expands `macro.steps`; `state_patch` (`L132`) injects undeclared fields.
 - **Implementation:** Change `AutomationDecision.action` to `str` validated against `set(AutomationActionName) | set(policy.macros.keys())`; expand `macro.steps` sequentially in `AutomationLoop.step()` with per-step precondition/postcondition checks; port the 5-gate applicability checker (`scripts/automation_applicability.py`) and independent postcondition verifier protocol into `packages/core/openclass_core/automation.py`.
 - **Verification:** Port `test_automation_applicability.py` and `test_automation_proof2b_cycle2.py` to import directly from `openclass_core.automation` instead of `scripts/`.
 
-#### OC-BG-019 (P1, WS-06): Harden `SafeSandboxExecutor` Subprocess & Network Isolation
+#### OC-BG-019 (P1, WS-06 — `OC-035` / Impl Phase 09): Harden `SafeSandboxExecutor` Subprocess & Network Isolation
+
 - **Problem:** `SafeSandboxExecutor` (`packages/server/openclass_server/automation_executor.py:21-105`) runs `subprocess.run` with no timeout, unbounded output, leaky env filter (`if not k.endswith("API_KEY")`), unrestricted port probing, and 4 unimplemented enum actions.
 - **Implementation:** Enforce `timeout=30.0` on `subprocess.run`, cap `stdout`/`stderr` at `64 KB`, replace env blacklist with a strict allowlist (`PATH`, `SYSTEMROOT`, `TMP`, `TEMP`, `HOME`, `PYTHONPATH` + explicit `state.env_vars`), restrict `INSPECT_PORT` / `CHOOSE_AVAILABLE_TEST_PORT` to unprivileged ephemeral range `1024..65535`, and implement `SET_ENVIRONMENT`, `RERUN_PREVIOUS`, `DONE`, and `BLOCKED`.
 - **Verification:** Unit tests in `tests/unit/test_automation_executor.py` verifying timeout termination, env-var isolation (`OPENCLASS_DATABASE_URL` not leaked), and all 8 action handlers.
 
-#### OC-BG-020 (P1, WS-07): Real LLM `SupervisorProvider` & Sampled/Triggered Supervision (`OC-018`, `OC-020`)
-- **Problem:** `provider_config.py:54-56` only wires `MockSupervisorProvider`.
-- **Implementation:** Implement `OpenAICompatibleSupervisorProvider` in `providers/glm/openclass_provider_glm/supervisor.py` (supporting OpenAI/GLM/Ollama endpoints), register `"glm"`, `"openai-compatible"`, and `"ollama"` in `provider_config.py:54`, and add configurable post-run supervision triggers (`review_on_low_margin`, `sample_rate`) in `ProjectService.record_decision_run`.
+#### OC-BG-020 (P1, WS-07 — `OC-018`, `OC-020` / Impl Phase 03 & 06): Real LLM `SupervisorProvider` & Sampled/Triggered Supervision
+
+- **Problem:** `provider_config.py:56-58` only wires `MockSupervisorProvider`.
+- **Implementation:** Implement `OpenAICompatibleSupervisorProvider` in `providers/glm/openclass_provider_glm/supervisor.py` (supporting OpenAI/GLM/Ollama endpoints), register `"glm"`, `"openai-compatible"`, and `"ollama"` in `provider_config.py:56`, and add configurable post-run supervision triggers (`review_on_low_margin`, `sample_rate`) in `ProjectService.record_decision_run`.
 - **Verification:** Contract tests in `tests/contract/test_supervisor_provider.py` + integration test in `test_reviews.py`.
 
-#### OC-BG-021 (P1, WS-07): Promote Teacher Protocol v1.1 & 10-Layer `apply_candidate` to Core/Server
+#### OC-BG-021 (P1, WS-07 — Impl Phase 06): Promote Teacher Protocol v1.1 & 10-Layer `apply_candidate` to Core/Server
+
 - **Problem:** `evolution.py:30-248` defines `FailureLayer`, `TeacherProposal`, and `CandidateEnvelope`, but `apply_candidate` and the v1.1 Teacher prompt builder only exist in `scripts/jev_contract/teacher.py:246-329`.
 - **Implementation:** Move `apply_candidate` and deterministic schema/guard compilation from `scripts/jev_contract/teacher.py` into `packages/core/openclass_core/evolution.py`, and upgrade `OpenAICompatibleChoiceTeacher` (`providers/glm/openclass_provider_glm/project_teacher.py`) to support `TeacherProposal` across `DECISION_SPACE`, `PROCEDURE`, and `STATE_REPRESENTATION`.
 - **Verification:** Unit & integration tests verifying `ADD_CHOICE`, `REPLACE_PROCEDURE`, and `ADD_STATE_FEATURE` candidate application and hash determinism.
 
-#### OC-BG-022 (P1, WS-08): Pluggable Semantic Embeddings, Embedding Cache & `pgvector` Indexing
-- **Problem:** `api/clusters.py:35` hardcodes `HashLexicalEmbedder`, recomputes embeddings on every request, and `SentenceTransformerEmbedder.embed` (`embeddings_local.py:63-65`) blocks the async event loop.
-- **Implementation:** Wrap `self._model.encode` in `await asyncio.to_thread(...)` in `SentenceTransformerEmbedder`, add `OpenAICompatibleEmbedder`, wire embedder selection in `provider_config.py`, add `ClusterStore.get_embeddings(run_ids, model_version)` cache lookup before calling `embedder.embed`, and add `pgvector` cosine distance query path when running on PostgreSQL.
+#### OC-BG-022 (P1, WS-08 — `OC-005` / Impl Phase 05): Merge `GatewayEmbedder`, Embedding Cache & `pgvector` Indexing
+
+- **Problem:** `api/clusters.py:35` hardcodes `HashLexicalEmbedder`, recomputes embeddings on every request, and `SentenceTransformerEmbedder.embed` (`embeddings_local.py:63-65`) blocks the async event loop. Real `GatewayEmbedder` exists only in the unmerged `artifacts/application-proofs/scikit-learn-2026-10-02/provider-wiring.patch` (`L85-133`).
+- **Implementation:** Merge and harden `GatewayEmbedder` (`OpenAICompatibleEmbedder`), wrap `SentenceTransformerEmbedder._model.encode` in `await asyncio.to_thread(...)`, wire embedder selection in `provider_config.py`, add `ClusterStore.get_embeddings(run_ids, model_version)` cache lookup before calling `embedder.embed`, and add `pgvector` cosine distance query path when running on PostgreSQL.
 - **Verification:** Integration tests verifying cache hit (0 redundant `embed()` calls on second cluster run) and semantic synonym clustering.
 
-#### OC-BG-023 (P1, WS-11): Authenticate Control-Plane-to-Engine Traffic & Tenant Isolation
-- **Problem:** `packages/server` is completely unauthenticated (`security.py`) and `services/control-plane/src/engine.ts:274-301` sends no auth or workspace headers.
-- **Implementation:** Add `InternalAuthMiddleware` in `packages/server/openclass_server/security.py` verifying `X-OpenClass-Internal-Token` (or API key bearer token) via `hmac.compare_digest` and extracting `X-OpenClass-Workspace-Id` and `X-OpenClass-Actor` headers; forward those headers in `services/control-plane/src/engine.ts`; add `workspace_id` column to `projects` (`0019`) and scope all project queries by `workspace_id` when multi-tenant mode is enabled.
+#### OC-BG-023 (P1, WS-11 — Impl Phase 01): Authenticate Control-Plane-to-Engine Traffic & Tenant Isolation (`0027`)
+
+- **Problem:** `packages/server` is completely unauthenticated (`security.py`) and `services/control-plane/src/engine.ts:274-301` sends no auth or workspace headers (`phase-0-baseline-and-oc-034.md:38,49-51`).
+- **Implementation:** Add `InternalAuthMiddleware` in `packages/server/openclass_server/security.py` verifying `X-OpenClass-Internal-Token` (or API key bearer token) via `hmac.compare_digest` and extracting `X-OpenClass-Workspace-Id` and `X-OpenClass-Actor` headers; forward those headers in `services/control-plane/src/engine.ts`; add `workspace_id` column to `projects` (`0027_project_workspace_isolation.py`) and scope all project queries by `workspace_id` when multi-tenant mode is enabled.
 - **Verification:** Integration tests verifying unauthenticated requests to `:7331` with `OPENCLASS_AUTH_REQUIRED=true` return `401` and cross-workspace project access returns `404`.
 
-#### OC-BG-024 (P1, WS-09 / WS-10): Fix Webhook Content-Hash `409` Bug & Idempotency Store Flaws
+#### OC-BG-024 (P1, WS-09 / WS-10 — `OC-036` / Impl Phase 01): Fix Webhook Content-Hash `409` Bug & Idempotency Store Flaws
+
 - **Problem:** `SQLIntegrationRepository.ingest_webhook` (`integration_repository.py:53-94`) crashes with `409 Conflict` when two different `event_key` webhooks carry identical `content`; `IdempotencyStore` (`idempotency.py:24-61`, `idempotency.service.ts:16-33`) omits request-hash validation, skips storing when `deduped=True` (`api/projects.py:130`), and never updates expired keys (`ON CONFLICT DO NOTHING`).
 - **Implementation:** In `ingest_webhook` (`integration_repository.py:72`), check for an existing `RawEventRow` by `(project_id, content_hash)` and link the new `WebhookReceiptRow` to it; add `request_hash` verification to `IdempotencyStore` (raising `409` on payload mismatch); replace `ON CONFLICT DO NOTHING` with `ON CONFLICT (project_id, key) DO UPDATE ... WHERE idempotency_keys.expires_at < EXCLUDED.created_at`; remove `and not deduped` at `api/projects.py:130`.
 - **Verification:** Integration tests in `test_webhooks_api.py` and `test_idempotency_and_limits.py`.
 
-#### OC-BG-025 (P1, WS-09): Atomic Unit-of-Work Transactions & `SELECT ... FOR UPDATE`
+#### OC-BG-025 (P1, WS-09 — Impl Phase 01 & 04): Atomic Unit-of-Work Transactions & `SELECT ... FOR UPDATE`
+
 - **Problem:** Multi-step mutations in `ProjectService` (`record_decision_run`, `submit_run_feedback`, `create_evidence_case`, `ingest_events_batch`) commit across separate DB sessions, and `evidence_items.decision_run_id` (`tables.py:226`) lacks a `UNIQUE` constraint.
 - **Implementation:** Add a transactional session context manager to `SQLProjectRepository` and `SQLRepository`, use `.with_for_update()` on mutable rows (`CandidateRow`, `ProjectRow`, `DecisionServiceRow`, `ProjectChoiceCandidateRow`), validate `stored.payload` inside `approve_candidate` (`repository.py:311-314`), add `UniqueConstraint("decision_run_id")` on `evidence_items`, and use `create_raw_events` bulk insert in `ingest_events_batch` (`projects.py:552-585`).
 - **Verification:** Concurrency integration test submitting parallel feedback and candidate approvals.
 
-#### OC-BG-026 (P1, WS-09): Reconcile Engine Alembic vs. Control-Plane SQL Migrations & Slug Constraints
+#### OC-BG-026 (P1, WS-09 — Impl Phase 01): Reconcile Engine Alembic vs. Control-Plane SQL Migrations & Slug Constraints
+
 - **Problem:** `migrations/env.py:16` has no `include_name` filter for `control_*` tables; `control_projects.slug` is globally unique (`0002_projects.sql:6`) while checked per-workspace (`project.service.ts:253`); `classifiers.slug` is globally unique (`tables.py:33`) while scoped per-project in `control_classifiers` (`0002_projects.sql:18`).
 - **Implementation:** Add `include_name` filter in `migrations/env.py` ignoring `control_*` tables; add a migration runner script for `services/control-plane/migrations/`; change `control_projects` unique constraint to `UNIQUE (workspace_id, slug)`; add append-only triggers to `observations`, `classification_runs`, `unknown_events`, `decision_runs`, `run_feedback`, and `control_audit_events` (changing `ON DELETE CASCADE` to `ON DELETE RESTRICT`).
 - **Verification:** `alembic check` passes on a database containing both engine and `control_*` tables; two workspaces can create projects with the same slug.
 
-#### OC-BG-027 (P1, WS-13): Unify Dual Frontend Stack (`apps/portal` + `services/control-plane` vs `apps/web`)
-- **Problem:** `apps/portal/src/api.ts:10-25` uses raw `fetch()` (violating `AGENTS.md`); projects created in `apps/web`/SDK/CLI do not exist in `control_projects`; `apps/portal` lacks Decision Services, Evidence Cases, Integrations, and Analytics UIs.
-- **Implementation:** Refactor `apps/portal/src/api.ts` to use `@openclass/sdk`; synchronize project registry between `control-plane` and `server`; port Decision Services, Evidence/Diagnosis, Replay Evaluation, Integrations, and Analytics views so both workspace entry points share full feature parity.
-- **Verification:** E2E test creating a project via SDK/CLI and inspecting it in both `apps/portal` and `apps/web`.
+#### OC-BG-027 (P1, WS-13 — Impl Phase 10): Unify Dual Frontend Stack (`apps/portal` + `services/control-plane` vs `apps/web`) & Fix Express Body Limit
 
-#### OC-BG-028 (P1, WS-12): 100% API, SDK & CLI Parity Across All 50 Endpoints
-- **Problem:** Python SDK misses 15 server routes; TypeScript SDK misses 14 routes; CLI covers only 16 of 50 routes.
-- **Implementation:** Add SDK methods and CLI subcommands (`openclass service *`, `openclass evidence *`, `openclass candidate *`, `openclass cluster *`, `openclass integration *`) for all remaining server endpoints.
+- **Problem:** `apps/portal/src/api.ts:10-25` uses raw `fetch()` (violating `AGENTS.md`); projects created in `apps/web`/SDK/CLI do not exist in `control_projects`; `services/control-plane` rejected 60-item batch ingestion with `HTTP 413` due to default Express 100KB body limit (`scikit-learn-2026-10-02/REPORT.md` Finding #3).
+- **Implementation:** Refactor `apps/portal/src/api.ts` to use `@openclass/sdk`; configure explicit JSON body limit (`5mb`) in `services/control-plane/src/main.ts`; synchronize project registry between `control-plane` and `server`; unify Portal Track 3 and Web Track 2 views so both workspace entry points share full feature parity.
+- **Verification:** E2E test creating a project via SDK/CLI, ingesting a 60-item batch via Control Plane without HTTP 413, and inspecting it in both `apps/portal` and `apps/web`.
+
+#### OC-BG-028 (P1, WS-12 — `OC-010`): 100% API, SDK & CLI Parity Across All Server Endpoints
+
+- **Problem:** Python SDK and TypeScript SDK miss all Phase 05–16 Portal/Engine routes (`/unknowns`, `/clusters`, `/discovery-candidates`, `/eval-datasets`, `/evaluations`, `/ontology`, `/analytics/summary`, `/alerts/*`, `/ops/events*`, `/integrations/{adapters,routes,outcomes}`, `/webhooks/{source}`); CLI covers only 16 routes.
+- **Implementation:** Add SDK methods and CLI subcommands (`openclass service *`, `openclass evidence *`, `openclass candidate *`, `openclass cluster *`, `openclass eval *`, `openclass integration *`) for all server endpoints.
 - **Verification:** Contract tests in `tests/contract/test_python_sdk.py` and `packages/sdk-typescript/src/index.test.ts` covering every FastAPI route.
 
-#### OC-BG-029 (P1, WS-14): Fix Provider Error Rollup, Model Usage Key & Structured Correlation Logging
-- **Problem:** `api/decisions.py:129` passes literal `"provider"`, `""`, `0.0` to `record_provider_error`; `uq_provider_usage_day` (`tables.py:300`) omits `model`; no `X-Correlation-ID` middleware or structured logger exists.
-- **Implementation:** Pass actual `provider_name`, `model_name`, and elapsed `latency_ms` in `api/decisions.py:129` and emit `decision.provider_failed` audit event; include `model` in `uq_provider_usage_day`; add `X-Correlation-ID` middleware in `main.py` and forward header in `services/control-plane/src/engine.ts`.
-- **Verification:** Integration test verifying `ProviderError` increments `errors` on the actual provider/model row and echoes `X-Correlation-ID`.
+#### OC-BG-029 (P1, WS-14 — `OC-037` / Impl Phase 04): Fix Provider Error Rollup, HTTP 429 Propagation, Model Usage Key & Correlation Logging
 
-#### OC-BG-030 (P1, WS-09): Replace Silent 200-Row Truncation Caps & Unbounded Table Scans
-- **Problem:** `api/unknowns.py:43`, `api/clusters.py:38`, and `discovery.py:28` silently slice `limit=200`; `analytics_runs` (`project_repository.py:416-421`) and `summary` audit count (`projects.py:506`) load entire tables into memory.
-- **Implementation:** Add SQL `WHERE selected_choice = 'UNKNOWN'` filtering and pagination to `list_decision_runs`, lookup `unknown_events` directly by `id IN (...)` in `discovery.py:28`, and replace in-memory `analytics_runs` and `len(audit_events)` with SQL `COUNT(*)` / `GROUP BY` queries.
+- **Problem:** `api/decisions.py:129` passes literal `"provider"`, `""`, `0.0` to `record_provider_error`; `main.py:123-125` swallows upstream HTTP `429` rate limits as generic HTTP `502` (`REPORT.md` Finding #2); `uq_provider_usage_day` (`tables.py:300`) omits `model`; embedding/discovery/Teacher costs are omitted from Portal cost rollups (`REPORT.md` Finding #7).
+- **Implementation:** Pass actual `provider_name`, `model_name`, and elapsed `latency_ms` in `api/decisions.py:129` and emit `decision.provider_failed` audit event; preserve upstream `rate_limited` (`429`) status/retry metadata in `ProviderError`; include `model` in `uq_provider_usage_day` and record embedding/Teacher usage; add `X-Correlation-ID` middleware in `main.py`.
+- **Verification:** Integration test verifying `ProviderError` increments `errors` on the actual provider/model row, surfaces rate-limit identity, and echoes `X-Correlation-ID`.
+
+#### OC-BG-030 (P1, WS-09 — Impl Phase 05): Replace Silent 200-Row Truncation Caps & Unbounded Table Scans
+
+- **Problem:** `api/unknowns.py:43`, `api/clusters.py:38`, and `discovery.py:28` silently slice `limit=200` (`REPORT.md` Finding #6); `analytics_runs` (`project_repository.py:416-421`), `operations._measurements` (`api/operations.py:43-70`), and `summary` audit count (`projects.py:506`) load entire tables into memory.
+- **Implementation:** Add SQL `WHERE selected_choice = 'UNKNOWN'` filtering and cursor/offset pagination to `list_decision_runs`, lookup `unknown_events` directly by `id IN (...)` in `discovery.py:28`, and replace in-memory `analytics_runs` and `len(audit_events)` with SQL `COUNT(*)` / `GROUP BY` queries.
 - **Verification:** Integration test with `> 250` runs verifying zero truncation and constant-memory SQL aggregation.
 
-#### OC-BG-031 (P2, WS-11): Wire Redaction Settings, Recursive `redact_mapping`, Rate-Limiter Method Checks & Prompt-Injection Guards
+#### OC-BG-031 (P2, WS-11 — Impl Phase 10): Wire Redaction Settings, Recursive `redact_mapping`, Rate-Limiter Method Checks & Prompt-Injection Guards
+
 - **Problem:** `Settings.redaction_enabled` & `redaction_blocklist` (`settings.py:19-20`) are unwired; `redact_mapping` (`redaction.py:45-48`) misses dicts inside lists; `RateLimiter.route_class` (`rate_limit.py:44-49`) throttles `GET /events` and `GET /runs`, misses `POST .../webhook`, and leaks memory in `_buckets`; `GLMDiscoveryProvider` and `OpenAICompatibleDiagnosisProvider` lack untrusted-data prompt boundaries.
 - **Implementation:** Wire `config.redaction_enabled` and `config.redaction_blocklist` into redaction helpers; recurse into dicts/lists inside lists in `redact_mapping`; check `request.method == "POST"` and `/webhook` in `RateLimiter.route_class` with TTL bucket eviction; add untrusted-data system instructions and per-field truncation (`4000` chars) to `GLMDiscoveryProvider` and `OpenAICompatibleDiagnosisProvider`.
 - **Verification:** Unit tests in `test_redaction.py`, `test_rate_limit.py`, and provider contract tests.
 
-#### OC-BG-032 (P2, WS-10): Transactional Outbox, Vendor Webhook HMAC Normalizers & MCP/Database Probes
-- **Problem:** `HTTPIntegrationProbe.check` (`integration_adapters.py:78-80`) stubs `MCP`, `DATABASE`, and `PROVIDER`; no vendor HMAC signature verification (Zendesk, Intercom, Freshdesk) or outbound action outbox exists.
-- **Implementation:** Add `outbound_deliveries` outbox table with retry backoff, vendor HMAC-SHA256 webhook adapters (`phase-16`), and MCP JSON-RPC `initialize`/`tools/list` probe + SQLAlchemy `SELECT 1` database probe.
-- **Verification:** Integration tests in `test_integrations_api.py` and `test_webhooks_api.py`.
+#### OC-BG-032 (P2, WS-10 — `OC-036` / Impl Phase 09): Shared Integration Manifests, Transactional Outbox & Verified Outbound Routing
 
-#### OC-BG-033 (P2, WS-14): Real PostgreSQL Control-Plane Tests, Portal Component Tests & Live-Backend Playwright Suite
+- **Problem:** Phase 16 (`0022_integration_routes.py`, `api/support.py:248-254`) records only simulated DB rows (`"simulated": True`) with no external write-back or postcondition verification, and `HTTPIntegrationProbe.check` (`integration_adapters.py:78-80`) stubs `MCP`, `DATABASE`, and `PROVIDER`.
+- **Implementation:** Implement `OC-036` shared integration manifests (`SOURCE`, `QUERY`, `CAPABILITY`, `TRIGGER`, `SINK`), `outbound_deliveries` outbox table with idempotency and retry reconciliation (`OC-035`), vendor HMAC-SHA256 webhook normalizers, and independent destination readback verification.
+- **Verification:** Integration tests in `test_support_integrations.py`, `test_integrations_api.py`, and `test_webhooks_api.py`.
+
+#### OC-BG-033 (P2, WS-14 — Impl Phase 01..10): Real PostgreSQL Control-Plane Tests, Portal Component Tests & Live-Backend Playwright Suite
+
 - **Problem:** `services/control-plane/src/*.spec.ts` mocks `pg.Pool` via string prefixes; `apps/portal/src/portal.test.tsx` only tests the login gate; `tests/web/*.spec.ts` mocks 100% of `/api/v1/*` routes.
 - **Implementation:** Add PostgreSQL integration test suite for `services/control-plane` applying `migrations/0001..0004.sql`; expand `apps/portal/src/portal.test.tsx` to cover authenticated views; add a live-backend Playwright project in `playwright.config.ts`.
 - **Verification:** CI runs both route-mocked unit UI tests and live-backend E2E smoke tests.
 
-#### OC-BG-034 (P2, WS-14): Self-Contained Benchmarks, Complete Docker/Compose Stack & Release Parity
+#### OC-BG-034 (P2, WS-14 — `OC-038`, `OC-039`): Self-Contained Benchmarks, Complete Docker/Compose Stack & Application Proofs A–D
+
 - **Problem:** `benchmarks/jev-contract/v1/knowledge.json` references gitignored `build/` paths; `Dockerfile:21-26` omits `COPY benchmarks examples`; `pyproject.toml:42` omits `openclass_provider_glm`; `scripts/release.py:14-19` omits `services/control-plane/package.json`.
-- **Implementation:** Commit frozen benchmark summary artifacts under `benchmarks/jev-contract/v1/frozen-evidence/`, add `COPY benchmarks benchmarks` and `COPY examples examples` + non-root `USER` to `Dockerfile`, add `openclass_provider_glm` to `pyproject.toml:42`, and update `scripts/release.py`.
+- **Implementation:** Commit frozen benchmark summary artifacts under `benchmarks/jev-contract/v1/frozen-evidence/`, add `COPY benchmarks benchmarks` and `COPY examples examples` + non-root `USER` to `Dockerfile`, add `openclass_provider_glm` to `pyproject.toml:42`, update `scripts/release.py`, and execute the `OC-038`/`OC-039` application proofs (`Customer Operations`, `Developer Operations`, `Smart Home`, `Robot Simulator`).
 - **Verification:** `uv run python -m scripts.jev_contract.audit`, `docker compose --profile test run test`, and `uv run mypy` pass on a clean clone.
 
-#### OC-BG-035 (P2, WS-03): Durable Multi-Step Run Checkpoints, Human Step Approval & Resume API
+#### OC-BG-035 (P2, WS-03 — `OC-035` / Impl Phase 09): Durable Multi-Step Run Checkpoints, Human Step Approval & Resume API
+
 - **Problem:** Multi-step graph/automation runs cannot pause for human approval or resume after process restart.
 - **Implementation:** Add `status: Literal["running", "waiting_human", "paused", "completed", "failed", "cancelled"]` and `checkpoint_state` to `DecisionRun`, plus `POST /api/v1/projects/{id}/runs/{run_id}/resume` and `/cancel`.
 - **Verification:** Integration test pausing a graph run at a `HUMAN` transition node and resuming it with operator approval.
 
-#### OC-BG-036 (P2, WS-08): Post-Promotion Drift Monitoring & Automated Rollback Triggers (Phase 13)
-- **Problem:** No drift monitoring or post-promotion regression alerting exists after `vN+1` activation.
-- **Implementation:** Add sliding-window unknown-rate and low-margin spike detection in `analytics.py` and `GET /api/v1/projects/{id}/decision-services/{sid}/drift`, with optional auto-rollback trigger to parent version `vN`.
-- **Verification:** Unit & integration tests simulating a post-promotion unknown-rate spike.
+#### OC-BG-036 (P2, WS-08 — `OC-037` / Impl Phase 10): Fix `operations.py` Window Bug, Persisted Proof Reports & Post-Promotion Drift Triggers
+
+- **Problem:** `api/operations.py:92-96` calls `_measurements(str(project.id), two_weeks_ago)` with `created_at >= :since` and no `< week_ago` upper bound, so `previous_unknown_rate` measures the cumulative 14-day window instead of the prior 7-day window; `OC-037` persisted proof reports and auto-rollback drift triggers are not yet wired.
+- **Implementation:** Add `until: datetime | None = None` (`AND created_at < :until`) to `_measurements` in `api/operations.py:40-50` so `previous` measures `[two_weeks_ago, week_ago)`; implement persisted `OC-037` application proof report queries (`decisions`, `quality`, `execution`, `teacher`, `candidates`, `retention`, `cost/latency`, `improvement`); add optional post-promotion drift rollback trigger.
+- **Verification:** Unit & integration tests in `test_operations_dashboard.py` verifying disjoint 7-day window comparison (`[now-14d, now-7d)` vs `[now-7d, now)`) and `OC-037` report denominators.
 
 #### OC-BG-037 (P3, WS-05): Consolidate or Implement `providers/ollama` & `providers/openai-compatible`
+
 - **Problem:** `providers/ollama` and `providers/openai-compatible` contain only `README.md` while OpenAI-compatible adapters live inside `providers/glm`.
 - **Implementation:** Extract generic OpenAI-compatible and Ollama provider classes into `providers/openai-compatible` and `providers/ollama` (or re-export from `openclass_provider_glm` with proper `pyproject.toml` packages).
 - **Verification:** `uv build --all-packages` and contract tests for `ollama` and `openai-compatible`.
 
 #### OC-BG-038 (P3, WS-12): Implement `packages/tui` Terminal Inspector (`OC-013`)
+
 - **Problem:** `packages/tui` contains only `README.md`.
 - **Implementation:** Build a Textual/Rich terminal inspector in `packages/tui` using `openclass-sdk` to browse projects, runs, unknown pools, and candidates.
 - **Verification:** Unit smoke test rendering TUI views against mock SDK client.
