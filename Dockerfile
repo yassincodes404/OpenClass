@@ -22,6 +22,7 @@ FROM base AS test
 RUN uv sync --frozen --all-packages
 COPY tests tests
 COPY scripts scripts
+COPY benchmarks benchmarks
 USER openclass
 CMD ["pytest", "-q", "-p", "no:cacheprovider", "--tb=short"]
 

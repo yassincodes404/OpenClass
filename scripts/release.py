@@ -15,6 +15,7 @@ for path in [
     root / "package.json",
     *root.glob("apps/*/package.json"),
     *root.glob("packages/*/package.json"),
+    *root.glob("services/*/package.json"),
 ]:
     assert json.loads(path.read_text())["version"] == version, path
 assert "GNU AFFERO GENERAL PUBLIC LICENSE" in (root / "LICENSE").read_text()
