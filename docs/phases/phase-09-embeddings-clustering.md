@@ -41,8 +41,8 @@ Alembic migration for tables above + ivfflat/hnsw index per pgvector docs (small
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
+| Route                             | Expected                                                    |
+| --------------------------------- | ----------------------------------------------------------- |
 | `/projects/:id/unknowns/clusters` | Seeded cancel cluster together; account-compromise separate |
 
 ## 8. Seeder + credentials
@@ -51,11 +51,11 @@ Alembic migration for tables above + ivfflat/hnsw index per pgvector docs (small
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Run clustering | New cluster run id; cancel texts grouped |
-| 2 | Open cluster | Members + provenance visible |
-| 3 | Re-run same threshold | No duplicate clusters (idempotent) |
+| #   | Action                | Expected                                 |
+| --- | --------------------- | ---------------------------------------- |
+| 1   | Run clustering        | New cluster run id; cancel texts grouped |
+| 2   | Open cluster          | Members + provenance visible             |
+| 3   | Re-run same threshold | No duplicate clusters (idempotent)       |
 
 ## 10. Automated tests
 

@@ -48,10 +48,10 @@ Ensure `raw_events (id, project_id, content, content_hash, source_type, metadata
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/data` | Paste text → success toast with event id; CSV upload shows parsed count + errors |
-| `/projects/:id/observations` | New events appear first; search/filter work; detail shows metadata + timestamps |
+| Route                        | Expected                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| `/projects/:id/data`         | Paste text → success toast with event id; CSV upload shows parsed count + errors |
+| `/projects/:id/observations` | New events appear first; search/filter work; detail shows metadata + timestamps  |
 
 ## 8. Seeder + credentials
 
@@ -59,13 +59,13 @@ Ensure `raw_events (id, project_id, content, content_hash, source_type, metadata
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Ingest “I was charged twice” | 201, appears in observations |
-| 2 | Re-send same with same key | `deduped: true`, count unchanged |
-| 3 | Upload CSV with 1 bad row | 207, good rows saved, bad row error shown |
-| 4 | Search “refund” | Only matching observations |
-| 5 | Open detail | Metadata + history visible; no secret leakage |
+| #   | Action                       | Expected                                      |
+| --- | ---------------------------- | --------------------------------------------- |
+| 1   | Ingest “I was charged twice” | 201, appears in observations                  |
+| 2   | Re-send same with same key   | `deduped: true`, count unchanged              |
+| 3   | Upload CSV with 1 bad row    | 207, good rows saved, bad row error shown     |
+| 4   | Search “refund”              | Only matching observations                    |
+| 5   | Open detail                  | Metadata + history visible; no secret leakage |
 
 ## 10. Automated tests
 

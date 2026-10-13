@@ -4,6 +4,21 @@ The [architecture specification](docs/architecture/SPECIFICATION.md) is the desi
 contract. The [ticket backlog](docs/contributing/tickets.md) defines actionable work.
 Release names are branding, not API concepts. Dates are intentionally uncommitted.
 
+## Current development priority: application proofs
+
+The founder-authorized [application proof program](docs/architecture/application-proof-program.md)
+now drives implementation: **Connect → Observe → Decide → Act → Verify → Learn → Improve.**
+Restore CI, stabilize typed execution/verification, implement shared integrations,
+then prove customer operations, developer operations, smart-home simulation and
+robot simulation through the same Core. Strengthen Core from recorded failures
+before expanding SaaS productization. A major capability requires application
+evidence through public clients, persisted outcomes and reload/restart.
+
+OC-034–039 define the new slices; OC-008/009/017 remain prerequisites for claims
+of verified learning and immutable reviewed activation. This changes development
+priority without changing the release gates below. Auth/billing/teams/polished
+onboarding are deferred except for security required by actual integrations.
+
 | Milestone         | Scope                                                                                                     | Status                 |
 | ----------------- | --------------------------------------------------------------------------------------------------------- | ---------------------- |
 | v0.0.1 — Genesis  | Workspaces, core/kernel, API, DB/migrations, clients, CI, policies                                        | Initial implementation |

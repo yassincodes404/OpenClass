@@ -27,7 +27,13 @@ export class IdempotencyService {
       "INSERT INTO control_idempotency_keys (key, workspace_id, response_hash, response, expires_at)" +
         " VALUES ($1, $2, $3, $4::jsonb, now() + ($5 || ' hours')::interval)" +
         " ON CONFLICT (key, workspace_id) DO NOTHING",
-      [key, workspaceId, createHash("sha256").update(serialized).digest("hex"), serialized, TTL_HOURS],
+      [
+        key,
+        workspaceId,
+        createHash("sha256").update(serialized).digest("hex"),
+        serialized,
+        TTL_HOURS,
+      ],
     );
   }
 }

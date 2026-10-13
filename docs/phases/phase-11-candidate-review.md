@@ -40,8 +40,8 @@ Give humans full control of candidates: collect evidence, reject, request review
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
+| Route                            | Expected                                     |
+| -------------------------------- | -------------------------------------------- |
 | `/projects/:id/discoveries/:cid` | Evidence count, review CTA, history timeline |
 
 ## 8. Seeder + credentials
@@ -50,11 +50,11 @@ Give humans full control of candidates: collect evidence, reject, request review
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Try approve 3-evidence candidate | Blocked: “collect more evidence (3/5)” |
-| 2 | Add 2 more evidences → approve | Moves to `approved` (still inactive — needs Phase 13–14) |
-| 3 | Reject with reason | Status rejected + audit entry; no re-activation path |
+| #   | Action                           | Expected                                                 |
+| --- | -------------------------------- | -------------------------------------------------------- |
+| 1   | Try approve 3-evidence candidate | Blocked: “collect more evidence (3/5)”                   |
+| 2   | Add 2 more evidences → approve   | Moves to `approved` (still inactive — needs Phase 13–14) |
+| 3   | Reject with reason               | Status rejected + audit entry; no re-activation path     |
 
 ## 10. Automated tests
 

@@ -41,8 +41,8 @@ Route `/projects/:id/evaluations/:eid`: baseline vs candidate table, delta chips
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
+| Route                            | Expected                                                           |
+| -------------------------------- | ------------------------------------------------------------------ |
 | `/projects/:id/evaluations/:eid` | Cancellation 0%→91% demo; billing no-regression; overall pass/fail |
 
 ## 8. Seeder + credentials
@@ -51,10 +51,10 @@ Route `/projects/:id/evaluations/:eid`: baseline vs candidate table, delta chips
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Open passing eval | All gates green; “ready for human approval” (not auto-promoted) |
-| 2 | Open failing eval | Red billing gate; “blocked” banner; promotion button disabled (Phase 14 respects this) |
+| #   | Action            | Expected                                                                               |
+| --- | ----------------- | -------------------------------------------------------------------------------------- |
+| 1   | Open passing eval | All gates green; “ready for human approval” (not auto-promoted)                        |
+| 2   | Open failing eval | Red billing gate; “blocked” banner; promotion button disabled (Phase 14 respects this) |
 
 ## 10. Automated tests
 

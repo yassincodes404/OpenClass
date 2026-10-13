@@ -27,11 +27,15 @@ from openclass_server.api.candidates import candidates_router
 from openclass_server.api.classifiers import classifiers_router
 from openclass_server.api.clusters import clusters_router
 from openclass_server.api.decisions import decisions_router
+from openclass_server.api.evaluations import evaluations_router
 from openclass_server.api.evidence import evidence_router
 from openclass_server.api.evolution import evolution_router
 from openclass_server.api.integrations import integration_router
+from openclass_server.api.operations import operations_router
 from openclass_server.api.projects import projects_router
+from openclass_server.api.promotions import promotions_router
 from openclass_server.api.providers import providers_router
+from openclass_server.api.support import support_router
 from openclass_server.api.system import system_router
 from openclass_server.api.unknowns import unknowns_router
 from openclass_server.persistence.cluster_store import ClusterStore
@@ -39,6 +43,7 @@ from openclass_server.persistence.database import create_database_engine
 from openclass_server.persistence.idempotency import IdempotencyStore
 from openclass_server.persistence.integration_repository import SQLIntegrationRepository
 from openclass_server.persistence.project_repository import SQLProjectRepository
+from openclass_server.persistence.promotion_store import PromotionStore
 from openclass_server.persistence.repository import SQLRepository
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
 from openclass_server.provider_config import decision_provider as configured_decision
@@ -189,6 +194,17 @@ def create_app(
     )
     app.include_router(evidence_router(config, projects, project_repository, diagnostician))
     app.include_router(providers_router(config, async_sessionmaker(engine, expire_on_commit=False)))
+    # Literal support routes (adapters/routes/outcomes) register before the
+    # parameterized Genesis integration routes so /{integration_id} cannot
+    # shadow them.
+    app.include_router(
+        support_router(
+            config,
+            projects,
+            async_sessionmaker(engine, expire_on_commit=False),
+            default_decision_provider,
+        )
+    )
     app.include_router(integration_router(config, projects, integration_repository))
     app.include_router(system_router(config, engine))
     # Literal cluster routes register before the parameterized unknowns routes
@@ -206,6 +222,32 @@ def create_app(
     app.include_router(
         candidates_router(
             config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+        )
+    )
+    app.include_router(
+        evaluations_router(
+            config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+        )
+    )
+    app.include_router(
+        operations_router(
+            config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+        )
+    )
+    app.include_router(
+        support_router(
+            config,
+            projects,
+            async_sessionmaker(engine, expire_on_commit=False),
+            default_decision_provider,
+        )
+    )
+    app.include_router(
+        promotions_router(
+            config,
+            projects,
+            async_sessionmaker(engine, expire_on_commit=False),
+            PromotionStore(async_sessionmaker(engine, expire_on_commit=False)),
         )
     )
     return app

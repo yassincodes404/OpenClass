@@ -1,14 +1,14 @@
 .PHONY: setup check test dev db migrate
 setup:
 	uv sync --all-packages --locked
-	npm ci
+	pnpm install --frozen-lockfile
 check:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy
-	npm run format:check
-	npm run typecheck
-	npm test
+	pnpm run format:check
+	pnpm run typecheck
+	pnpm test
 test:
 	uv run pytest
 db:

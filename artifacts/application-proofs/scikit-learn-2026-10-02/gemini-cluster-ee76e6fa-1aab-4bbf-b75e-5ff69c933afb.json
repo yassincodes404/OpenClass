@@ -1,0 +1,14 @@
+{
+  "id": "ee76e6fa-1aab-4bbf-b75e-5ff69c933afb",
+  "algorithm": "greedy-cosine-first-fit",
+  "model": "cohere/embed-v4.0",
+  "threshold": 0.55,
+  "created_at": "2026-10-02T17:19:25.872561Z",
+  "members": [
+    {
+      "run_id": "5784ca42-69f6-4452-8707-70ba1db2a6e3",
+      "similarity": 1
+    }
+  ],
+  "simulated": false
+}

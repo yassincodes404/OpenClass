@@ -5,7 +5,9 @@ import { ApiKeyService, hashKey } from "./api-key.service.js";
 
 type Row = Record<string, unknown>;
 
-function fakePool(script: (text: string, params?: unknown[]) => Promise<{ rows: Row[]; rowCount: number }>): Pool {
+function fakePool(
+  script: (text: string, params?: unknown[]) => Promise<{ rows: Row[]; rowCount: number }>,
+): Pool {
   return { query: vi.fn(script) } as unknown as Pool;
 }
 
@@ -13,8 +15,25 @@ describe("ApiKeyService", () => {
   it("creates a key, stores only the hash, and returns the raw value once", async () => {
     let inserted: { key_hash: string; prefix: string; scopes: string[] } | undefined;
     const pool = fakePool(async (_text, params) => {
-      inserted = { key_hash: params![2] as string, prefix: params![3] as string, scopes: params![4] as string[] };
-      return { rows: [{ id: "k1", workspace_id: "w1", project_id: "p1", prefix: params![3], scopes: params![4], created_at: new Date(), revoked_at: null }], rowCount: 1 };
+      inserted = {
+        key_hash: params![2] as string,
+        prefix: params![3] as string,
+        scopes: params![4] as string[],
+      };
+      return {
+        rows: [
+          {
+            id: "k1",
+            workspace_id: "w1",
+            project_id: "p1",
+            prefix: params![3],
+            scopes: params![4],
+            created_at: new Date(),
+            revoked_at: null,
+          },
+        ],
+        rowCount: 1,
+      };
     });
     const { key, row } = await new ApiKeyService(pool).create("w1", "p1", ["ingest", "read"]);
     expect(key).toMatch(/^oc_dev_[0-9a-f]{48}$/);
@@ -26,7 +45,9 @@ describe("ApiKeyService", () => {
 
   it("verifies an active key with the required scope", async () => {
     const pool = fakePool(async () => ({
-      rows: [{ workspace_id: "w1", project_id: "p1", scopes: ["ingest", "read"], revoked_at: null }],
+      rows: [
+        { workspace_id: "w1", project_id: "p1", scopes: ["ingest", "read"], revoked_at: null },
+      ],
       rowCount: 1,
     }));
     const verified = await new ApiKeyService(pool).verify("oc_dev_x", "ingest");
@@ -38,7 +59,9 @@ describe("ApiKeyService", () => {
       rows: [{ workspace_id: "w1", project_id: "p1", scopes: ["read"], revoked_at: null }],
       rowCount: 1,
     }));
-    await expect(new ApiKeyService(pool).verify("oc_dev_x", "ingest")).rejects.toThrow(ForbiddenException);
+    await expect(new ApiKeyService(pool).verify("oc_dev_x", "ingest")).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it("rejects an unknown or revoked key (revoke blocks use)", async () => {
@@ -53,7 +76,9 @@ describe("ApiKeyService", () => {
 
   it("revoke is idempotent-safe: missing key → 404", async () => {
     const pool = fakePool(async () => ({ rows: [], rowCount: 0 }));
-    await expect(new ApiKeyService(pool).revoke("p1", "missing")).rejects.toThrow(NotFoundException);
+    await expect(new ApiKeyService(pool).revoke("p1", "missing")).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it("hashKey is deterministic and hex sha256", () => {

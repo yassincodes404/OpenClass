@@ -126,6 +126,13 @@ For real-provider readiness and the first measured experiment, see the
 
 ## Toward Discovery
 
+Our current development priority is the
+[application proof program](docs/architecture/application-proof-program.md):
+customer operations, developer operations, smart-home simulation and robot
+simulation using the same Core. Execution, independent verification and shared
+integrations come first; each application must produce persisted, measured evidence.
+These are planned proofs, not completed applications or benchmark claims.
+
 The defining next loop is recurring unknowns → candidate → replay evaluation →
 human approval → ontology v2 → improved classification. See the
 [canonical implementation specification](docs/architecture/SPECIFICATION.md),

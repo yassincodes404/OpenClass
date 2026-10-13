@@ -38,13 +38,15 @@ def resolve_decision_provider(settings: Settings, override: str | None = None) -
             timeout=settings.provider_timeout_seconds,
             max_retries=settings.provider_max_retries,
         )
-    return LayaDecisionProvider(
-        base_url=settings.laya_base_url,
-        model=settings.laya_model,
-        timeout=settings.laya_timeout_seconds,
-        max_retries=settings.laya_max_retries,
-        allow_fallback=settings.laya_allow_fallback,
-    )
+    if choice == "laya":
+        return LayaDecisionProvider(
+            base_url=settings.laya_base_url,
+            model=settings.laya_model,
+            timeout=settings.laya_timeout_seconds,
+            max_retries=settings.laya_max_retries,
+            allow_fallback=settings.laya_allow_fallback,
+        )
+    raise ValueError(f"Unsupported decision provider: {choice}")
 
 
 def decision_provider(settings: Settings) -> DecisionProvider:

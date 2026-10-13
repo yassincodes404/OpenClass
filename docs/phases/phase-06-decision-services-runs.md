@@ -47,11 +47,11 @@ Routes: `/projects/:id/decisions` (service list + create wizard: name/instructio
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/decisions` | Services listed; create works; UNKNOWN shown locked |
+| Route                          | Expected                                                                                |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| `/projects/:id/decisions`      | Services listed; create works; UNKNOWN shown locked                                     |
 | `/projects/:id/decisions/:sid` | Test “I was charged twice” → `billing`; “Cancel my plan” (if not in ontology) → UNKNOWN |
-| `/projects/:id/runs` | Runs with state chips; detail shows distribution + provider + latency |
+| `/projects/:id/runs`           | Runs with state chips; detail shows distribution + provider + latency                   |
 
 ## 8. Seeder + credentials
 
@@ -59,12 +59,12 @@ Routes: `/projects/:id/decisions` (service list + create wizard: name/instructio
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Classify known billing text | `known/billing`, probs sum ~1, latency shown |
-| 2 | Classify unmatched cancellation | `likely_novel/UNKNOWN`, saved to unknown pool (visible Phase 08) |
-| 3 | Open run detail | Full distribution, version ids, provider label |
-| 4 | Try to delete UNKNOWN choice | Blocked with message |
+| #   | Action                          | Expected                                                         |
+| --- | ------------------------------- | ---------------------------------------------------------------- |
+| 1   | Classify known billing text     | `known/billing`, probs sum ~1, latency shown                     |
+| 2   | Classify unmatched cancellation | `likely_novel/UNKNOWN`, saved to unknown pool (visible Phase 08) |
+| 3   | Open run detail                 | Full distribution, version ids, provider label                   |
+| 4   | Try to delete UNKNOWN choice    | Blocked with message                                             |
 
 ## 10. Automated tests
 

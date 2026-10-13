@@ -68,7 +68,11 @@ export class SecurityController {
   }
 
   @Get("projects/:projectId/settings")
-  getSettings(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  getSettings(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     return this.projects.settings(request.principal, workspaceId, projectId);
   }
 
@@ -84,7 +88,11 @@ export class SecurityController {
   }
 
   @Get("projects/:projectId/providers")
-  async providers(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async providers(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     await this.projects.get(request.principal, workspaceId, projectId);
     const [catalog, status, configs] = await Promise.all([
       this.engine.providers(),
@@ -106,13 +114,23 @@ export class SecurityController {
   ) {
     const input = parseBody(providerConfigSchema, body);
     if (input.endpoint_ref && !/^[A-Z][A-Z0-9_]{2,}$/.test(input.endpoint_ref)) {
-      throw new BadRequestException("endpoint_ref must be an environment variable name (UPPER_SNAKE_CASE)");
+      throw new BadRequestException(
+        "endpoint_ref must be an environment variable name (UPPER_SNAKE_CASE)",
+      );
     }
     await this.projects.assertManager(request.principal, workspaceId, projectId);
     const result = await this.db.query(
       "INSERT INTO control_provider_configs (workspace_id, project_id, type, endpoint_ref, model, timeout_seconds, is_default)" +
         " VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, type, endpoint_ref, model, timeout_seconds, is_default, created_at",
-      [workspaceId, projectId, input.type, input.endpoint_ref ?? null, input.model ?? null, input.timeout_seconds ?? 20, input.is_default ?? false],
+      [
+        workspaceId,
+        projectId,
+        input.type,
+        input.endpoint_ref ?? null,
+        input.model ?? null,
+        input.timeout_seconds ?? 20,
+        input.is_default ?? false,
+      ],
     );
     const config = result.rows[0];
     await this.audit.record({

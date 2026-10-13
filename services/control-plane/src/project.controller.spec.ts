@@ -29,29 +29,45 @@ const validClassifier = {
 describe("ProjectController", () => {
   it("rejects a project name shorter than 2 chars (400)", () => {
     const { controller } = controllerWith();
-    expect(() => controller.create({ principal }, "w1", { name: "x" })).toThrow(BadRequestException);
+    expect(() => controller.create({ principal }, "w1", { name: "x" })).toThrow(
+      BadRequestException,
+    );
   });
 
   it("rejects classifier creation that opts out of UNKNOWN (400)", () => {
     const { controller, service } = controllerWith();
-    expect(() => controller.createClassifier({ principal }, "w1", "p1", { ...validClassifier, unknown_fallback: false })).toThrow(BadRequestException);
+    expect(() =>
+      controller.createClassifier({ principal }, "w1", "p1", {
+        ...validClassifier,
+        unknown_fallback: false,
+      }),
+    ).toThrow(BadRequestException);
     expect(service.createClassifier).not.toHaveBeenCalled();
   });
 
   it("defaults unknown_fallback to true for valid classifier bodies", () => {
     const { controller, service } = controllerWith();
     controller.createClassifier({ principal }, "w1", "p1", validClassifier);
-    expect(service.createClassifier).toHaveBeenCalledWith(principal, "w1", "p1", expect.objectContaining({ unknownFallback: true }));
+    expect(service.createClassifier).toHaveBeenCalledWith(
+      principal,
+      "w1",
+      "p1",
+      expect.objectContaining({ unknownFallback: true }),
+    );
   });
 
   it("rejects an empty class list (400)", () => {
     const { controller } = controllerWith();
-    expect(() => controller.createClassifier({ principal }, "w1", "p1", { ...validClassifier, classes: [] })).toThrow(BadRequestException);
+    expect(() =>
+      controller.createClassifier({ principal }, "w1", "p1", { ...validClassifier, classes: [] }),
+    ).toThrow(BadRequestException);
   });
 
   it("rejects invalid key scopes (400)", () => {
     const { controller } = controllerWith();
-    expect(() => controller.createKey({ principal }, "w1", "p1", { scopes: ["root"] })).toThrow(BadRequestException);
+    expect(() => controller.createKey({ principal }, "w1", "p1", { scopes: ["root"] })).toThrow(
+      BadRequestException,
+    );
   });
 
   it("delegates valid key creation", () => {

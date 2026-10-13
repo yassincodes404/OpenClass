@@ -4,10 +4,17 @@ import { Controller, Get } from "@nestjs/common";
 @Controller("control")
 export class PortalController {
   @Get("health")
-  health() { return { status: "ready", service: "openclass-control-plane" }; }
+  health() {
+    return { status: "ready", service: "openclass-control-plane" };
+  }
 
   @Get("portal-phase")
   portalPhase() {
-    return { phase: 1, status: "foundation", simulated: true, capabilities: ["portal-shell", "project-navigation"] };
+    return {
+      phase: 1,
+      status: "foundation",
+      simulated: true,
+      capabilities: ["portal-shell", "project-navigation"],
+    };
   }
 }

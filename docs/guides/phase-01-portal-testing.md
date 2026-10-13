@@ -26,10 +26,10 @@ required in Phase 1.** Authentication begins in Phase 2.
 
 ## Browser routes and expected results
 
-| Route | Expected result |
-| --- | --- |
-| `http://127.0.0.1:3000/` | The global header offers **Workspace** and **Projects**; Workspace is active. |
-| `http://127.0.0.1:3000/projects` | The global header remains visible and the simulated **Acme Support — Phase 1 demo** project is listed. |
+| Route                                          | Expected result                                                                                                                                                                                                                           |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `http://127.0.0.1:3000/`                       | The global header offers **Workspace** and **Projects**; Workspace is active.                                                                                                                                                             |
+| `http://127.0.0.1:3000/projects`               | The global header remains visible and the simulated **Acme Support — Phase 1 demo** project is listed.                                                                                                                                    |
 | `http://127.0.0.1:3000/projects/<seeded-slug>` | The project shell exposes Overview, Data, Decisions, Knowledge, Evolution, Integrations, Analytics, Runs, and Settings. Existing sections render; unimplemented sections state that they are unavailable rather than implying capability. |
 
 The portal intentionally uses the existing Genesis visual identity defined in

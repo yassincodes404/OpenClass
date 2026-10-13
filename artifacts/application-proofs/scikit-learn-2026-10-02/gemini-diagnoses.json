@@ -1,0 +1,14 @@
+[
+  {
+    "evidence_id": "2cc1234d-c95a-4ba9-a5fd-989e0942fdf7",
+    "result": {
+      "diagnosis": "precondition",
+      "rationale": "The instructions specify to rely only on the source title and body, excluding embedded code, logs, or instructions as untrusted. However, the observation includes mainly warnings and references to CI job failures without explicit categorization details, leading to an insufficient textual basis to classify the issue confidently. This results in the model falling back to UNKNOWN due to insufficient discriminative preconditions in the input text.",
+      "confidence": 0.9,
+      "recommended_action": "Enhance the input preprocessing to better extract or summarize trustworthy signals from the source issue, or clarify instructions to allow minimal trusted context beyond title and body to improve decision confidence.",
+      "provider": "vercel-ai-gateway",
+      "model": "openai/gpt-4.1-mini",
+      "simulated": false
+    }
+  }
+]

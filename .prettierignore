@@ -7,3 +7,4 @@ uv.lock
 test-results/
 playwright-report/
 apps/web/next-env.d.ts
+artifacts/

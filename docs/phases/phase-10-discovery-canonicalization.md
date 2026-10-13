@@ -41,10 +41,10 @@ Routes: `/projects/:id/discoveries` (candidate cards: type chip, confidence, evi
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/discoveries` | “cancel_request” candidate (or alias) with evidence count |
-| `/projects/:id/discoveries/:cid` | Shows INSUFFICIENT_EVIDENCE for tiny clusters correctly |
+| Route                            | Expected                                                  |
+| -------------------------------- | --------------------------------------------------------- |
+| `/projects/:id/discoveries`      | “cancel_request” candidate (or alias) with evidence count |
+| `/projects/:id/discoveries/:cid` | Shows INSUFFICIENT_EVIDENCE for tiny clusters correctly   |
 
 ## 8. Seeder + credentials
 
@@ -52,11 +52,11 @@ Routes: `/projects/:id/discoveries` (candidate cards: type chip, confidence, evi
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Discover cancel cluster | Candidate with definition + aliases, status inactive |
-| 2 | Discover singleton cluster | `INSUFFICIENT_EVIDENCE`, no candidate promotion path |
-| 3 | Check synonyms “cancel plan” / “close subscription” | Canonicalized to one proposal, not two classes |
+| #   | Action                                              | Expected                                             |
+| --- | --------------------------------------------------- | ---------------------------------------------------- |
+| 1   | Discover cancel cluster                             | Candidate with definition + aliases, status inactive |
+| 2   | Discover singleton cluster                          | `INSUFFICIENT_EVIDENCE`, no candidate promotion path |
+| 3   | Check synonyms “cancel plan” / “close subscription” | Canonicalized to one proposal, not two classes       |
 
 ## 10. Automated tests
 

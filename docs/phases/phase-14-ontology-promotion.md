@@ -40,10 +40,10 @@ Normalize `ontology_classes`, `class_aliases`, `ontology_versions`, `ontology_ev
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/ontology` | v1 → v2 diff shows `account_compromise` added (seeded) |
-| `/projects/:id/discoveries/:cid` | Promote succeeds only with passing eval + approval |
+| Route                            | Expected                                               |
+| -------------------------------- | ------------------------------------------------------ |
+| `/projects/:id/ontology`         | v1 → v2 diff shows `account_compromise` added (seeded) |
+| `/projects/:id/discoveries/:cid` | Promote succeeds only with passing eval + approval     |
 
 ## 8. Seeder + credentials
 
@@ -51,12 +51,12 @@ Normalize `ontology_classes`, `class_aliases`, `ontology_versions`, `ontology_ev
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Promote without eval | 409 blocked |
-| 2 | Promote with passing eval + approval | v2 created; v1 unchanged; diff correct |
-| 3 | Reclassify previously UNKNOWN | Now `known` with v2 |
-| 4 | Rollback v2 | v3 derived from v1; history intact; runs still reproducible |
+| #   | Action                               | Expected                                                    |
+| --- | ------------------------------------ | ----------------------------------------------------------- |
+| 1   | Promote without eval                 | 409 blocked                                                 |
+| 2   | Promote with passing eval + approval | v2 created; v1 unchanged; diff correct                      |
+| 3   | Reclassify previously UNKNOWN        | Now `known` with v2                                         |
+| 4   | Rollback v2                          | v3 derived from v1; history intact; runs still reproducible |
 
 ## 10. Automated tests
 

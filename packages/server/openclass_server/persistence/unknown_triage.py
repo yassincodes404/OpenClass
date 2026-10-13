@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
@@ -82,8 +83,15 @@ class UnknownTriageStore:
                 for record in rows
             }
 
-    async def append_audit(self, project_id: UUID, actor: str, action: str, target: str) -> None:
-        """Triage audit entries carry actor/action/target only — never content."""
+    async def append_audit(
+        self,
+        project_id: UUID,
+        actor: str,
+        action: str,
+        target: str,
+        data: dict[str, object] | None = None,
+    ) -> None:
+        """Audit entries carry actor/action/target (+ optional ids) — never content."""
         async with self.sessions.begin() as session:
             await session.execute(
                 sa.text(
@@ -96,7 +104,37 @@ class UnknownTriageStore:
                     "project_id": str(project_id),
                     "event_type": action,
                     "actor": actor,
-                    "payload": json.dumps({"target": target}),
+                    "payload": json.dumps({"target": target, **(data or {})}),
                     "created_at": datetime.now(UTC),
                 },
             )
+
+    async def audit_history(
+        self, project_id: UUID, event_prefix: str, subject_id: str
+    ) -> list[dict[str, Any]]:
+        """Ordered audit rows for one subject (e.g. a candidate's transitions)."""
+        async with self.sessions() as session:
+            rows = await session.execute(
+                sa.text(
+                    "SELECT event_type, actor, payload, created_at FROM audit_events"
+                    " WHERE project_id = :project_id AND event_type LIKE :prefix"
+                    " ORDER BY created_at ASC"
+                ),
+                {"project_id": str(project_id), "prefix": event_prefix + "%"},
+            )
+            history: list[dict[str, Any]] = []
+            for row in rows:
+                payload = row.payload
+                if isinstance(payload, str):
+                    payload = json.loads(payload)
+                payload = payload if isinstance(payload, dict) else {}
+                if payload.get("candidate_id") == subject_id:
+                    history.append(
+                        {
+                            "event": row.event_type,
+                            "actor": row.actor,
+                            "payload": payload,
+                            "created_at": row.created_at,
+                        }
+                    )
+            return history

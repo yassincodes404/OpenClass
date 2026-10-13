@@ -1,0 +1,6 @@
+{
+  "status": 400,
+  "error": {
+    "detail": "4 validation errors for ProjectAuditEvent\nproject_id\n  Field required [type=missing]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nevent_type\n  Field required [type=missing]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\nactor\n  Field required [type=missing]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\ntarget\n  Extra inputs are not permitted [type=extra_forbidden]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden"
+  }
+}

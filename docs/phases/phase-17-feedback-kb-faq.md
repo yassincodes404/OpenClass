@@ -41,9 +41,9 @@ Routes: `/projects/:id/feedback` (queue: run, predicted, agent correction, actio
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/feedback` | Agent corrects billing→refund; evidence created |
+| Route                     | Expected                                                                         |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| `/projects/:id/feedback`  | Agent corrects billing→refund; evidence created                                  |
 | `/projects/:id/knowledge` | Known “delivery time?” retrieves approved article; UNKNOWN enters research queue |
 
 ## 8. Seeder + credentials
@@ -52,11 +52,11 @@ Routes: `/projects/:id/feedback` (queue: run, predicted, agent correction, actio
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Submit correction | Feedback saved + evidence triage entry |
-| 2 | Ask known FAQ | Approved article + cited draft |
-| 3 | Ask UNKNOWN | No draft; research queue item |
+| #   | Action            | Expected                               |
+| --- | ----------------- | -------------------------------------- |
+| 1   | Submit correction | Feedback saved + evidence triage entry |
+| 2   | Ask known FAQ     | Approved article + cited draft         |
+| 3   | Ask UNKNOWN       | No draft; research queue item          |
 
 ## 10. Automated tests
 

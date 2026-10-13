@@ -26,9 +26,23 @@ function rolePool(role: string | null): Pool {
 
 function fakeEngine(overrides: Partial<EngineClient> = {}): EngineClient {
   return {
-    createProject: vi.fn(async () => ({ id: "engine-p1", slug: "acme", name: "Acme", description: "" })),
-    createClassifier: vi.fn(async () => ({ id: "engine-c1", slug: "support-intent", name: "Support intent", active_ontology_version_id: "v1" })),
-    getOntology: vi.fn(async () => ({ id: "v1", version_number: 1, classes: [{ canonical_name: "billing", display_name: "Billing" }] })),
+    createProject: vi.fn(async () => ({
+      id: "engine-p1",
+      slug: "acme",
+      name: "Acme",
+      description: "",
+    })),
+    createClassifier: vi.fn(async () => ({
+      id: "engine-c1",
+      slug: "support-intent",
+      name: "Support intent",
+      active_ontology_version_id: "v1",
+    })),
+    getOntology: vi.fn(async () => ({
+      id: "v1",
+      version_number: 1,
+      classes: [{ canonical_name: "billing", display_name: "Billing" }],
+    })),
     request: vi.fn(async () => ({})),
     ...overrides,
   } as unknown as EngineClient;
@@ -39,8 +53,14 @@ const classes = [
   { canonical_name: "refund", display_name: "Refund" },
 ];
 
-const auditStub = { record: vi.fn(async () => undefined), list: vi.fn(async () => ({ items: [], next_cursor: null })) } as unknown as import("./audit.service.js").AuditService;
-const idempotencyStub = { replay: vi.fn(async () => null), remember: vi.fn(async () => undefined) } as unknown as import("./idempotency.service.js").IdempotencyService;
+const auditStub = {
+  record: vi.fn(async () => undefined),
+  list: vi.fn(async () => ({ items: [], next_cursor: null })),
+} as unknown as import("./audit.service.js").AuditService;
+const idempotencyStub = {
+  replay: vi.fn(async () => null),
+  remember: vi.fn(async () => undefined),
+} as unknown as import("./idempotency.service.js").IdempotencyService;
 
 function serviceWith(pool: Pool, engine: EngineClient) {
   const apiKeys = new ApiKeyService(pool);
@@ -58,12 +78,29 @@ describe("ProjectService", () => {
       if (text.startsWith("SELECT slug FROM control_projects")) return { rows: [], rowCount: 0 };
       if (text.startsWith("INSERT INTO control_projects")) {
         inserts.push(params);
-        return { rows: [{ id: "cp1", workspace_id: "w1", engine_project_id: "engine-p1", slug: "acme-support", name: "Acme Support", created_at: new Date() }], rowCount: 1 };
+        return {
+          rows: [
+            {
+              id: "cp1",
+              workspace_id: "w1",
+              engine_project_id: "engine-p1",
+              slug: "acme-support",
+              name: "Acme Support",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
       }
       return { rows: [], rowCount: 0 };
     });
     const engine = fakeEngine();
-    const created = await serviceWith(pool, engine).service.create(owner, "w1", "Acme Support", "desc");
+    const created = await serviceWith(pool, engine).service.create(
+      owner,
+      "w1",
+      "Acme Support",
+      "desc",
+    );
     expect(created).toMatchObject({ slug: "acme-support", engine_project_id: "engine-p1" });
     expect(engine.createProject).toHaveBeenCalledWith("Acme Support", "desc");
     expect(inserts[0]).toContain("w1");
@@ -76,7 +113,19 @@ describe("ProjectService", () => {
         return { rows: [{ slug: "acme" }, { slug: "acme-2" }], rowCount: 2 };
       }
       if (text.startsWith("INSERT INTO control_projects")) {
-        return { rows: [{ id: "cp1", workspace_id: "w1", engine_project_id: "e", slug: "acme-3", name: "Acme", created_at: new Date() }], rowCount: 1 };
+        return {
+          rows: [
+            {
+              id: "cp1",
+              workspace_id: "w1",
+              engine_project_id: "e",
+              slug: "acme-3",
+              name: "Acme",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -91,7 +140,9 @@ describe("ProjectService", () => {
 
   it("non-member project access → 404 without enumeration", async () => {
     const service = serviceWith(rolePool(null), fakeEngine()).service;
-    await expect(service.list(owner, "w1")).rejects.toThrow(new NotFoundException("Workspace not found"));
+    await expect(service.list(owner, "w1")).rejects.toThrow(
+      new NotFoundException("Workspace not found"),
+    );
   });
 
   it("listing is scoped to the workspace (isolation) and any member role can read", async () => {
@@ -108,18 +159,38 @@ describe("ProjectService", () => {
   });
 
   it("developer (below admin) cannot create projects (403)", async () => {
-    await expect(serviceWith(rolePool("developer"), fakeEngine()).service.create(owner, "w1", "Acme", "")).rejects.toThrow(ForbiddenException);
+    await expect(
+      serviceWith(rolePool("developer"), fakeEngine()).service.create(owner, "w1", "Acme", ""),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it("classifier without UNKNOWN fallback is rejected (400)", async () => {
     const pool = fakePool(async (text) => {
       if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
-      if (text.startsWith("SELECT id, workspace_id")) return { rows: [{ id: "p1", workspace_id: "w1", engine_project_id: "e", slug: "acme", name: "Acme", created_at: new Date() }], rowCount: 1 };
+      if (text.startsWith("SELECT id, workspace_id"))
+        return {
+          rows: [
+            {
+              id: "p1",
+              workspace_id: "w1",
+              engine_project_id: "e",
+              slug: "acme",
+              name: "Acme",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
       return { rows: [], rowCount: 0 };
     });
     const engine = fakeEngine();
     await expect(
-      serviceWith(pool, engine).service.createClassifier(owner, "w1", "p1", { name: "Support intent", description: "", classes, unknownFallback: false }),
+      serviceWith(pool, engine).service.createClassifier(owner, "w1", "p1", {
+        name: "Support intent",
+        description: "",
+        classes,
+        unknownFallback: false,
+      }),
     ).rejects.toThrow(new BadRequestException("UNKNOWN fallback is required and permanent"));
     expect(engine.createClassifier).not.toHaveBeenCalled();
   });
@@ -127,7 +198,20 @@ describe("ProjectService", () => {
   it("a class named 'unknown' is rejected — UNKNOWN is a state, not a class", async () => {
     const pool = fakePool(async (text) => {
       if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
-      if (text.startsWith("SELECT id, workspace_id")) return { rows: [{ id: "p1", workspace_id: "w1", engine_project_id: "e", slug: "acme", name: "Acme", created_at: new Date() }], rowCount: 1 };
+      if (text.startsWith("SELECT id, workspace_id"))
+        return {
+          rows: [
+            {
+              id: "p1",
+              workspace_id: "w1",
+              engine_project_id: "e",
+              slug: "acme",
+              name: "Acme",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
       return { rows: [], rowCount: 0 };
     });
     const engine = fakeEngine();
@@ -145,10 +229,35 @@ describe("ProjectService", () => {
   it("creates a classifier through the engine and records the mapping", async () => {
     const pool = fakePool(async (text) => {
       if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
-      if (text.startsWith("SELECT id, workspace_id")) return { rows: [{ id: "p1", workspace_id: "w1", engine_project_id: "e", slug: "acme", name: "Acme", created_at: new Date() }], rowCount: 1 };
+      if (text.startsWith("SELECT id, workspace_id"))
+        return {
+          rows: [
+            {
+              id: "p1",
+              workspace_id: "w1",
+              engine_project_id: "e",
+              slug: "acme",
+              name: "Acme",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
       if (text.startsWith("SELECT 1 FROM control_classifiers")) return { rows: [], rowCount: 0 };
       if (text.startsWith("INSERT INTO control_classifiers")) {
-        return { rows: [{ id: "cc1", project_id: "p1", engine_classifier_id: "engine-c1", slug: "support-intent", name: "Support intent", created_at: new Date() }], rowCount: 1 };
+        return {
+          rows: [
+            {
+              id: "cc1",
+              project_id: "p1",
+              engine_classifier_id: "engine-c1",
+              slug: "support-intent",
+              name: "Support intent",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -167,12 +276,31 @@ describe("ProjectService", () => {
   it("duplicate classifier slug inside a project → 400", async () => {
     const pool = fakePool(async (text) => {
       if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
-      if (text.startsWith("SELECT id, workspace_id")) return { rows: [{ id: "p1", workspace_id: "w1", engine_project_id: "e", slug: "acme", name: "Acme", created_at: new Date() }], rowCount: 1 };
-      if (text.startsWith("SELECT 1 FROM control_classifiers")) return { rows: [{ ok: 1 }], rowCount: 1 };
+      if (text.startsWith("SELECT id, workspace_id"))
+        return {
+          rows: [
+            {
+              id: "p1",
+              workspace_id: "w1",
+              engine_project_id: "e",
+              slug: "acme",
+              name: "Acme",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
+      if (text.startsWith("SELECT 1 FROM control_classifiers"))
+        return { rows: [{ ok: 1 }], rowCount: 1 };
       return { rows: [], rowCount: 0 };
     });
     await expect(
-      serviceWith(pool, fakeEngine()).service.createClassifier(owner, "w1", "p1", { name: "Support intent", description: "", classes, unknownFallback: true }),
+      serviceWith(pool, fakeEngine()).service.createClassifier(owner, "w1", "p1", {
+        name: "Support intent",
+        description: "",
+        classes,
+        unknownFallback: true,
+      }),
     ).rejects.toThrow(BadRequestException);
   });
 });

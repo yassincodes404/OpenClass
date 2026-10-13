@@ -43,10 +43,10 @@ Routes: `/billing` (plans, current test subscription, usage vs quota), `/project
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/billing` | Test subscription + usage bars; over-quota shows clear message |
-| `/projects/:id/usage` | Enforcement banner when capped |
+| Route                 | Expected                                                       |
+| --------------------- | -------------------------------------------------------------- |
+| `/billing`            | Test subscription + usage bars; over-quota shows clear message |
+| `/projects/:id/usage` | Enforcement banner when capped                                 |
 
 ## 8. Seeder + credentials
 
@@ -54,11 +54,11 @@ Routes: `/billing` (plans, current test subscription, usage vs quota), `/project
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Open billing | Test-mode badge; no real card required |
-| 2 | Exceed quota | Classify → 402/429 with upgrade CTA (recoverable, no data loss) |
-| 3 | Trigger alert email | Dev log shows email (no real send) |
+| #   | Action              | Expected                                                        |
+| --- | ------------------- | --------------------------------------------------------------- |
+| 1   | Open billing        | Test-mode badge; no real card required                          |
+| 2   | Exceed quota        | Classify → 402/429 with upgrade CTA (recoverable, no data loss) |
+| 3   | Trigger alert email | Dev log shows email (no real send)                              |
 
 ## 10. Automated tests
 

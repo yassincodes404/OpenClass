@@ -48,10 +48,10 @@ Provider config refs (not raw keys): `POST /control/.../providers { type, endpoi
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
+| Route                     | Expected                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------- |
 | `/projects/:id/providers` | Mock shows simulated; Jev shows configured/unconfigured honestly; test works |
-| `/projects/:id/runs` | Each run shows provider/model + simulated badge when mock |
+| `/projects/:id/runs`      | Each run shows provider/model + simulated badge when mock                    |
 
 ## 8. Seeder + credentials
 
@@ -59,12 +59,12 @@ Provider config refs (not raw keys): `POST /control/.../providers { type, endpoi
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Test mock provider | Success, labeled simulated |
-| 2 | Test bad endpoint | Safe error, no secret, event logged |
-| 3 | Classify via each provider | Usage counters increment |
-| 4 | Open status | Default provider highlighted correctly |
+| #   | Action                     | Expected                               |
+| --- | -------------------------- | -------------------------------------- |
+| 1   | Test mock provider         | Success, labeled simulated             |
+| 2   | Test bad endpoint          | Safe error, no secret, event logged    |
+| 3   | Classify via each provider | Usage counters increment               |
+| 4   | Open status                | Default provider highlighted correctly |
 
 ## 10. Automated tests
 

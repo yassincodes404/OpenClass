@@ -2,7 +2,29 @@
   "name": "@openclass/control-plane",
   "version": "0.0.1",
   "private": true,
-  "scripts": { "start:dev": "nest start --watch", "build": "nest build", "typecheck": "tsc --noEmit", "test": "vitest run" },
-  "dependencies": { "@nestjs/common": "^11.1.6", "@nestjs/core": "^11.1.6", "@nestjs/platform-express": "^11.1.6", "jose": "^6.2.0", "pg": "^8.16.3", "reflect-metadata": "^0.2.2", "rxjs": "^7.8.2", "zod": "^4.3.6" },
-  "devDependencies": { "@nestjs/cli": "^11.0.11", "@nestjs/schematics": "^11.0.7", "@nestjs/testing": "^11.1.6", "@types/node": "^22.14.0", "@types/pg": "^8.15.5", "typescript": "^5.9.3", "vitest": "^4.1.0" }
+  "scripts": {
+    "start:dev": "nest start --watch",
+    "build": "nest build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.6",
+    "jose": "^6.2.0",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.11",
+    "@nestjs/schematics": "^11.0.7",
+    "@nestjs/testing": "^11.1.6",
+    "@types/node": "^22.14.0",
+    "@types/pg": "^8.15.5",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
 }

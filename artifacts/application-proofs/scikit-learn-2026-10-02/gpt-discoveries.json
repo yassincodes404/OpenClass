@@ -1,0 +1,56 @@
+[
+  {
+    "cluster_id": "511cfe9c-112a-4461-be53-1e67ea1ea185",
+    "cluster_size": 3,
+    "candidate": {
+      "id": "e30ca618-c429-4e6c-91a4-4bf0ec7a44f3",
+      "type": "INSUFFICIENT_EVIDENCE",
+      "canonical_name": null,
+      "display_name": null,
+      "definition": null,
+      "aliases": [],
+      "existing_match": null,
+      "confidence": 0.3,
+      "reason": "The observations describe continuous CI failures and a broken job but do not provide enough distinct or related evidence to define a new issue class. They are related to bugs but lack specific details to classify as a new bug type or enhancement. Existing classes like 'bug' cover these cases.",
+      "status": "candidate",
+      "provider": "openai-compatible:openai/gpt-4.1-mini",
+      "simulated": false
+    }
+  },
+  {
+    "cluster_id": "57f9af18-ec6d-4d40-9d4c-62077ef2d880",
+    "cluster_size": 1,
+    "candidate": {
+      "id": "9f7f2cc4-7231-4bf3-8f22-7975335893a6",
+      "type": "INSUFFICIENT_EVIDENCE",
+      "canonical_name": null,
+      "display_name": null,
+      "definition": null,
+      "aliases": [],
+      "existing_match": null,
+      "confidence": 0.3,
+      "reason": "Only one observation expressing anger, unrelated to existing classes 'bug', 'enhancement', or 'documentation'. Insufficient evidence to propose a new class or match.",
+      "status": "candidate",
+      "provider": "openai-compatible:openai/gpt-4.1-mini",
+      "simulated": false
+    }
+  },
+  {
+    "cluster_id": "a3533949-d9a0-4484-bdb4-a142beba3310",
+    "cluster_size": 1,
+    "candidate": {
+      "id": "7a93c6e4-adcf-4b47-8a97-750aad0844f6",
+      "type": "INSUFFICIENT_EVIDENCE",
+      "canonical_name": null,
+      "display_name": null,
+      "definition": null,
+      "aliases": [],
+      "existing_match": null,
+      "confidence": 0.7,
+      "reason": "The observation describes a missing nightly wheel for scikit-learn in a specific repository and mentions a possible workflow failure. This is indicative of a bug related to CI/CD or packaging, but the evidence is a single issue report without multiple items or broader context. It matches the existing 'bug' class but does not provide enough distinct items to propose a new class.",
+      "status": "candidate",
+      "provider": "openai-compatible:openai/gpt-4.1-mini",
+      "simulated": false
+    }
+  }
+]

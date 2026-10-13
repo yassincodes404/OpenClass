@@ -1,0 +1,23 @@
+{
+  "id": "6c42977b-518c-4bd2-b847-55ef58a9805c",
+  "project_id": "2531a8f4-aca6-46bb-9d87-101039032306",
+  "engine_classifier_id": "ea3ea934-234f-4168-8b9a-2a3791614d38",
+  "slug": "real-maintainer-issue-taxonomy",
+  "name": "Real maintainer issue taxonomy",
+  "created_at": "2026-10-02T17:22:13.657Z",
+  "active_ontology_version_id": "3cb92c13-e84d-403a-b812-c7ef9ce6fbea",
+  "classes": [
+    {
+      "canonical_name": "bug",
+      "display_name": "Bug"
+    },
+    {
+      "canonical_name": "enhancement",
+      "display_name": "Enhancement"
+    },
+    {
+      "canonical_name": "documentation",
+      "display_name": "Documentation"
+    }
+  ]
+}

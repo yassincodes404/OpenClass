@@ -1,0 +1,12 @@
+[
+  {
+    "at_utc": "2026-10-02T17:16:57.750134+00:00",
+    "change": "Embedding provider changed from openai/text-embedding-3-small to cohere/embed-v4.0",
+    "reason": "Vercel rejected OpenAI embeddings for free-tier key with 403 no_providers_available; real Cohere and Gemini embedding probes returned actual vectors. Threshold and source dataset unchanged."
+  },
+  {
+    "at_utc": "2026-10-02T17:16:57.750142+00:00",
+    "change": "Bounded output budgets and paced retries",
+    "reason": "Retained gateway rate-limit failures; no model answers rewritten, no source rows excluded on outcome. Original completed outputs retained."
+  }
+]

@@ -361,3 +361,127 @@ class CandidateEvidenceRow(Base):
         ForeignKey("cluster_candidates.id", ondelete="CASCADE"), primary_key=True
     )
     run_id: Mapped[str] = mapped_column(ForeignKey("decision_runs.id"), primary_key=True)
+
+
+class CandidateReviewRow(Base):
+    __tablename__ = "candidate_reviews"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    candidate_id: Mapped[str] = mapped_column(
+        ForeignKey("cluster_candidates.id", ondelete="CASCADE"), index=True
+    )
+    reviewer: Mapped[str] = mapped_column(String(200))
+    decision: Mapped[str] = mapped_column(String(20))
+    rationale: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationSetRow(Base):
+    __tablename__ = "evaluation_sets"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(Text, default="")
+    sealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationExampleRow(Base):
+    __tablename__ = "evaluation_examples"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("evaluation_sets.id", ondelete="CASCADE"), index=True
+    )
+    text: Mapped[str] = mapped_column(Text)
+    label: Mapped[str] = mapped_column(String(100))
+    source: Mapped[str] = mapped_column(String(30))
+    annotator: Mapped[str] = mapped_column(String(200))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    slice_tag: Mapped[str] = mapped_column(String(30), default="historical")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class EvaluationRunRow(Base):
+    __tablename__ = "evaluation_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("evaluation_sets.id"))
+    candidate_id: Mapped[str] = mapped_column(ForeignKey("cluster_candidates.id"))
+    overall_passed: Mapped[bool] = mapped_column(Boolean)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
+    gates: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ServiceVersionRow(Base):
+    __tablename__ = "service_versions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    service_id: Mapped[str] = mapped_column(
+        ForeignKey("decision_services.id", ondelete="CASCADE"), index=True
+    )
+    version_number: Mapped[int] = mapped_column(Integer)
+    parent_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    choices: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    origin: Mapped[str] = mapped_column(String(20))
+    rationale: Mapped[str] = mapped_column(Text, default="")
+    actor: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class OntologyEventRow(Base):
+    __tablename__ = "service_ontology_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    service_id: Mapped[str] = mapped_column(String(36))
+    event_type: Mapped[str] = mapped_column(String(40))
+    actor: Mapped[str] = mapped_column(String(200))
+    from_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    to_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    detail: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AlertRuleRow(Base):
+    __tablename__ = "alert_rules"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    metric: Mapped[str] = mapped_column(String(40))
+    threshold: Mapped[float] = mapped_column(Float)
+    window: Mapped[str] = mapped_column(String(20), default="1h")
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class AlertEventRow(Base):
+    __tablename__ = "alert_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    rule_id: Mapped[str] = mapped_column(ForeignKey("alert_rules.id", ondelete="CASCADE"))
+    metric: Mapped[str] = mapped_column(String(40))
+    measured: Mapped[float] = mapped_column(Float)
+    threshold: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class IntegrationRouteRow(Base):
+    __tablename__ = "integration_routes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    integration_id: Mapped[str] = mapped_column(
+        ForeignKey("project_integrations.id", ondelete="CASCADE")
+    )
+    match_choice: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(40))
+    action_value: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class RoutingOutcomeRow(Base):
+    __tablename__ = "routing_outcomes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    integration_id: Mapped[str] = mapped_column(String(36))
+    event_id: Mapped[str] = mapped_column(ForeignKey("raw_events.id"))
+    selected_choice: Mapped[str] = mapped_column(String(100))
+    action: Mapped[str] = mapped_column(String(40))
+    detail: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

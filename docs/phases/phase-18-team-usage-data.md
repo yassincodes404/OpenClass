@@ -41,11 +41,11 @@ Routes: `/projects/:id/team` (members, invites, role editor), `/projects/:id/usa
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/team` | Owner invites reviewer; reviewer cannot manage billing/keys |
-| `/projects/:id/usage` | Meters match seeded runs |
-| `/projects/:id/settings/data` | Export downloads; deletion request auditable |
+| Route                         | Expected                                                    |
+| ----------------------------- | ----------------------------------------------------------- |
+| `/projects/:id/team`          | Owner invites reviewer; reviewer cannot manage billing/keys |
+| `/projects/:id/usage`         | Meters match seeded runs                                    |
+| `/projects/:id/settings/data` | Export downloads; deletion request auditable                |
 
 ## 8. Seeder + credentials
 
@@ -53,12 +53,12 @@ Routes: `/projects/:id/team` (members, invites, role editor), `/projects/:id/usa
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Invite analyst | Email stub logged (dev); accept works |
-| 2 | Reviewer opens billing/keys | 403 + read-only message |
-| 3 | Export observations | CSV downloads; job logged |
-| 4 | Request deletion | Pending → approve → scoped purge + audit |
+| #   | Action                      | Expected                                 |
+| --- | --------------------------- | ---------------------------------------- |
+| 1   | Invite analyst              | Email stub logged (dev); accept works    |
+| 2   | Reviewer opens billing/keys | 403 + read-only message                  |
+| 3   | Export observations         | CSV downloads; job logged                |
+| 4   | Request deletion            | Pending → approve → scoped purge + audit |
 
 ## 10. Automated tests
 

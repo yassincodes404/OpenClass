@@ -183,3 +183,41 @@ class MockClusterDiscoveryProvider:
 
     async def discover(self, request: ClusterDiscoveryRequest) -> ClusterDiscoveryResult:
         return decide_proposal(request.member_texts, request.existing_classes)
+
+
+CandidateStatus = Literal[
+    "discovered",
+    "candidate",
+    "collecting_evidence",
+    "validating",
+    "approved",
+    "active",
+    "rejected",
+]
+
+# v0.1 exposes candidate/rejected/approved, but storage allows the full enum.
+CANDIDATE_TRANSITIONS: dict[str, tuple[str, ...]] = {
+    "discovered": ("candidate", "rejected"),
+    # Discovery already attaches cluster evidence, so a candidate with enough
+    # evidence can go straight to review without a redundant collect step.
+    "candidate": ("collecting_evidence", "validating", "rejected"),
+    "collecting_evidence": ("validating", "rejected"),
+    "validating": ("approved", "collecting_evidence", "rejected"),
+    "approved": ("active",),
+    "active": (),
+    "rejected": (),
+}
+
+MIN_DISTINCT_EVIDENCE = 5
+
+
+def validate_candidate_transition(current: str, target: str) -> None:
+    if target not in CANDIDATE_TRANSITIONS.get(current, ()):
+        raise ValueError(f"illegal candidate transition from '{current}' to '{target}'")
+
+
+def review_gaps(evidence_count: int, minimum: int = MIN_DISTINCT_EVIDENCE) -> str | None:
+    """Human-review gate: returns a blocking message or None when satisfied."""
+    if evidence_count < minimum:
+        return f"collect more evidence ({evidence_count}/{minimum})"
+    return None
