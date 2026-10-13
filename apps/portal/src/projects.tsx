@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ControlApiError, controlFetch } from "./api";
 import { useAuth } from "./auth";
+import { OverviewKpis } from "./analytics";
 
 export type Workspace = { id: string; slug: string; name: string; role: string };
 export type Project = { id: string; workspace_id: string; engine_project_id: string; slug: string; name: string; created_at: string };
@@ -30,6 +31,10 @@ export const sectionLinks = [
   { label: "Observations", path: "/observations" },
   { label: "Unknowns", path: "/unknowns" },
   { label: "Discoveries", path: "/discoveries" },
+  { label: "Evaluations", path: "/evaluations" },
+  { label: "Analytics", path: "/analytics" },
+  { label: "Ontology", path: "/ontology" },
+  { label: "Integrations", path: "/integrations" },
   { label: "Providers", path: "/providers" },
   { label: "Audit", path: "/audit" },
   { label: "Settings", path: "/settings" },
@@ -199,6 +204,7 @@ export function ProjectOverview() {
   return (
     <main>
       <ProjectShell project={project.data} active="">
+        <OverviewKpis projectId={projectId || ""} />
         <OverviewPanels project={project.data} token={token} />
       </ProjectShell>
     </main>

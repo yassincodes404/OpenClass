@@ -1,4 +1,10 @@
-import { BadGatewayException, BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadGatewayException,
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 
 export type EngineProject = { id: string; slug: string; name: string; description: string; status?: string };
 export type EngineClassifier = {
@@ -262,6 +268,160 @@ export class EngineClient {
     );
   }
 
+  async candidateAction(
+    engineProjectId: string,
+    candidateId: string,
+    action: "collect" | "request-review" | "review" | "reject",
+    body?: unknown,
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates/${candidateId}/${action}`,
+      body ?? {},
+      200,
+    );
+  }
+
+  async candidateHistory(engineProjectId: string, candidateId: string): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates/${candidateId}/history`,
+    );
+  }
+
+  async listDatasets(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/eval-datasets`);
+  }
+
+  async createDataset(engineProjectId: string, body: { name: string; description?: string }): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/eval-datasets`, body, 201);
+  }
+
+  async datasetDetail(engineProjectId: string, datasetId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}`);
+  }
+
+  async addExample(engineProjectId: string, datasetId: string, body: unknown): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}/examples`,
+      body,
+      201,
+    );
+  }
+
+  async sealDataset(engineProjectId: string, datasetId: string): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}/seal`, {}, 200);
+  }
+
+  async runEvaluation(
+    engineProjectId: string,
+    body: { dataset_id: string; candidate_id: string; service_id?: string },
+  ): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/evaluations`, body, 201);
+  }
+
+  async listEvaluations(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/evaluations`);
+  }
+
+  async evaluationDetail(engineProjectId: string, evaluationId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/evaluations/${evaluationId}`);
+  }
+
+  async promoteCandidate(
+    engineProjectId: string,
+    candidateId: string,
+    body: { evaluation_id: string; reviewer: string; rationale: string },
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/discovery-candidates/${candidateId}/promote`,
+      body,
+      200,
+    );
+  }
+
+  async ontology(engineProjectId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/ontology`);
+  }
+
+  async ontologyDiff(engineProjectId: string, fromVersion: number, toVersion: number): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/ontology/diff?from_version=${fromVersion}&to_version=${toVersion}`,
+    );
+  }
+
+  async rollbackOntology(engineProjectId: string, fromVersion: number, rationale: string): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/ontology/rollback`,
+      { from_version: fromVersion, rationale },
+      200,
+    );
+  }
+
+  async analyticsSummary(engineProjectId: string): Promise<unknown> {
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/analytics/summary`);
+  }
+
+  async listAlertRules(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/alerts/rules`);
+  }
+
+  async createAlertRule(
+    engineProjectId: string,
+    body: { metric: string; threshold: number; window?: string },
+  ): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/alerts/rules`, body, 201);
+  }
+
+  async evaluateAlerts(engineProjectId: string): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/alerts/evaluate`, {}, 200);
+  }
+
+  async opsEvents(engineProjectId: string, after?: string): Promise<unknown> {
+    const query = after ? `?after=${encodeURIComponent(after)}` : "";
+    return this.request("GET", `/api/v1/projects/${engineProjectId}/ops/events${query}`);
+  }
+
+  async listIntegrations(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations`);
+  }
+
+  async createIntegration(
+    engineProjectId: string,
+    body: { name: string; type: string; secret_ref?: string; endpoint?: string },
+  ): Promise<unknown> {
+    return this.request("POST", `/api/v1/projects/${engineProjectId}/integrations`, body, 201);
+  }
+
+  async listAdapters(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/adapters`);
+  }
+
+  async listRoutes(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/routes`);
+  }
+
+  async createRoute(
+    engineProjectId: string,
+    integrationId: string,
+    body: { match_choice: string; action: string; action_value?: string },
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/integrations/${integrationId}/routes`,
+      body,
+      201,
+    );
+  }
+
+  async routingOutcomes(engineProjectId: string): Promise<unknown[]> {
+    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/outcomes`);
+  }
+
   private async requestStatus(
     method: string,
     path: string,
@@ -305,6 +465,7 @@ export class EngineClient {
     if (response.status === expectedStatus) return (await response.json()) as T;
     const detail = await this.errorMessage(response);
     if (response.status === 404) throw new NotFoundException(detail);
+    if (response.status === 409) throw new ConflictException(detail);
     if (response.status >= 400 && response.status < 500) throw new BadRequestException(detail);
     throw new BadGatewayException("Engine request failed");
   }

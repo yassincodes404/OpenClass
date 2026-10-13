@@ -6,7 +6,11 @@ import { DataIngestPage, ObservationsPage } from "./ingestion-pages";
 import { DecisionServicePage, DecisionsPage, RunsPage } from "./decision-pages";
 import { UnknownsPage } from "./unknowns-page";
 import { ClustersPage } from "./clusters-page";
-import { DiscoveriesPage } from "./discoveries-page";
+import { OntologyPage } from "./ontology-page";
+import { AnalyticsPage } from "./analytics";
+import { IntegrationsPage } from "./integrations-page";
+import { CandidateReviewPage, DiscoveriesPage } from "./discoveries-page";
+import { DatasetPage, EvaluationDetailPage, EvaluationsPage } from "./evaluations-pages";
 
 function Home() {
   return (
@@ -57,12 +61,19 @@ export function Portal() {
         <Route path="/projects/:projectId/classifiers/:classifierId" element={<ClassifierDetailPage />} />
         <Route path="/projects/:projectId/data" element={<DataIngestPage />} />
         <Route path="/projects/:projectId/observations" element={<ObservationsPage />} />
+        <Route path="/projects/:projectId/evaluations" element={<EvaluationsPage />} />
+        <Route path="/projects/:projectId/evaluations/datasets/:datasetId" element={<DatasetPage />} />
+        <Route path="/projects/:projectId/evaluations/runs/:evaluationId" element={<EvaluationDetailPage />} />
         <Route path="/projects/:projectId/decisions" element={<DecisionsPage />} />
         <Route path="/projects/:projectId/decisions/:serviceId" element={<DecisionServicePage />} />
         <Route path="/projects/:projectId/runs" element={<RunsPage />} />
         <Route path="/projects/:projectId/unknowns" element={<UnknownsPage />} />
         <Route path="/projects/:projectId/unknowns/clusters" element={<ClustersPage />} />
+        <Route path="/projects/:projectId/analytics" element={<AnalyticsPage />} />
+        <Route path="/projects/:projectId/ontology" element={<OntologyPage />} />
         <Route path="/projects/:projectId/discoveries" element={<DiscoveriesPage />} />
+        <Route path="/projects/:projectId/discoveries/:candidateId" element={<CandidateReviewPage />} />
+        <Route path="/projects/:projectId/integrations" element={<IntegrationsPage />} />
         <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
         <Route path="/projects/:projectId/providers" element={<ProjectProvidersPage />} />
         <Route path="/projects/:projectId/audit" element={<ProjectAuditPage />} />

@@ -31,6 +31,26 @@ const triageSchema = z.object({
 
 const transitionSchema = z.object({ to: z.enum(["needs_evidence", "triaged", "dismissed"]) });
 
+const collectSchema = z.object({ unknown_ids: z.array(z.string().uuid()).min(1).max(100) });
+
+const reviewSchema = z.object({
+  decision: z.enum(["approve", "reject", "needs_evidence"]),
+  rationale: z.string().trim().min(5).max(2000),
+});
+
+const rejectSchema = z.object({ reason: z.string().trim().min(5).max(2000) });
+
+const promoteSchema = z.object({
+  evaluation_id: z.string().uuid(),
+  reviewer: z.string().trim().min(3).max(200),
+  rationale: z.string().trim().min(5).max(2000),
+});
+
+const rollbackSchema = z.object({
+  from_version: z.number().int().min(1),
+  rationale: z.string().trim().min(5).max(2000),
+});
+
 function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (!result.success) throw new BadRequestException("Invalid request body");
@@ -151,6 +171,150 @@ export class UnknownController {
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
     return this.engine.candidateDetail(project.engine_project_id, candidateId);
+  }
+
+  @Post("candidates/:candidateId/promote")
+  async promote(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(promoteSchema, body);
+    const project = await this.gate(request.principal, workspaceId, projectId, "admin");
+    const result = await this.engine.promoteCandidate(project.engine_project_id, candidateId, {
+      evaluation_id: input.evaluation_id,
+      reviewer: input.reviewer,
+      rationale: input.rationale,
+    });
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "ontology.promoted",
+      target: `candidate:${candidateId.slice(0, 8)}:reviewer:${input.reviewer}`,
+    });
+    return result;
+  }
+
+  @Get("ontology")
+  async ontology(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    return this.engine.ontology(project.engine_project_id);
+  }
+
+  @Get("ontology/diff")
+  async ontologyDiff(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    const fromVersion = Number(from ?? 1);
+    const toVersion = Number(to ?? 2);
+    return this.engine.ontologyDiff(project.engine_project_id, fromVersion, toVersion);
+  }
+
+  @Post("ontology/rollback")
+  async rollback(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(rollbackSchema, body);
+    const project = await this.gate(request.principal, workspaceId, projectId, "admin");
+    const result = await this.engine.rollbackOntology(project.engine_project_id, input.from_version, input.rationale);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "ontology.rolled_back",
+      target: `to:v${input.from_version}`,
+    });
+    return result;
+  }
+
+  @Post("candidates/:candidateId/collect")
+  async collectEvidence(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(collectSchema, body);
+    const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
+    return this.engine.candidateAction(project.engine_project_id, candidateId, "collect", {
+      unknown_ids: input.unknown_ids,
+    });
+  }
+
+  @Post("candidates/:candidateId/request-review")
+  async requestReview(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
+    return this.engine.candidateAction(project.engine_project_id, candidateId, "request-review");
+  }
+
+  @Post("candidates/:candidateId/review")
+  async review(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(reviewSchema, body);
+    const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
+    const result = await this.engine.candidateAction(project.engine_project_id, candidateId, "review", input);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: `candidate.review_${input.decision}`,
+      target: `candidate:${candidateId.slice(0, 8)}`,
+    });
+    return result;
+  }
+
+  @Post("candidates/:candidateId/reject")
+  async reject(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+    @Body() body: unknown,
+  ) {
+    const input = parseBody(rejectSchema, body);
+    const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
+    const result = await this.engine.candidateAction(project.engine_project_id, candidateId, "reject", input);
+    await this.audit.record({
+      workspaceId,
+      projectId,
+      actor: request.principal.subject,
+      action: "candidate.rejected",
+      target: `candidate:${candidateId.slice(0, 8)}`,
+    });
+    return result;
+  }
+
+  @Get("candidates/:candidateId/history")
+  async candidateHistory(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateId: string,
+  ) {
+    const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
+    return this.engine.candidateHistory(project.engine_project_id, candidateId);
   }
 
   @Get(":runId")
