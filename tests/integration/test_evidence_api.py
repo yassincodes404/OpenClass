@@ -101,21 +101,25 @@ async def test_evidence_api_full_lifecycle(app) -> None:
         assert triaged["status"] == "triaged"
         assert triaged["diagnosis"] == "decision_space"
 
-        # 8. Transition evidence to ready_for_evolution
+        # 8. Transition evidence to ready_for_evolution (using SDK 'note' field)
         resp = await client.post(
             f"/api/v1/projects/{project_id}/evidence/{evidence_id}/transition",
-            json={"target_status": "ready_for_evolution"},
+            json={
+                "target_status": "ready_for_evolution",
+                "note": "Confirmed recurring enterprise request",
+            },
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "ready_for_evolution"
+        assert resp.json()["diagnosis_rationale"] == "Confirmed recurring enterprise request"
 
-        # 9. Create Evidence Case grouping
+        # 9. Create Evidence Case grouping (initially empty, with description)
         resp = await client.post(
             f"/api/v1/projects/{project_id}/evidence-cases",
             json={
                 "title": "Team Workspace Requests",
+                "description": "Enterprise team sharing requests",
                 "decision_service_id": service_id,
-                "evidence_ids": [evidence_id],
             },
         )
         assert resp.status_code == 201
@@ -123,10 +127,19 @@ async def test_evidence_api_full_lifecycle(app) -> None:
         case_id = case["id"]
         assert case["title"] == "Team Workspace Requests"
 
-        # 10. Verify case evidence
+        # 10. Attach evidence item to case via POST /evidence-cases/{case_id}/evidence
+        resp = await client.post(
+            f"/api/v1/projects/{project_id}/evidence-cases/{case_id}/evidence",
+            json={"evidence_id": evidence_id},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["id"] == case_id
+
+        # 10b. Verify case evidence
         resp = await client.get(f"/api/v1/projects/{project_id}/evidence-cases/{case_id}/evidence")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
+        assert resp.json()[0]["id"] == evidence_id
 
         # 11. Submit run feedback
         resp = await client.post(

@@ -161,7 +161,15 @@ test("raw events ingestion and retrieval work through public routes", async () =
       return Response.json({ id: "evt-1", ...body });
     }
     if (String(url).endsWith("/events/batch") && method === "POST") {
-      return Response.json([{ id: "evt-2" }, { id: "evt-3" }]);
+      return Response.json(
+        {
+          items: [
+            { index: 0, status: 201, event: { id: "evt-2", content: "a" }, deduped: false },
+            { index: 1, status: 201, event: { id: "evt-3", content: "b" }, deduped: false },
+          ],
+        },
+        { status: 207 },
+      );
     }
     if (String(url).includes("/events?") || String(url).endsWith("/events")) {
       return Response.json([{ id: "evt-1" }]);
@@ -182,6 +190,8 @@ test("raw events ingestion and retrieval work through public routes", async () =
     items: [{ content: "a" }, { content: "b" }],
   });
   assert.equal(batch.length, 2);
+  assert.equal(batch[0]?.id, "evt-2");
+  assert.equal(batch[1]?.id, "evt-3");
   const list = await client.events("proj-1", { limit: 10, offset: 0 });
   assert.equal(list.length, 1);
   const fetched = await client.event({ project: "proj-1", eventId: "evt-1" });
@@ -367,6 +377,7 @@ test("evidence and evolution client routes communicate over public HTTP contract
     project: "p1",
     evidenceId: "ev-1",
     targetStatus: "ready_for_evolution",
+    note: "Ready for Teacher synthesis",
   });
   assert.equal(transitioned.status, "ready_for_evolution");
 
@@ -390,6 +401,13 @@ test("evidence and evolution client routes communicate over public HTTP contract
     evidenceIds: ["ev-1"],
   });
   assert.equal(c.id, "case-1");
+
+  const attached = await client.addEvidenceToCase({
+    project: "p1",
+    caseId: "case-1",
+    evidenceId: "ev-1",
+  });
+  assert.equal(attached.id, "case-1");
 
   const cList = await client.evidenceCases("p1");
   assert.equal(cList.length, 1);

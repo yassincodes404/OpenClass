@@ -26,6 +26,7 @@ from openclass_core.providers import ProviderError
 from openclass_core.repositories import NotFoundError
 
 from openclass_server.api.schemas import (
+    AddEvidenceToCaseRequest,
     CreateEvidenceCaseRequest,
     SubmitRunFeedbackRequest,
     TransitionEvidenceRequest,
@@ -104,6 +105,7 @@ def evidence_router(
         identifier: str, evidence_id: UUID, body: TransitionEvidenceRequest
     ) -> EvidenceItem:
         reject_credentials(body.model_dump(mode="json"), config)
+        assert body.target_status is not None
         try:
             target = EvidenceStatus(body.target_status)
         except ValueError as err:
@@ -237,6 +239,26 @@ def evidence_router(
     async def list_case_evidence(identifier: str, case_id: UUID) -> list[EvidenceItem]:
         project = await projects.get(identifier)
         return await project_repository.list_case_evidence(project.id, case_id)
+
+    @router.post(
+        "/api/v1/projects/{identifier}/evidence-cases/{case_id}/evidence",
+        response_model=EvidenceCase,
+    )
+    async def add_case_evidence(
+        identifier: str, case_id: UUID, body: AddEvidenceToCaseRequest
+    ) -> EvidenceCase:
+        reject_credentials(body.model_dump(mode="json"), config)
+        ids: list[UUID] = []
+        if body.evidence_id is not None:
+            ids.append(body.evidence_id)
+        for eid in body.evidence_ids:
+            if eid not in ids:
+                ids.append(eid)
+        case: EvidenceCase | None = None
+        for eid in ids:
+            case = await projects.add_evidence_to_case(identifier, case_id, eid)
+        assert case is not None
+        return case
 
     @router.get(
         "/api/v1/projects/{identifier}/evolution/summary",
