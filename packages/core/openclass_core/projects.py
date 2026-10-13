@@ -6,6 +6,7 @@ schema carries an owner column from day one even before multi-user
 authentication exists.
 """
 
+import json
 from datetime import UTC, datetime
 from enum import StrEnum
 from hashlib import sha256
@@ -118,6 +119,22 @@ class DecisionServiceChoice(Model):
     key: str = Field(pattern=r"^[A-Z][A-Z0-9_]{0,49}$")
     label: str = Field(min_length=1, max_length=100)
     description: str = Field(default="", max_length=1000)
+    aliases: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def clean_aliases(self) -> "DecisionServiceChoice":
+        seen: set[str] = {self.key.strip().casefold()}
+        cleaned_aliases: list[str] = []
+        for raw_alias in self.aliases:
+            cleaned = str(raw_alias).strip()
+            if not cleaned:
+                continue
+            folded = cleaned.casefold()
+            if folded not in seen:
+                seen.add(folded)
+                cleaned_aliases.append(cleaned)
+        object.__setattr__(self, "aliases", tuple(cleaned_aliases))
+        return self
 
 
 UNKNOWN_CHOICE = DecisionServiceChoice(
@@ -171,8 +188,16 @@ class DecisionService(Model):
     nodes: tuple[DecisionServiceNode, ...] = Field(min_length=1)
     status: DecisionServiceStatus = DecisionServiceStatus.ACTIVE
     provider_override: str | None = None
+    version_number: int = Field(default=1, ge=1)
+    active_version_id: UUID | None = None
     created_at: datetime = Field(default_factory=now)
     updated_at: datetime = Field(default_factory=now)
+
+
+def compute_service_hash(service: DecisionService) -> str:
+    """Compute a deterministic SHA-256 fingerprint of a DecisionService definition."""
+    snapshot = json.dumps(service.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    return sha256(snapshot.encode()).hexdigest()
 
 
 class DecisionServiceUpdate(Model):
@@ -201,6 +226,8 @@ class DecisionRun(Model):
     raw_event_id: UUID
     decision_service_id: UUID
     decision_node_id: UUID
+    decision_service_version_id: UUID | None = None
+    service_hash: str | None = None
 
     provider: str
     model: str
@@ -629,11 +656,18 @@ class ProjectService:
                 key = str(c.get("key", "")).strip().upper()
                 if not key:
                     raise ValueError("choice key is required")
+                raw_aliases = c.get("aliases") or ()
+                aliases = tuple(
+                    str(a).strip()
+                    for a in raw_aliases
+                    if isinstance(a, (str, int, float)) and str(a).strip()
+                )
                 choice_objs.append(
                     DecisionServiceChoice(
                         key=key,
                         label=str(c.get("label") or key).strip(),
                         description=str(c.get("description") or "").strip(),
+                        aliases=aliases,
                     )
                 )
 
@@ -652,6 +686,8 @@ class ProjectService:
             instructions=instructions.strip(),
             nodes=(node,),
             provider_override=provider_override,
+            version_number=1,
+            active_version_id=uuid4(),
             created_at=self.clock(),
             updated_at=self.clock(),
         )
@@ -674,11 +710,14 @@ class ProjectService:
         project = await self.repository.get_project(identifier)
         service = await self.repository.get_decision_service(project.id, service_id_or_slug)
         updates: dict[str, Any] = {"updated_at": self.clock()}
+        version_bump = False
         if update.name is not None:
             updates["name"] = update.name
         if update.description is not None:
             updates["description"] = update.description
         if update.instructions is not None:
+            if update.instructions != service.instructions:
+                version_bump = True
             updates["instructions"] = update.instructions
             if len(service.nodes) == 1:
                 updates["nodes"] = (
@@ -687,7 +726,12 @@ class ProjectService:
         if update.status is not None:
             updates["status"] = update.status
         if update.provider_override is not None:
+            if update.provider_override != service.provider_override:
+                version_bump = True
             updates["provider_override"] = update.provider_override
+        if version_bump:
+            updates["version_number"] = service.version_number + 1
+            updates["active_version_id"] = uuid4()
         service = service.model_copy(update=updates)
         await self.repository.update_decision_service(service)
         return service

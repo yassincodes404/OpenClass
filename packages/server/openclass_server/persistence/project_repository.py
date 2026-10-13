@@ -4,10 +4,11 @@ Lookup accepts identifier or slug; every stored mutation writes its audit event
 in the same transaction so the audit trail cannot drift from project state.
 """
 
+import json
 from datetime import UTC, datetime
 from datetime import date as date_type
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from openclass_core.evidence import (
@@ -221,6 +222,33 @@ class SQLProjectRepository:
                         payload=service.model_dump(mode="json"),
                     )
                 )
+                await session.flush()
+                initial_choices = [
+                    {
+                        "key": c.key,
+                        "label": c.label,
+                        "description": c.description,
+                        "aliases": list(c.aliases),
+                    }
+                    for c in service.nodes[0].choices
+                    if c.key != "UNKNOWN"
+                ]
+                await session.execute(
+                    sa.text(
+                        "INSERT INTO service_versions"
+                        " (id, service_id, version_number, choices, origin,"
+                        "  rationale, actor, created_at)"
+                        " VALUES (:id, :sid, :number, :choices, 'initial',"
+                        " 'genesis snapshot', 'system', :created)"
+                    ),
+                    {
+                        "id": str(service.active_version_id or uuid4()),
+                        "sid": str(service.id),
+                        "number": service.version_number,
+                        "choices": json.dumps(initial_choices),
+                        "created": service.created_at,
+                    },
+                )
         except IntegrityError as exc:
             msg = "Decision service with this slug already exists in project"
             raise ConflictError(msg) from exc
@@ -264,6 +292,43 @@ class SQLProjectRepository:
                 row.status = service.status.value
                 row.updated_at = service.updated_at
                 row.payload = service.model_dump(mode="json")
+                latest = await session.execute(
+                    sa.text(
+                        "SELECT id, version_number FROM service_versions"
+                        " WHERE service_id = :sid ORDER BY version_number DESC LIMIT 1"
+                    ),
+                    {"sid": str(service.id)},
+                )
+                latest_row = latest.first()
+                latest_num = int(latest_row.version_number) if latest_row else 0
+                if service.version_number > latest_num:
+                    current_choices = [
+                        {
+                            "key": c.key,
+                            "label": c.label,
+                            "description": c.description,
+                            "aliases": list(c.aliases),
+                        }
+                        for c in service.nodes[0].choices
+                        if c.key != "UNKNOWN"
+                    ]
+                    await session.execute(
+                        sa.text(
+                            "INSERT INTO service_versions"
+                            " (id, service_id, version_number, parent_version_id, choices,"
+                            "  origin, rationale, actor, created_at)"
+                            " VALUES (:id, :sid, :number, :parent, :choices,"
+                            " 'update', 'service definition updated', 'system', :created)"
+                        ),
+                        {
+                            "id": str(service.active_version_id or uuid4()),
+                            "sid": str(service.id),
+                            "number": service.version_number,
+                            "parent": latest_row.id if latest_row else None,
+                            "choices": json.dumps(current_choices),
+                            "created": service.updated_at,
+                        },
+                    )
         except IntegrityError as exc:
             raise ConflictError("Decision service update conflicts with existing state") from exc
 
@@ -277,6 +342,12 @@ class SQLProjectRepository:
                         raw_event_id=str(run.raw_event_id),
                         decision_service_id=str(run.decision_service_id),
                         decision_node_id=str(run.decision_node_id),
+                        decision_service_version_id=(
+                            str(run.decision_service_version_id)
+                            if run.decision_service_version_id is not None
+                            else None
+                        ),
+                        service_hash=run.service_hash,
                         provider=run.provider,
                         model=run.model,
                         execution_mode=run.execution_mode,

@@ -21,6 +21,7 @@ from openclass_core.projects import (
     DecisionService,
     DecisionServiceNode,
     RawEvent,
+    compute_service_hash,
 )
 from openclass_core.providers import DecisionProvider, ProviderError
 
@@ -51,27 +52,45 @@ class DecisionExecutor:
 
         # 1. Compile OntologyVersion from bounded node choices
         # (UNKNOWN is already guaranteed to be in node.choices)
+        seen_terms: set[str] = {
+            c.key.lower().strip().casefold() for c in node.choices if c.key != "UNKNOWN"
+        }
         classes: list[OntologyClass] = []
         for c in node.choices:
             if c.key == "UNKNOWN":
                 continue
             canonical = c.key.lower()
+            unique_aliases: list[str] = []
+            for raw_alias in c.aliases:
+                cleaned = raw_alias.strip()
+                if not cleaned:
+                    continue
+                folded = cleaned.casefold()
+                if folded not in seen_terms:
+                    seen_terms.add(folded)
+                    unique_aliases.append(cleaned)
             classes.append(
                 OntologyClass(
                     stable_class_id=uuid5(service.id, f"choice:{canonical}"),
                     canonical_name=canonical,
                     display_name=c.label,
                     description=c.description or c.label,
+                    aliases=tuple(unique_aliases),
                 )
             )
 
         if not classes:
             raise ValueError("Decision service node must have at least one choice beside UNKNOWN")
 
+        shash = compute_service_hash(service)
+        version_id = service.active_version_id or uuid5(
+            service.id, f"version:{service.version_number}:{shash}"
+        )
+
         ontology = OntologyVersion(
-            id=uuid5(service.id, f"ontology:{node.id}"),
+            id=version_id,
             classifier_id=service.id,
-            version_number=1,
+            version_number=service.version_number,
             created_by="system",
             classes=tuple(classes),
         )
@@ -155,6 +174,8 @@ class DecisionExecutor:
             raw_event_id=event.id,
             decision_service_id=service.id,
             decision_node_id=node.id,
+            decision_service_version_id=version_id,
+            service_hash=shash,
             provider=result.provider,
             model=result.model,
             execution_mode=execution_mode,  # type: ignore[arg-type]

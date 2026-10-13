@@ -154,14 +154,26 @@ def test_guarded_promotion_creates_v2_and_activates(mock_client: TestClient):
         f"/api/v1/projects/{slug}/ontology/diff?from_version=1&to_version=2"
     ).json()
     assert body["added_class"] in diff["changes"]["added"]
-    # A text containing the promoted canonical phrase now classifies known.
-    # (Other phrasings may still be UNKNOWN — the lexical mock matches the
-    # canonical phrase only; that limitation is honest and visible.)
+    # Both the canonical phrase and promoted aliases now classify as the promoted class.
     runs = mock_client.post(
         f"/api/v1/projects/{slug}/decision-services/{service}/runs",
         json={"content": "Cancel plan next month"},
     ).json()
     assert runs[0]["selected_choice"] == body["added_class"]
+    assert runs[0]["decision_service_version_id"] == body["version"]["id"]
+    assert isinstance(runs[0]["service_hash"], str) and len(runs[0]["service_hash"]) == 64
+
+    alias_runs = mock_client.post(
+        f"/api/v1/projects/{slug}/decision-services/{service}/runs",
+        json={"content": "Cancel my plan immediately"},
+    ).json()
+    assert alias_runs[0]["selected_choice"] == body["added_class"]
+
+    updated_service = mock_client.get(
+        f"/api/v1/projects/{slug}/decision-services/{service}"
+    ).json()
+    assert updated_service["version_number"] == 2
+    assert updated_service["active_version_id"] == body["version"]["id"]
     # Second promotion of an active candidate conflicts.
     again = mock_client.post(
         f"/api/v1/projects/{slug}/discovery-candidates/{candidate_id}/promote",

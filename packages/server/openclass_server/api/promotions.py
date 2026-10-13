@@ -141,12 +141,7 @@ def promotions_router(
             "description": f"Promoted from candidate {candidate_id}",
             "aliases": [str(alias) for alias in candidate["aliases"]][:10],
         }
-        # The engine's choice model forbids extra fields: aliases live only in
-        # the version snapshot and replay, not in the live service payload.
         next_choices = current_choices + [new_class]
-        engine_choices = [
-            {k: v for k, v in choice.items() if k != "aliases"} for choice in next_choices
-        ]
         version = await promotions.next_version(
             service.id,
             next_choices,
@@ -154,7 +149,13 @@ def promotions_router(
             rationale=body.rationale,
             actor=body.reviewer,
         )
-        await promotions.update_service_choices(service.id, engine_choices, service_payload)
+        await promotions.update_service_choices(
+            service.id,
+            next_choices,
+            service_payload,
+            version_id=version["id"],
+            version_number=version["version_number"],
+        )
         await promotions.record_event(
             project.id,
             service.id,
@@ -249,7 +250,13 @@ def promotions_router(
             rationale=body.rationale,
             actor="portal-user",
         )
-        await promotions.update_service_choices(service.id, target["choices"], service_payload)
+        await promotions.update_service_choices(
+            service.id,
+            target["choices"],
+            service_payload,
+            version_id=version["id"],
+            version_number=version["version_number"],
+        )
         await promotions.record_event(
             project.id,
             service.id,
