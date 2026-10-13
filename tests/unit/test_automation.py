@@ -74,3 +74,66 @@ def test_policy_v2_adds_a_macro_without_mutating_v1() -> None:
     assert v1.macros == ()
     assert v2.version_number == 2
     assert v2.macros[0].name == "recover_port_conflict"
+
+
+@pytest.mark.asyncio
+async def test_loop_expands_registered_macro_and_validates_state_patch() -> None:
+    macro = AutomationMacro(
+        name="recover_port_conflict",
+        description="Choose a permitted alternate port and rerun the test action.",
+        actions=(
+            AutomationAction(name=AutomationActionName.INSPECT_PORT),
+            AutomationAction(name=AutomationActionName.CHOOSE_AVAILABLE_TEST_PORT),
+            AutomationAction(name=AutomationActionName.RERUN_PREVIOUS),
+        ),
+    )
+    policy = AutomationPolicyVersion(
+        version_number=2,
+        primitives=(AutomationActionName.RUN_PYTHON_TESTS, AutomationActionName.BLOCKED),
+        macros=(macro,),
+    )
+
+    class MacroDecision:
+        async def decide(self, state, policy):
+            return AutomationDecision(
+                action=AutomationAction(name="recover_port_conflict"),
+                rationale="Port conflict detected; run recovery macro.",
+            )
+
+    class PatchingExecutor:
+        def __init__(self) -> None:
+            self.executed: list[str] = []
+
+        async def execute(self, action, state):
+            self.executed.append(str(action.name))
+            if action.name == AutomationActionName.CHOOSE_AVAILABLE_TEST_PORT:
+                return AutomationActionResult(
+                    action=action, output="8002", state_patch={"test_port": "8002"}
+                )
+            return AutomationActionResult(action=action, output=str(action.name))
+
+    executor = PatchingExecutor()
+    loop = AutomationLoop(MacroDecision(), executor)
+    next_state, result = await loop.step(
+        AutomationState(goal="fix port conflict", cwd="/workspace/project"), policy
+    )
+    assert executor.executed == [
+        AutomationActionName.INSPECT_PORT,
+        AutomationActionName.CHOOSE_AVAILABLE_TEST_PORT,
+        AutomationActionName.RERUN_PREVIOUS,
+    ]
+    assert next_state.test_port == "8002"
+    assert len(next_state.history) == 3
+    assert result.action.name == "recover_port_conflict"
+
+    class BadPatchExecutor:
+        async def execute(self, action, state):
+            return AutomationActionResult(
+                action=action, state_patch={"undeclared_field": "hacked"}
+            )
+
+    bad_loop = AutomationLoop(
+        ScriptedDecision([AutomationActionName.RUN_PYTHON_TESTS]), BadPatchExecutor()
+    )
+    with pytest.raises(ValueError, match="unsupported state_patch field"):
+        await bad_loop.step(next_state, policy)

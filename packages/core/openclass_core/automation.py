@@ -37,15 +37,20 @@ class AutomationActionName(StrEnum):
 
 
 class AutomationAction(Model):
-    name: AutomationActionName
+    name: AutomationActionName | str = Field(pattern=r"^[a-z][a-z0-9_]{1,79}$")
     arguments: dict[str, str] = Field(default_factory=dict)
+
+
+STATE_PATCH_ALLOWED_KEYS = frozenset({"cwd", "test_port"})
 
 
 class AutomationState(Model):
     goal: str = Field(min_length=1, max_length=2000)
     cwd: str = Field(min_length=1, max_length=2000)
     files: tuple[str, ...] = ()
-    last_action: AutomationActionName | None = None
+    test_port: str | None = None
+    env_vars: dict[str, str] = Field(default_factory=dict)
+    last_action: AutomationActionName | str | None = None
     last_exit_code: int | None = None
     last_output: str = Field(default="", max_length=12000)
     history: tuple[AutomationAction, ...] = ()
@@ -106,6 +111,35 @@ class AutomationDiscoveryProvider(Protocol):
     ) -> AutomationMacroCandidate: ...
 
 
+def _apply_action_result(
+    state: AutomationState, result: AutomationActionResult
+) -> AutomationState:
+    env_vars = dict(state.env_vars)
+    direct_updates: dict[str, object] = {}
+    for key, value in result.state_patch.items():
+        if key.startswith("env:"):
+            env_key = key[4:]
+            if not env_key:
+                raise ValueError("empty env key in state_patch")
+            env_vars[env_key] = value
+        elif key in STATE_PATCH_ALLOWED_KEYS:
+            direct_updates[key] = value
+        else:
+            raise ValueError(f"unsupported state_patch field: {key}")
+    payload = state.model_dump()
+    payload.update(
+        {
+            "last_action": result.action.name,
+            "last_exit_code": result.exit_code,
+            "last_output": result.output[:12000],
+            "history": (*state.history, result.action),
+            "env_vars": env_vars,
+            **direct_updates,
+        }
+    )
+    return AutomationState.model_validate(payload)
+
+
 class AutomationLoop:
     """One typed decision/execution step; it never executes generated shell text."""
 
@@ -121,18 +155,34 @@ class AutomationLoop:
         self, state: AutomationState, policy: AutomationPolicyVersion
     ) -> tuple[AutomationState, AutomationActionResult]:
         decision = await self.decision_provider.decide(state, policy)
-        if decision.action.name not in policy.primitives and not any(
-            macro.name == decision.action.name for macro in policy.macros
-        ):
-            raise ValueError("decision is not registered in the active automation policy")
-        result = await self.executor.execute(decision.action, state)
-        next_state = state.model_copy(
-            update={
-                "last_action": result.action.name,
-                "last_exit_code": result.exit_code,
-                "last_output": result.output,
-                "history": (*state.history, result.action),
-                **result.state_patch,
-            }
+        matched_macro = next(
+            (macro for macro in policy.macros if macro.name == decision.action.name), None
         )
+        if decision.action.name not in policy.primitives and matched_macro is None:
+            raise ValueError("decision is not registered in the active automation policy")
+
+        if matched_macro is not None:
+            current_state = state
+            outputs: list[str] = []
+            combined_patch: dict[str, str] = {}
+            last_exit_code = 0
+            for sub_action in matched_macro.actions:
+                sub_result = await self.executor.execute(sub_action, current_state)
+                current_state = _apply_action_result(current_state, sub_result)
+                if sub_result.output:
+                    outputs.append(sub_result.output)
+                combined_patch.update(sub_result.state_patch)
+                last_exit_code = sub_result.exit_code
+                if last_exit_code != 0:
+                    break
+            macro_result = AutomationActionResult(
+                action=decision.action,
+                exit_code=last_exit_code,
+                output="\n".join(outputs)[:12000],
+                state_patch=combined_patch,
+            )
+            return current_state, macro_result
+
+        result = await self.executor.execute(decision.action, state)
+        next_state = _apply_action_result(state, result)
         return next_state, result
