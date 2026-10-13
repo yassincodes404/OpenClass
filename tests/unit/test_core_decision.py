@@ -242,3 +242,10 @@ def test_predicate_evaluation_is_exact() -> None:
     assert evaluate_predicates((Predicate(field="a", equals=True),), {"a": True})
     assert not evaluate_predicates((Predicate(field="a", equals=True),), {"a": "true"})
     assert not evaluate_predicates((Predicate(field="a", equals=True),), {})
+    # Missing field must never match None, and bool must never match int (True != 1, False != 0)
+    assert not evaluate_predicates((Predicate(field="a", equals=None),), {})
+    assert evaluate_predicates((Predicate(field="a", equals=None),), {"a": None})
+    assert not evaluate_predicates((Predicate(field="a", equals=1),), {"a": True})
+    assert not evaluate_predicates((Predicate(field="a", equals=True),), {"a": 1})
+    assert not evaluate_predicates((Predicate(field="a", equals=0),), {"a": False})
+

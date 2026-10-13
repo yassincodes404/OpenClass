@@ -6,7 +6,7 @@ and creates immutable DecisionRuns with execution provenance and snapshots.
 """
 
 from typing import Any, Literal
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 from pydantic import ValidationError
 
@@ -58,6 +58,7 @@ class DecisionExecutor:
             canonical = c.key.lower()
             classes.append(
                 OntologyClass(
+                    stable_class_id=uuid5(service.id, f"choice:{canonical}"),
                     canonical_name=canonical,
                     display_name=c.label,
                     description=c.description or c.label,
@@ -68,6 +69,7 @@ class DecisionExecutor:
             raise ValueError("Decision service node must have at least one choice beside UNKNOWN")
 
         ontology = OntologyVersion(
+            id=uuid5(service.id, f"ontology:{node.id}"),
             classifier_id=service.id,
             version_number=1,
             created_by="system",
@@ -112,8 +114,12 @@ class DecisionExecutor:
         if total_p > 0:
             probabilities = {k: v / total_p for k, v in probabilities.items()}
 
-        # 4. Sort distribution to derive top_probability, second, margin
-        sorted_probs = sorted(probabilities.items(), key=lambda kv: kv[1], reverse=True)
+        # 4. Sort distribution to derive top_probability, second, margin (UNKNOWN wins ties)
+        sorted_probs = sorted(
+            probabilities.items(),
+            key=lambda kv: (kv[1], kv[0] == "UNKNOWN", kv[0]),
+            reverse=True,
+        )
         top_choice, top_prob = sorted_probs[0]
         second_choice, second_prob = sorted_probs[1] if len(sorted_probs) > 1 else (None, 0.0)
         margin = float(top_prob - (second_prob or 0.0))

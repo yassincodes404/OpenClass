@@ -176,3 +176,39 @@ async def test_decision_executor_propagates_instructions_to_jev_and_laya_payload
     assert run.instructions_snapshot == "Classify sentiment of user comment"
 
 
+async def test_decision_executor_unknown_wins_ties_and_uses_deterministic_uuids(
+    sample_service: DecisionService,
+) -> None:
+    from openclass_core.models import ChoiceRequest, ChoiceResult
+
+    captured_requests: list[ChoiceRequest] = []
+
+    class TiedProvider:
+        async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+            captured_requests.append(request)
+            return ChoiceResult(
+                provider="jev",
+                model="typesafe-ai/jev",
+                probabilities={"positive": 0.50, "negative": 0.0},
+                unknown_probability=0.50,
+            )
+
+    event = RawEvent(
+        project_id=sample_service.project_id,
+        source_type="text",
+        content="Borderline message",
+    )
+    executor = DecisionExecutor(TiedProvider())
+    run1 = await executor.execute(event, sample_service)
+    run2 = await executor.execute(event, sample_service)
+
+    assert run1.selected_choice == run2.selected_choice == "UNKNOWN"
+    assert run1.supervision_outcome == "UNKNOWN"
+    assert run1.margin == 0.0
+    assert captured_requests[0].ontology.id == captured_requests[1].ontology.id
+    assert [c.stable_class_id for c in captured_requests[0].ontology.classes] == [
+        c.stable_class_id for c in captured_requests[1].ontology.classes
+    ]
+
+
+
