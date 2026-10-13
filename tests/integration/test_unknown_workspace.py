@@ -105,4 +105,49 @@ def test_cross_project_unknown_is_not_listed(mock_client: TestClient):
     slug_b, _service_b = _setup(mock_client)
     run = _run(mock_client, slug_a, service_a, "mystery message from project a")
     pool_b = mock_client.get(f"/api/v1/projects/{slug_b}/unknowns").json()
-    assert all(item["run_id"] != run["id"] for item in pool_b["items"])
+    assert all(item["run_id"] != run["id"] != "" for item in pool_b["items"])
+
+
+def test_project_audit_and_summary_succeed_after_triage_and_clustering(
+    mock_client: TestClient,
+):
+    slug, service = _setup(mock_client)
+    r1 = _run(mock_client, slug, service, "cancel my plan")
+    _run(mock_client, slug, service, "cancel my subscription")
+    _run(mock_client, slug, service, "please cancel plan")
+
+    assert (
+        mock_client.post(
+            f"/api/v1/projects/{slug}/unknowns/{r1['id']}/triage",
+            json={"category": "out_of_scope", "note": "candidate for cancellation"},
+        ).status_code
+        == 200
+    )
+    assert (
+        mock_client.post(
+            f"/api/v1/projects/{slug}/unknowns/{r1['id']}/transition",
+            json={"to": "triaged"},
+        ).status_code
+        == 200
+    )
+    assert (
+        mock_client.post(
+            f"/api/v1/projects/{slug}/unknowns/cluster",
+            json={"threshold": 0.1},
+        ).status_code
+        == 200
+    )
+
+    audit_res = mock_client.get(f"/api/v1/projects/{slug}/audit")
+    assert audit_res.status_code == 200
+    event_types = [ev["event_type"] for ev in audit_res.json()]
+    assert "unknown.triaged" in event_types
+    assert "unknown.transitioned" in event_types
+    assert "cluster.updated" in event_types
+
+    summary_res = mock_client.get(f"/api/v1/projects/{slug}/summary")
+    assert summary_res.status_code == 200
+    assert summary_res.json()["audit_events"] >= 3
+
+
+

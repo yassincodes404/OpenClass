@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any
-from uuid import UUID, uuid4
+from typing import Any, cast
+from uuid import UUID
 
 import sqlalchemy as sa
+from openclass_core.projects import ProjectAuditEvent
 from openclass_core.unknown_pool import UnknownTriage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -92,6 +93,12 @@ class UnknownTriageStore:
         data: dict[str, object] | None = None,
     ) -> None:
         """Audit entries carry actor/action/target (+ optional ids) — never content."""
+        event = ProjectAuditEvent(
+            project_id=project_id,
+            event_type=cast(Any, action),
+            actor=actor,
+            payload={"target": target, **(data or {})},
+        )
         async with self.sessions.begin() as session:
             await session.execute(
                 sa.text(
@@ -100,12 +107,12 @@ class UnknownTriageStore:
                     " VALUES (:id, :project_id, :event_type, :actor, :payload, :created_at)"
                 ),
                 {
-                    "id": str(uuid4()),
-                    "project_id": str(project_id),
-                    "event_type": action,
-                    "actor": actor,
-                    "payload": json.dumps({"target": target, **(data or {})}),
-                    "created_at": datetime.now(UTC),
+                    "id": str(event.id),
+                    "project_id": str(event.project_id),
+                    "event_type": event.event_type,
+                    "actor": event.actor,
+                    "payload": json.dumps(event.model_dump(mode="json")),
+                    "created_at": event.created_at,
                 },
             )
 
@@ -128,12 +135,17 @@ class UnknownTriageStore:
                 if isinstance(payload, str):
                     payload = json.loads(payload)
                 payload = payload if isinstance(payload, dict) else {}
-                if payload.get("candidate_id") == subject_id:
+                inner_payload = (
+                    payload["payload"]
+                    if "event_type" in payload and isinstance(payload.get("payload"), dict)
+                    else payload
+                )
+                if inner_payload.get("candidate_id") == subject_id:
                     history.append(
                         {
                             "event": row.event_type,
                             "actor": row.actor,
-                            "payload": payload,
+                            "payload": inner_payload,
                             "created_at": row.created_at,
                         }
                     )

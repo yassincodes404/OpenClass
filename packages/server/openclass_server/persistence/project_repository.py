@@ -120,7 +120,29 @@ class SQLProjectRepository:
                 .where(AuditEventRow.project_id == str(project_id))
                 .order_by(AuditEventRow.created_at.asc(), AuditEventRow.id.asc())
             )
-            return [ProjectAuditEvent.model_validate(row.payload) for row in rows]
+            events: list[ProjectAuditEvent] = []
+            for row in rows:
+                raw_payload = row.payload if isinstance(row.payload, dict) else {}
+                if (
+                    "id" in raw_payload
+                    and "project_id" in raw_payload
+                    and "event_type" in raw_payload
+                ):
+                    events.append(ProjectAuditEvent.model_validate(raw_payload))
+                else:
+                    events.append(
+                        ProjectAuditEvent.model_validate(
+                            {
+                                "id": row.id,
+                                "project_id": row.project_id,
+                                "event_type": row.event_type,
+                                "actor": row.actor,
+                                "payload": raw_payload,
+                                "created_at": row.created_at,
+                            }
+                        )
+                    )
+            return events
 
     async def create_raw_event(self, event: RawEvent) -> None:
         try:
