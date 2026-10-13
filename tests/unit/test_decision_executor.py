@@ -211,4 +211,158 @@ async def test_decision_executor_unknown_wins_ties_and_uses_deterministic_uuids(
     ]
 
 
+async def test_decision_executor_multi_node_traversal_and_state_compilation() -> None:
+    from openclass_core.models import ChoiceRequest, ChoiceResult
+
+    billing_node = DecisionServiceNode(
+        name="billing-specialist",
+        instructions="Classify specific billing action",
+        choices=(
+            DecisionServiceChoice(key="REFUND", label="Refund", description="Issue refund"),
+            DecisionServiceChoice(key="INVOICE", label="Invoice", description="Send invoice"),
+        ),
+    )
+    root_node = DecisionServiceNode(
+        name="root-router",
+        instructions="Route customer ticket to department",
+        choices=(
+            DecisionServiceChoice(
+                key="BILLING",
+                label="Billing Department",
+                description="Billing questions",
+                target_node_id=billing_node.id,
+            ),
+            DecisionServiceChoice(
+                key="TECH",
+                label="Tech Support",
+                description="Technical bugs",
+            ),
+        ),
+    )
+    service = DecisionService(
+        project_id=uuid4(),
+        slug="multi-hop-router",
+        name="Multi-Hop Router",
+        instructions="Route and specialize support requests",
+        nodes=(root_node, billing_node),
+    )
+
+    seen_instructions: list[str] = []
+
+    class HierarchicalProvider:
+        async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+            seen_instructions.append(request.instructions or "")
+            class_names = {c.canonical_name for c in request.ontology.classes}
+            if "billing" in class_names:
+                return ChoiceResult(
+                    provider="jev",
+                    model="typesafe-ai/jev",
+                    probabilities={"billing": 0.85, "tech": 0.10},
+                    unknown_probability=0.05,
+                    latency_ms=12.5,
+                )
+            return ChoiceResult(
+                provider="jev",
+                model="typesafe-ai/jev",
+                probabilities={"refund": 0.80, "invoice": 0.10},
+                unknown_probability=0.10,
+                latency_ms=15.0,
+            )
+
+    event = RawEvent(
+        project_id=service.project_id,
+        source_type="webhook",
+        content="I was double charged, please refund my card.",
+        metadata={"account_tier": "enterprise", "auto_refund_blocked": False},
+    )
+    run = await DecisionExecutor(HierarchicalProvider()).execute(event, service)
+
+    assert run.selected_choice == "REFUND"
+    assert run.decision_node_id == billing_node.id
+    assert len(run.steps) == 2
+    assert run.steps[0]["node_name"] == "root-router"
+    assert run.steps[0]["selected_choice"] == "BILLING"
+    assert run.steps[1]["node_name"] == "billing-specialist"
+    assert run.steps[1]["selected_choice"] == "REFUND"
+    assert run.latency_ms == 27.5
+    assert run.state_snapshot["facts"] == {
+        "account_tier": "enterprise",
+        "auto_refund_blocked": False,
+    }
+    assert len(run.state_snapshot["resolved_decisions"]) == 1
+    assert run.state_snapshot["resolved_decisions"][0]["choice"] == "BILLING"
+    assert "Structured state facts:" in seen_instructions[1]
+    assert "Prior resolved decisions: root-router=BILLING" in seen_instructions[1]
+
+
+async def test_decision_executor_cycle_detection_and_node_supervision_policy() -> None:
+    from openclass_core.models import ChoiceRequest, ChoiceResult
+
+    node_a_id = uuid4()
+    node_b_id = uuid4()
+    node_a = DecisionServiceNode(
+        id=node_a_id,
+        name="node-a",
+        instructions="Step A",
+        choices=(
+            DecisionServiceChoice(
+                key="TO_B", label="To B", target_node_id=node_b_id
+            ),
+        ),
+    )
+    node_b = DecisionServiceNode(
+        id=node_b_id,
+        name="node-b",
+        instructions="Step B",
+        choices=(
+            DecisionServiceChoice(
+                key="TO_A", label="To A", target_node_id=node_a_id
+            ),
+        ),
+    )
+    cyclic_service = DecisionService(
+        project_id=uuid4(),
+        slug="cyclic-service",
+        name="Cyclic Service",
+        instructions="Cyclic graph",
+        nodes=(node_a, node_b),
+    )
+
+    class AlwaysFirstChoiceProvider:
+        async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+            first = request.ontology.classes[0].canonical_name
+            return ChoiceResult(
+                provider="jev",
+                model="typesafe-ai/jev",
+                probabilities={first: 0.90},
+                unknown_probability=0.10,
+            )
+
+    event = RawEvent(project_id=cyclic_service.project_id, content="test cycle")
+    with pytest.raises(ValueError, match="Decision graph cycle detected"):
+        await DecisionExecutor(AlwaysFirstChoiceProvider()).execute(event, cyclic_service)
+
+    # High-risk node and max_unknown_probability supervision checks
+    high_risk_node = DecisionServiceNode(
+        name="high-risk",
+        instructions="Approve wire transfer",
+        risk_level="high",
+        choices=(DecisionServiceChoice(key="APPROVE", label="Approve"),),
+    )
+    hr_service = DecisionService(
+        project_id=uuid4(),
+        slug="high-risk-service",
+        name="High Risk Service",
+        instructions="High risk",
+        nodes=(high_risk_node,),
+    )
+    hr_run = await DecisionExecutor(AlwaysFirstChoiceProvider()).execute(
+        RawEvent(project_id=hr_service.project_id, content="wire transfer"),
+        hr_service,
+    )
+    assert hr_run.selected_choice == "APPROVE"
+    assert hr_run.supervision_outcome == "REVIEW"
+    assert "High-risk" in hr_run.supervision_reason
+
+
 
