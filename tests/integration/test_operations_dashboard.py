@@ -96,3 +96,29 @@ def test_event_stream_resumes_by_cursor(mock_client: TestClient):
         assert response.headers["content-type"].startswith("text/event-stream")
         chunks = b"".join(response.iter_bytes())
     assert b": keep-alive" in chunks or b"event: openclass" in chunks
+
+
+def test_analytics_summary_disjoint_previous_window(mock_client: TestClient, database_url: str):
+    from datetime import UTC, datetime, timedelta
+
+    import sqlalchemy as sa
+
+    slug = client_project(mock_client)
+    service = client_service(mock_client, slug)
+    # Seed 2 UNKNOWN runs that we backdate to 10 days ago (previous window)
+    _seed_runs(mock_client, slug, service, ["mystery old one", "mystery old two"])
+    sync_url = database_url.replace("+aiosqlite", "")
+    engine = sa.create_engine(sync_url)
+    ten_days_ago = datetime.now(UTC) - timedelta(days=10)
+    with engine.begin() as conn:
+        conn.execute(
+            sa.text("UPDATE decision_runs SET created_at = :ts"),
+            {"ts": ten_days_ago},
+        )
+    engine.dispose()
+    # Seed 2 KNOWN runs in current window (today)
+    _seed_runs(mock_client, slug, service, ["billing today one", "billing today two"])
+    summary = mock_client.get(f"/api/v1/projects/{slug}/analytics/summary?days=7").json()
+    assert summary["unknown_rate"] == 0.0
+    assert summary["previous_unknown_rate"] == 1.0
+    assert summary["unknown_rate_delta"] == -1.0

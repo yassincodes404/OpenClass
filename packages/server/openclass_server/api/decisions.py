@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Annotated
 from uuid import UUID
 
@@ -126,14 +127,22 @@ def decisions_router(
             except NotFoundError as err:
                 msg = f"Event not found: {run_event_id}"
                 raise HTTPException(status_code=404, detail=msg) from err
+            started = time.perf_counter()
             try:
                 run = await executor.execute(event, service)
             except ProviderError:
+                elapsed_ms = round((time.perf_counter() - started) * 1000.0, 2)
+                provider_name = (
+                    service.provider_override
+                    or str(getattr(exec_provider, "provider_name", "") or "")
+                    or config.decision_provider
+                )
+                model_name = str(getattr(exec_provider, "model", "") or "")
                 # Provider failures are observable (usage error counter + audit
                 # event) but never persist a run or leak provider details.
                 if project_repository is not None:
                     await project_repository.record_provider_error(
-                        service.project_id, "provider", "", 0.0
+                        service.project_id, provider_name, model_name, elapsed_ms
                     )
                 raise
             await projects.record_decision_run(run)

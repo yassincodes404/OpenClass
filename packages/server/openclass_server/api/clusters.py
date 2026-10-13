@@ -22,7 +22,7 @@ DEFAULT_THRESHOLD = 0.82
 
 class ClusterRequest(BaseModel):
     threshold: float = Field(default=DEFAULT_THRESHOLD, gt=0.0, le=1.0)
-    limit: int = Field(default=200, ge=2, le=200)
+    limit: int = Field(default=200, ge=2, le=1000)
 
 
 def clusters_router(
@@ -34,14 +34,16 @@ def clusters_router(
     router = APIRouter(tags=["clusters"])
     embedder = HashLexicalEmbedder()
 
-    async def _unknown_runs(identifier: str) -> list[Any]:
-        runs = await projects.list_decision_runs(identifier=identifier, limit=200, offset=0)
+    async def _unknown_runs(identifier: str, scan_limit: int = 1000) -> list[Any]:
+        runs = await projects.list_decision_runs(
+            identifier=identifier, limit=scan_limit, offset=0
+        )
         return [run for run in runs if run_is_unknown(run)]
 
     @router.post("/api/v1/projects/{identifier}/unknowns/cluster")
     async def run_clustering(identifier: str, body: ClusterRequest) -> dict[str, Any]:
         project = await projects.get(identifier)
-        runs = (await _unknown_runs(identifier))[: body.limit]
+        runs = (await _unknown_runs(identifier, scan_limit=max(body.limit, 1000)))[: body.limit]
         if len(runs) < 2:
             raise HTTPException(status_code=400, detail="clustering needs at least 2 UNKNOWN runs")
         texts = [str(run.input_snapshot.get("content", "")) for run in runs]

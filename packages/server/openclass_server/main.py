@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import RequestValidationError
@@ -122,7 +123,18 @@ def create_app(
 
     @app.exception_handler(ProviderError)
     async def provider_error(request: Request, exc: ProviderError) -> JSONResponse:
-        return JSONResponse(status_code=502, content={"detail": "Decision provider failed"})
+        if exc.kind == "rate_limit":
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": "Decision provider rate limited; retry later",
+                    "kind": "rate_limit",
+                },
+            )
+        return JSONResponse(
+            status_code=502,
+            content={"detail": "Decision provider failed", "kind": exc.kind},
+        )
 
     @app.exception_handler(TimeoutError)
     @app.exception_handler(OSError)
@@ -140,6 +152,7 @@ def create_app(
     async def rate_limit_middleware(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        correlation_id = request.headers.get("X-Correlation-ID") or str(uuid4())
         client = request.client.host if request.client else "unknown"
         allowed, retry_after, limit, remaining = limiter.check(client, request.url.path)
         if not allowed:
@@ -150,9 +163,11 @@ def create_app(
                     "Retry-After": str(retry_after),
                     "X-RateLimit-Limit": str(limit),
                     "X-RateLimit-Remaining": "0",
+                    "X-Correlation-ID": correlation_id,
                 },
             )
         response = await call_next(request)
+        response.headers["X-Correlation-ID"] = correlation_id
         if limit:
             response.headers["X-RateLimit-Limit"] = str(limit)
             response.headers["X-RateLimit-Remaining"] = str(remaining)
