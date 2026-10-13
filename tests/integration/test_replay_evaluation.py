@@ -169,6 +169,8 @@ def test_replay_passes_when_cancel_improves_and_billing_holds(mock_client: TestC
     detail = mock_client.get(f"/api/v1/projects/{slug}/evaluations/{body['id']}")
     assert detail.status_code == 200
     assert detail.json()["overall_passed"] is True
+    assert detail.json()["is_simulated"] is True
+    assert detail.json()["provider"] == "mock"
 
 
 def test_unsealed_dataset_cannot_be_evaluated(mock_client: TestClient):
@@ -203,6 +205,18 @@ def test_candidate_labels_accepted_for_gold_sets(mock_client: TestClient):
             "label": detail["canonical_name"].upper(),
             "source": "human",
             "annotator": "annotator@acme.test",
+            "split": "holdout",
+            "metadata": {"ticket_id": "T-101"},
         },
     )
     assert added.status_code == 201, added.text
+    ex_body = added.json()
+    assert ex_body["split"] == "holdout"
+    assert ex_body["metadata"] == {"ticket_id": "T-101"}
+    sealed = mock_client.post(f"/api/v1/projects/{slug}/eval-datasets/{dataset}/seal").json()
+    assert sealed["sealed"] is True
+    assert isinstance(sealed["dataset_hash"], str) and len(sealed["dataset_hash"]) == 64
+    ds_detail = mock_client.get(f"/api/v1/projects/{slug}/eval-datasets/{dataset}").json()
+    assert ds_detail["dataset_hash"] == sealed["dataset_hash"]
+    assert ds_detail["examples"][0]["split"] == "holdout"
+    assert ds_detail["examples"][0]["metadata"] == {"ticket_id": "T-101"}

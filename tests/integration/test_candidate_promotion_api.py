@@ -127,3 +127,113 @@ async def test_proposals_cannot_bypass_verified_evaluation_api(app) -> None:
             assert "Verified replay evaluation" in resp.json()["detail"]
         after = {path: (await client.get(f"{base}/{path}")).json() for path in before}
         assert after == before
+
+
+async def test_track2_candidate_evaluates_and_promotes_with_sealed_dataset(
+    database_url: str,
+) -> None:
+    from openclass_provider_mock import MockDecisionProvider
+
+    settings = Settings(database_url=database_url, decision_provider="mock")
+    real_app = create_app(
+        settings=settings,
+        provider=MockDecisionProvider(),
+        choice_teacher=MockChoiceTeacher(),
+        diagnosis_provider=MockDiagnosisProvider(),
+    )
+    transport = ASGITransport(app=real_app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.post("/api/v1/projects", json={"name": "Pause Evolution Project"})
+        project_id = resp.json()["id"]
+
+        event_ids = []
+        for i in range(3):
+            ev = await client.post(
+                f"/api/v1/projects/{project_id}/events",
+                json={
+                    "content": f"User {i} wants a subscription pause for next month",
+                    "source_type": "text",
+                },
+            )
+            event_ids.append(ev.json()["id"])
+
+        svc = await client.post(
+            f"/api/v1/projects/{project_id}/decision-services",
+            json={
+                "name": "Subscription Router",
+                "instructions": "Route subscription inquiries",
+                "choices": [{"key": "BILLING", "label": "Billing"}],
+            },
+        )
+        service_id = svc.json()["id"]
+
+        await client.post(
+            f"/api/v1/projects/{project_id}/decision-services/{service_id}/runs",
+            json={"raw_event_ids": event_ids},
+        )
+
+        ev_items = (await client.get(f"/api/v1/projects/{project_id}/evidence")).json()
+        evidence_ids = [e["id"] for e in ev_items]
+        for eid in evidence_ids:
+            await client.patch(
+                f"/api/v1/projects/{project_id}/evidence/{eid}/triage",
+                json={"diagnosis": "decision_space", "rationale": "Missing pause choice"},
+            )
+            await client.post(
+                f"/api/v1/projects/{project_id}/evidence/{eid}/transition",
+                json={"target_status": "ready_for_evolution"},
+            )
+
+        cand = (
+            await client.post(
+                f"/api/v1/projects/{project_id}/evolution/propose",
+                json={"service_id": service_id, "evidence_ids": evidence_ids},
+            )
+        ).json()
+        candidate_id = cand["id"]
+        assert cand["proposal"]["key"] == "SUBSCRIPTION_PAUSE"
+
+        ds = (
+            await client.post(
+                f"/api/v1/projects/{project_id}/eval-datasets",
+                json={"name": "pause-gold"},
+            )
+        ).json()["id"]
+        for text, label in [
+            ("Please apply a subscription pause to my account", "SUBSCRIPTION_PAUSE"),
+            ("I need a subscription pause while traveling", "SUBSCRIPTION_PAUSE"),
+            ("I have a billing question", "BILLING"),
+        ]:
+            ex_resp = await client.post(
+                f"/api/v1/projects/{project_id}/eval-datasets/{ds}/examples",
+                json={
+                    "text": text,
+                    "label": label,
+                    "source": "human",
+                    "annotator": "qa@acme.test",
+                },
+            )
+            assert ex_resp.status_code == 201, ex_resp.text
+        await client.post(f"/api/v1/projects/{project_id}/eval-datasets/{ds}/seal")
+
+        eval_resp = await client.post(
+            f"/api/v1/projects/{project_id}/candidates/{candidate_id}/evaluate"
+        )
+        assert eval_resp.status_code == 200, eval_resp.text
+        eval_body = eval_resp.json()
+        assert eval_body["passed"] is True
+        assert eval_body["accuracy_on_knowns"] == 1.0
+        assert eval_body["disambiguation_rate"] == 1.0
+
+        promo_resp = await client.post(
+            f"/api/v1/projects/{project_id}/candidates/{candidate_id}/promote",
+            json={"note": "Verified on sealed holdout dataset"},
+        )
+        assert promo_resp.status_code == 200, promo_resp.text
+        promo_body = promo_resp.json()
+        assert promo_body["candidate"]["status"] == "promoted"
+        assert promo_body["decision_service"]["version_number"] == 2
+        choice_keys = [
+            c["key"] for c in promo_body["decision_service"]["nodes"][0]["choices"]
+        ]
+        assert "SUBSCRIPTION_PAUSE" in choice_keys

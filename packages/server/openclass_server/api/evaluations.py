@@ -9,7 +9,8 @@ from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException
-from openclass_core.evaluation import ExampleDraft, slice_coverage
+from openclass_core.decision_executor import DecisionExecutor
+from openclass_core.evaluation import ExampleDraft, compute_dataset_hash, slice_coverage
 from openclass_core.evaluation_metrics import (
     Gates,
     accuracy,
@@ -17,18 +18,18 @@ from openclass_core.evaluation_metrics import (
     macro_f1,
     unknown_precision_recall,
 )
-from openclass_core.models import (
-    ChoiceRequest,
-    Observation,
-    OntologyClass,
-    OntologyVersion,
+from openclass_core.projects import (
+    UNKNOWN_CHOICE,
+    DecisionServiceChoice,
+    RawEvent,
 )
 from openclass_core.projects import ProjectService as ProjectDomainService
-from openclass_provider_mock import MockDecisionProvider
+from openclass_core.providers import DecisionProvider
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
+from openclass_server.provider_config import resolve_decision_provider
 from openclass_server.settings import Settings
 
 
@@ -50,6 +51,8 @@ class ExampleCreate(BaseModel):
     annotator: str = Field(min_length=2, max_length=200)
     rationale: str = Field(default="", max_length=2000)
     slice_tag: str = "historical"
+    split: str = "holdout"
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 def evaluations_router(
@@ -57,6 +60,7 @@ def evaluations_router(
     projects: ProjectDomainService,
     sessions: async_sessionmaker[AsyncSession],
     triage_store: UnknownTriageStore,
+    default_decision_provider: DecisionProvider | None = None,
 ) -> APIRouter:
     router = APIRouter(tags=["evaluations"])
 
@@ -64,7 +68,7 @@ def evaluations_router(
         async with sessions() as session:
             row = await session.execute(
                 sa.text(
-                    "SELECT id, name, description, sealed_at, created_at"
+                    "SELECT id, name, description, dataset_hash, sealed_at, created_at"
                     " FROM evaluation_sets WHERE id = :id AND project_id = :pid"
                 ),
                 {"id": dataset_id, "pid": str(project_id)},
@@ -76,6 +80,7 @@ def evaluations_router(
             "id": record.id,
             "name": record.name,
             "description": record.description,
+            "dataset_hash": record.dataset_hash,
             "sealed_at": record.sealed_at,
             "created_at": record.created_at,
         }
@@ -99,6 +104,20 @@ def evaluations_router(
                     aliases = json.loads(aliases)
                 for alias in aliases or []:
                     labels.add(str(alias).upper())
+            choice_rows = await session.execute(
+                sa.text(
+                    "SELECT payload FROM project_choice_candidates WHERE project_id = :pid"
+                ),
+                {"pid": str(project.id)},
+            )
+            for crow in choice_rows:
+                payload = (
+                    json.loads(crow.payload) if isinstance(crow.payload, str) else crow.payload
+                )
+                if isinstance(payload, dict):
+                    prop = payload.get("proposal") or {}
+                    if isinstance(prop, dict) and prop.get("key"):
+                        labels.add(str(prop["key"]).upper())
         labels.add("UNKNOWN")
         return tuple(sorted(labels))
 
@@ -114,7 +133,8 @@ def evaluations_router(
         async with sessions() as session:
             rows = await session.execute(
                 sa.text(
-                    "SELECT id, text, label, source, annotator, rationale, slice_tag, created_at"
+                    "SELECT id, text, label, source, annotator, rationale, slice_tag,"
+                    " split, example_metadata, created_at"
                     " FROM evaluation_examples WHERE dataset_id = :did ORDER BY created_at"
                 ),
                 {"did": dataset_id},
@@ -128,6 +148,12 @@ def evaluations_router(
                     "annotator": row.annotator,
                     "rationale": row.rationale,
                     "slice_tag": row.slice_tag,
+                    "split": row.split or "holdout",
+                    "metadata": (
+                        json.loads(row.example_metadata)
+                        if isinstance(row.example_metadata, str)
+                        else (row.example_metadata or {})
+                    ),
                     "created_at": row.created_at,
                 }
                 for row in rows
@@ -158,6 +184,7 @@ def evaluations_router(
             "id": dataset_id,
             "name": body.name.strip(),
             "description": body.description.strip(),
+            "dataset_hash": None,
             "sealed_at": None,
         }
 
@@ -188,9 +215,9 @@ def evaluations_router(
                 sa.text(
                     "INSERT INTO evaluation_examples"
                     " (id, dataset_id, text, label, source, annotator,"
-                    "  rationale, slice_tag, created_at)"
+                    "  rationale, slice_tag, split, example_metadata, created_at)"
                     " VALUES (:id, :did, :text, :label, :source, :annotator,"
-                    "         :rationale, :slice, :created_at)"
+                    "         :rationale, :slice, :split, :meta, :created_at)"
                 ),
                 {
                     "id": str(example.id),
@@ -201,6 +228,8 @@ def evaluations_router(
                     "annotator": example.annotator,
                     "rationale": example.rationale,
                     "slice": example.slice_tag,
+                    "split": example.split,
+                    "meta": json.dumps(example.metadata),
                     "created_at": datetime.now(UTC),
                 },
             )
@@ -212,18 +241,20 @@ def evaluations_router(
         dataset = await _dataset_row(project.id, dataset_id)
         if dataset["sealed_at"] is not None:
             raise HTTPException(status_code=409, detail="dataset is already sealed")
+        examples = await _examples(dataset_id)
+        dhash = compute_dataset_hash([_as_example(entry) for entry in examples])
         async with sessions.begin() as session:
             await session.execute(
                 sa.text(
-                    "UPDATE evaluation_sets SET sealed_at = :now"
+                    "UPDATE evaluation_sets SET sealed_at = :now, dataset_hash = :hash"
                     " WHERE id = :id AND sealed_at IS NULL"
                 ),
-                {"now": datetime.now(UTC), "id": dataset_id},
+                {"now": datetime.now(UTC), "hash": dhash, "id": dataset_id},
             )
         await triage_store.append_audit(
             project.id, "portal-user", "evaluation.dataset_sealed", f"dataset:{dataset_id}"
         )
-        return {"id": dataset_id, "sealed": True}
+        return {"id": dataset_id, "sealed": True, "dataset_hash": dhash}
 
     @router.get("/api/v1/projects/{identifier}/eval-datasets")
     async def list_datasets(identifier: str) -> list[dict[str, Any]]:
@@ -231,8 +262,8 @@ def evaluations_router(
         async with sessions() as session:
             rows = await session.execute(
                 sa.text(
-                    "SELECT id, name, description, sealed_at, created_at FROM evaluation_sets"
-                    " WHERE project_id = :pid ORDER BY created_at"
+                    "SELECT id, name, description, dataset_hash, sealed_at, created_at"
+                    " FROM evaluation_sets WHERE project_id = :pid ORDER BY created_at"
                 ),
                 {"pid": str(project.id)},
             )
@@ -241,6 +272,7 @@ def evaluations_router(
                     "id": row.id,
                     "name": row.name,
                     "description": row.description,
+                    "dataset_hash": row.dataset_hash,
                     "sealed_at": row.sealed_at,
                 }
                 for row in rows
@@ -283,7 +315,11 @@ def evaluations_router(
             raise HTTPException(status_code=404, detail="Candidate not found or has no class")
         services = await projects.list_decision_services(identifier=identifier)
         service = next(
-            (entry for entry in services if body.service_id in (None, entry.id, entry.slug)),
+            (
+                entry
+                for entry in services
+                if body.service_id in (None, str(entry.id), entry.slug)
+            ),
             services[0] if services else None,
         )
         if service is None:
@@ -296,24 +332,52 @@ def evaluations_router(
         aliases = candidate.aliases
         if isinstance(aliases, str):
             aliases = json.loads(aliases)
-        candidate_class = {
-            "key": candidate.canonical_name.upper(),
-            "label": candidate.canonical_name.replace("_", " ").title(),
-            "aliases": [str(alias) for alias in aliases or []],
-        }
+        candidate_choice = DecisionServiceChoice(
+            key=candidate.canonical_name.upper(),
+            label=candidate.canonical_name.replace("_", " ").title(),
+            description=f"Candidate {body.candidate_id}",
+            aliases=tuple(str(alias) for alias in (aliases or [])),
+        )
+        candidate_node = service.nodes[0].model_copy(
+            update={"choices": (*baseline_choices, candidate_choice, UNKNOWN_CHOICE)}
+        )
+        candidate_service = service.model_copy(
+            update={
+                "nodes": (candidate_node, *service.nodes[1:]),
+                "version_number": service.version_number + 1,
+            }
+        )
 
+        if service.provider_override:
+            exec_provider = resolve_decision_provider(config, service.provider_override)
+        elif default_decision_provider is not None:
+            exec_provider = default_decision_provider
+        else:
+            exec_provider = resolve_decision_provider(config, config.decision_provider)
+
+        executor = DecisionExecutor(exec_provider)
         examples = await _examples(body.dataset_id)
-        provider = MockDecisionProvider()
         baseline_pairs: list[tuple[str, str]] = []
         candidate_pairs: list[tuple[str, str]] = []
+        run_provider = "mock"
+        run_model = "lexical-demo-v1"
+        is_simulated = True
+
         for example in examples:
             gold = example["label"]
-            baseline_pairs.append(
-                (gold, await _replay(provider, baseline_choices, example["text"]))
+            raw_event = RawEvent(
+                project_id=project.id,
+                content=example["text"],
+                source_type="text",
             )
-            candidate_choices = baseline_choices + [candidate_class]
-            candidate_pairs.append(
-                (gold, await _replay(provider, candidate_choices, example["text"]))
+            base_run = await executor.execute(raw_event, service)
+            cand_run = await executor.execute(raw_event, candidate_service)
+            baseline_pairs.append((gold, base_run.selected_choice))
+            candidate_pairs.append((gold, cand_run.selected_choice))
+            run_provider = cand_run.provider
+            run_model = cand_run.model
+            is_simulated = bool(
+                cand_run.provider_metadata.get("simulated", not cand_run.real_inference)
             )
 
         protected = sorted({gold for gold, _ in baseline_pairs if gold != "UNKNOWN"})
@@ -336,7 +400,9 @@ def evaluations_router(
                 "unknown_recall": unknown_r,
             },
             "examples": len(examples),
-            "simulated": True,
+            "simulated": is_simulated,
+            "provider": run_provider,
+            "model": run_model,
         }
         evaluation_id = str(uuid4())
         async with sessions.begin() as session:
@@ -344,8 +410,9 @@ def evaluations_router(
                 sa.text(
                     "INSERT INTO evaluation_runs"
                     " (id, project_id, dataset_id, candidate_id, overall_passed,"
-                    "  metrics, gates, created_at)"
-                    " VALUES (:id, :pid, :did, :cid, :passed, :metrics, :gates, :created_at)"
+                    "  is_simulated, provider, model, metrics, gates, created_at)"
+                    " VALUES (:id, :pid, :did, :cid, :passed,"
+                    "         :sim, :prov, :mod, :metrics, :gates, :created_at)"
                 ),
                 {
                     "id": evaluation_id,
@@ -353,6 +420,9 @@ def evaluations_router(
                     "did": body.dataset_id,
                     "cid": body.candidate_id,
                     "passed": bool(gates["overall_passed"]),
+                    "sim": is_simulated,
+                    "prov": run_provider,
+                    "mod": run_model,
                     "metrics": json.dumps(metrics),
                     "gates": json.dumps(gates["gates"]),
                     "created_at": datetime.now(UTC),
@@ -366,6 +436,9 @@ def evaluations_router(
             "dataset_id": body.dataset_id,
             "candidate_id": body.candidate_id,
             "overall_passed": gates["overall_passed"],
+            "is_simulated": is_simulated,
+            "provider": run_provider,
+            "model": run_model,
             "metrics": metrics,
             "gates": gates["gates"],
         }
@@ -376,7 +449,8 @@ def evaluations_router(
         async with sessions() as session:
             rows = await session.execute(
                 sa.text(
-                    "SELECT id, dataset_id, candidate_id, overall_passed, created_at"
+                    "SELECT id, dataset_id, candidate_id, overall_passed,"
+                    " is_simulated, provider, model, created_at"
                     " FROM evaluation_runs WHERE project_id = :pid ORDER BY created_at DESC"
                 ),
                 {"pid": str(project.id)},
@@ -387,6 +461,11 @@ def evaluations_router(
                     "dataset_id": row.dataset_id,
                     "candidate_id": row.candidate_id,
                     "overall_passed": bool(row.overall_passed),
+                    "is_simulated": (
+                        bool(row.is_simulated) if row.is_simulated is not None else True
+                    ),
+                    "provider": row.provider or "mock",
+                    "model": row.model or "lexical-demo-v1",
                     "created_at": row.created_at,
                 }
                 for row in rows
@@ -399,7 +478,7 @@ def evaluations_router(
             row = await session.execute(
                 sa.text(
                     "SELECT id, dataset_id, candidate_id, overall_passed,"
-                    " metrics, gates, created_at"
+                    " is_simulated, provider, model, metrics, gates, created_at"
                     " FROM evaluation_runs WHERE id = :id AND project_id = :pid"
                 ),
                 {"id": evaluation_id, "pid": str(project.id)},
@@ -416,40 +495,17 @@ def evaluations_router(
             "dataset_id": record.dataset_id,
             "candidate_id": record.candidate_id,
             "overall_passed": bool(record.overall_passed),
+            "is_simulated": (
+                bool(record.is_simulated) if record.is_simulated is not None else True
+            ),
+            "provider": record.provider or "mock",
+            "model": record.model or "lexical-demo-v1",
             "metrics": _loads(record.metrics),
             "gates": _loads(record.gates),
             "created_at": record.created_at,
         }
 
     return router
-
-
-def _choice_field(choice: object, key: str, default: Any = None) -> Any:
-    if isinstance(choice, dict):
-        return choice.get(key, default)
-    return getattr(choice, key, default)
-
-
-async def _replay(provider: MockDecisionProvider, choices: list[Any], text: str) -> str:
-    """Classify one text against a choice list with the deterministic mock."""
-    classes = tuple(
-        OntologyClass(
-            canonical_name=str(_choice_field(choice, "key")).lower(),
-            display_name=str(_choice_field(choice, "label") or _choice_field(choice, "key")),
-            aliases=tuple(str(alias) for alias in (_choice_field(choice, "aliases") or [])),
-        )
-        for choice in choices
-    )
-    ontology = OntologyVersion(
-        classifier_id=uuid4(), version_number=1, classes=classes, created_by="replay"
-    )
-    result = await provider.choice(
-        ChoiceRequest(observation=Observation(content=text), ontology=ontology)
-    )
-    best = max(result.probabilities, key=lambda key: result.probabilities[key])
-    if result.probabilities.get(best, 0.0) <= result.unknown_probability:
-        return "UNKNOWN"
-    return best.upper()
 
 
 def _as_example(entry: dict[str, Any]) -> Any:
