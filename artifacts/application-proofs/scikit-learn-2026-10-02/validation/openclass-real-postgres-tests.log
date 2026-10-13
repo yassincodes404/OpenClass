@@ -1,0 +1,31 @@
+F...                                                                     [100%]
+=================================== FAILURES ===================================
+_________________________ test_postgres_api_and_vector _________________________
+
+postgres_url = 'postgresql+asyncpg://openclass:openclass@127.0.0.1:5432/openclass_validation_phase10_20261002'
+classifier_body = {'slug': 'pg-9f65d6b4409d4c669ba70ba71d552fb3', 'name': 'Support intent', 'classes': [{'canonical_name': 'billing', 'd...': 'Technical', 'aliases': ['broken']}, {'canonical_name': 'sales', 'display_name': 'Sales', 'aliases': ['purchase']}]}
+
+    @pytest.mark.postgres
+    def test_postgres_api_and_vector(postgres_url: str, classifier_body: dict) -> None:
+        classifier_body["slug"] = f"pg-{uuid4().hex}"
+        with TestClient(create_app(Settings(database_url=postgres_url))) as client:
+            assert client.get("/health/ready").status_code == 200
+            client.post("/api/v1/classifiers", json=classifier_body).raise_for_status()
+            result = client.post(
+                f"/api/v1/classifiers/{classifier_body['slug']}/classify",
+                json={"observation": "cancel my plan"},
+            )
+>           assert result.status_code == 200
+E           assert 502 == 200
+E            +  where 502 = <Response [502 Bad Gateway]>.status_code
+
+tests/integration/test_persistence.py:51: AssertionError
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /tmp/openclass-portal-phase-10/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_persistence.py::test_postgres_api_and_vector - ...
+1 failed, 3 passed, 425 deselected, 1 warning in 1.68s

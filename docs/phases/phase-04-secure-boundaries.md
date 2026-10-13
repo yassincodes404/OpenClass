@@ -46,11 +46,11 @@ Add if missing: `provider_usage`, `audit_events` indexes, `idempotency_keys (key
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/settings` | Redaction toggles persist; secrets fields are write-only |
-| `/projects/:id/providers` | Status cards; failure shows safe message, no key |
-| `/projects/:id/audit` | Paginated log; filters work |
+| Route                     | Expected                                                 |
+| ------------------------- | -------------------------------------------------------- |
+| `/projects/:id/settings`  | Redaction toggles persist; secrets fields are write-only |
+| `/projects/:id/providers` | Status cards; failure shows safe message, no key         |
+| `/projects/:id/audit`     | Paginated log; filters work                              |
 
 ## 8. Seeder + credentials
 
@@ -58,13 +58,13 @@ Add if missing: `provider_usage`, `audit_events` indexes, `idempotency_keys (key
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Save provider key in settings | Success, value masked, never appears in network response after save |
-| 2 | Trigger provider failure (bad endpoint) | Friendly error + `provider.error` event, no secret in payload |
-| 3 | Send same ingest twice with same Idempotency-Key | Second returns original id, no duplicate count |
-| 4 | Exceed rate limit | 429 + Retry-After; UI shows “slow down” message |
-| 5 | Open audit log | New actions appear with actor/timestamp; pagination works |
+| #   | Action                                           | Expected                                                            |
+| --- | ------------------------------------------------ | ------------------------------------------------------------------- |
+| 1   | Save provider key in settings                    | Success, value masked, never appears in network response after save |
+| 2   | Trigger provider failure (bad endpoint)          | Friendly error + `provider.error` event, no secret in payload       |
+| 3   | Send same ingest twice with same Idempotency-Key | Second returns original id, no duplicate count                      |
+| 4   | Exceed rate limit                                | 429 + Retry-After; UI shows “slow down” message                     |
+| 5   | Open audit log                                   | New actions appear with actor/timestamp; pagination works           |
 
 ## 10. Automated tests
 

@@ -45,11 +45,11 @@ Route `/projects/:id/unknowns`: KPI cards (volume, UNKNOWN rate, recurring phras
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/unknowns` | KPIs + trend + table; seeded cancellation unknowns visible |
-| `/projects/:id/unknowns?category=missing_info` | Filtered list |
-| `/projects/:id/unknowns/:uid` (drawer/modal) | Distribution + triage controls |
+| Route                                          | Expected                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| `/projects/:id/unknowns`                       | KPIs + trend + table; seeded cancellation unknowns visible |
+| `/projects/:id/unknowns?category=missing_info` | Filtered list                                              |
+| `/projects/:id/unknowns/:uid` (drawer/modal)   | Distribution + triage controls                             |
 
 ## 8. Seeder + credentials
 
@@ -57,12 +57,12 @@ Route `/projects/:id/unknowns`: KPI cards (volume, UNKNOWN rate, recurring phras
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Open unknowns | Volume/rate + recurring “cancel” phrase shown |
-| 2 | Filter `likely_novel` + search “cancel” | Only matching rows |
-| 3 | Triage one as `missing_info` + assign reviewer | Status updates, audit entry, ontology unchanged |
-| 4 | Try to “promote” from here | No such button (correct) |
+| #   | Action                                         | Expected                                        |
+| --- | ---------------------------------------------- | ----------------------------------------------- |
+| 1   | Open unknowns                                  | Volume/rate + recurring “cancel” phrase shown   |
+| 2   | Filter `likely_novel` + search “cancel”        | Only matching rows                              |
+| 3   | Triage one as `missing_info` + assign reviewer | Status updates, audit entry, ontology unchanged |
+| 4   | Try to “promote” from here                     | No such button (correct)                        |
 
 ## 10. Automated tests
 

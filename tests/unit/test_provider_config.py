@@ -4,18 +4,23 @@ from openclass_provider_jev import JevDecisionProvider
 from openclass_provider_laya import LayaDecisionProvider
 from openclass_provider_mock import MockDecisionProvider
 from openclass_server.main import create_app
-from openclass_server.provider_config import decision_provider
+from openclass_server.provider_config import decision_provider, resolve_decision_provider
 from openclass_server.settings import Settings
 from pydantic import SecretStr, ValidationError
 
 
 def test_mock_default_and_explicit_jev_selection() -> None:
-    assert isinstance(decision_provider(Settings()), LayaDecisionProvider)
+    assert isinstance(decision_provider(Settings(decision_provider="laya")), LayaDecisionProvider)
     assert isinstance(decision_provider(Settings(decision_provider="mock")), MockDecisionProvider)
     config = Settings(decision_provider="jev", jev_api_key=SecretStr("synthetic-key"))
     assert isinstance(decision_provider(config), JevDecisionProvider)
     assert "synthetic-key" not in repr(config) + config.model_dump_json()
     assert "jev_api_key" not in config.model_dump()
+
+
+def test_unknown_override_fails_closed() -> None:
+    with pytest.raises(ValueError):
+        resolve_decision_provider(Settings(decision_provider="mock"), "quantum")
 
 
 @pytest.mark.parametrize(

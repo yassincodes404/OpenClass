@@ -1,0 +1,11 @@
+{
+  "cluster_count": 2,
+  "cluster_ids": [
+    "01671dd2-b476-4689-8b5c-aba69226e21d",
+    "ee76e6fa-1aab-4bbf-b75e-5ff69c933afb"
+  ],
+  "algorithm": "greedy-cosine-first-fit",
+  "model": "cohere/embed-v4.0",
+  "simulated": false,
+  "threshold": 0.55
+}

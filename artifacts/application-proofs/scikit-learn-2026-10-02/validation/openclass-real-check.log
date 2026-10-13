@@ -1,0 +1,93 @@
+uv run ruff check .
+All checks passed!
+uv run ruff format --check .
+278 files already formatted
+uv run mypy
+Success: no issues found in 80 source files
+npm run format:check
+
+> openclass-workspace@0.0.1 format:check
+> prettier --check .
+
+Checking formatting...
+[warn] .playwright-mcp/page-2026-10-02T11-26-46-134Z.yml
+[warn] .playwright-mcp/page-2026-10-02T11-26-56-435Z.yml
+[warn] .playwright-mcp/page-2026-10-02T11-38-07-858Z.yml
+[warn] .playwright-mcp/page-2026-10-02T12-01-56-000Z.yml
+[warn] .playwright-mcp/page-2026-10-02T12-02-28-859Z.yml
+[warn] apps/portal/index.html
+[warn] apps/portal/src/api.ts
+[warn] apps/portal/src/auth.tsx
+[warn] apps/portal/src/clusters-page.tsx
+[warn] apps/portal/src/decision-pages.tsx
+[warn] apps/portal/src/discoveries-page.tsx
+[warn] apps/portal/src/ingestion-pages.tsx
+[warn] apps/portal/src/main.tsx
+[warn] apps/portal/src/portal.test.tsx
+[warn] apps/portal/src/portal.tsx
+[warn] apps/portal/src/projects.tsx
+[warn] apps/portal/src/security-pages.tsx
+[warn] apps/portal/src/styles.css
+[warn] apps/portal/src/unknowns-page.tsx
+[warn] apps/portal/tsconfig.app.json
+[warn] apps/portal/tsconfig.json
+[warn] apps/portal/tsconfig.node.json
+[warn] apps/web/app/components/navigation.tsx
+[warn] apps/web/app/globals.css
+[warn] apps/web/app/projects/[id]/page.tsx
+[warn] apps/web/app/projects/page.tsx
+[warn] docs/guides/phase-01-portal-testing.md
+[warn] docs/guides/portal-phase-01-testing.md
+[warn] docs/phases/phase-01-portal-foundation.md
+[warn] docs/phases/phase-02-identity-workspaces.md
+[warn] docs/phases/phase-03-projects-classifiers.md
+[warn] docs/phases/phase-04-secure-boundaries.md
+[warn] docs/phases/phase-05-observation-ingestion.md
+[warn] docs/phases/phase-06-decision-services-runs.md
+[warn] docs/phases/phase-07-provider-protocol-costs.md
+[warn] docs/phases/phase-08-unknown-workspace.md
+[warn] docs/phases/phase-09-embeddings-clustering.md
+[warn] docs/phases/phase-10-discovery-canonicalization.md
+[warn] docs/phases/phase-11-candidate-review.md
+[warn] docs/phases/phase-12-evaluation-datasets.md
+[warn] docs/phases/phase-13-replay-regression.md
+[warn] docs/phases/phase-14-ontology-promotion.md
+[warn] docs/phases/phase-15-operations-dashboard.md
+[warn] docs/phases/phase-16-support-integrations.md
+[warn] docs/phases/phase-17-feedback-kb-faq.md
+[warn] docs/phases/phase-18-team-usage-data.md
+[warn] docs/phases/phase-19-billing-deployops.md
+[warn] docs/phases/phase-20-release-candidate.md
+[warn] docs/phases/README.md
+[warn] pnpm-lock.yaml
+[warn] services/control-plane/keycloak/openclass-local-realm.json
+[warn] services/control-plane/nest-cli.json
+[warn] services/control-plane/package.json
+[warn] services/control-plane/src/api-key.service.spec.ts
+[warn] services/control-plane/src/api-key.service.ts
+[warn] services/control-plane/src/audit.service.ts
+[warn] services/control-plane/src/auth.guard.spec.ts
+[warn] services/control-plane/src/decision.controller.spec.ts
+[warn] services/control-plane/src/decision.controller.ts
+[warn] services/control-plane/src/engine.ts
+[warn] services/control-plane/src/idempotency.service.ts
+[warn] services/control-plane/src/ingestion.controller.ts
+[warn] services/control-plane/src/ingestion.service.spec.ts
+[warn] services/control-plane/src/ingestion.service.ts
+[warn] services/control-plane/src/portal.controller.ts
+[warn] services/control-plane/src/project.controller.spec.ts
+[warn] services/control-plane/src/project.controller.ts
+[warn] services/control-plane/src/project.service.spec.ts
+[warn] services/control-plane/src/project.service.ts
+[warn] services/control-plane/src/rate-limit.service.ts
+[warn] services/control-plane/src/security.controller.ts
+[warn] services/control-plane/src/security.spec.ts
+[warn] services/control-plane/src/unknown.controller.spec.ts
+[warn] services/control-plane/src/unknown.controller.ts
+[warn] services/control-plane/src/workspace.controller.spec.ts
+[warn] services/control-plane/src/workspace.controller.ts
+[warn] services/control-plane/src/workspace.service.spec.ts
+[warn] services/control-plane/src/workspace.service.ts
+[warn] services/control-plane/tsconfig.json
+[warn] Code style issues found in 79 files. Run Prettier with --write to fix.
+make: *** [Makefile:9: check] Error 1

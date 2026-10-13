@@ -1,0 +1,9 @@
+{
+  "id": "e4e49ca2-63a9-4943-b0c9-01c55ed60d03",
+  "type": "openai-compatible",
+  "endpoint_ref": "OPENCLASS_DISCOVERY_BASE_URL",
+  "model": "openai/gpt-4.1-mini",
+  "timeout_seconds": 60,
+  "is_default": false,
+  "created_at": "2026-10-02T17:22:13.630Z"
+}

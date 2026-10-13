@@ -1,0 +1,47 @@
+{
+  "registered_at_utc": "2026-10-02T16:29:39.796348+00:00",
+  "protocol_version": "1.0",
+  "source": "Public scikit-learn GitHub issues with independently applied maintainer labels",
+  "selection": "First 15 results per category by descending creation time from 25 fetched; exclude overlapping four task labels, duplicates and missing body",
+  "inputs": "Source title and body, prefix truncated at 9000 characters; no maintainer labels forwarded to inference",
+  "known_choices": [
+    {
+      "key": "BUG",
+      "label": "Bug",
+      "description": "Incorrect behavior of scikit-learn code or estimators, numerical or API regressions. Excludes packaging, installation, CI and build infrastructure failures."
+    },
+    {
+      "key": "ENHANCEMENT",
+      "label": "Enhancement",
+      "description": "Feature requests, proposed API improvements or new estimator functionality. Excludes build, packaging and CI infrastructure."
+    },
+    {
+      "key": "DOCUMENTATION",
+      "label": "Documentation",
+      "description": "Errors, omissions or improvements to user documentation, examples or docstrings. Excludes infrastructure."
+    }
+  ],
+  "held_out_label": "Build / CI",
+  "sample_size": 60,
+  "models": [
+    "openai/gpt-4.1-mini",
+    "google/gemini-2.5-flash"
+  ],
+  "embedding_model": "openai/text-embedding-3-small",
+  "cluster_threshold": 0.55,
+  "success_criteria": {
+    "known_accuracy_minimum": 0.8,
+    "heldout_unknown_recall_minimum": 0.8,
+    "no_mock_inference": true,
+    "no_activation_without_verified_evaluation": true
+  },
+  "external_side_effect_scope": "Create local workspace/project/events/runs/proposals only; do not modify upstream GitHub issues",
+  "limitations": [
+    "Curated public issues are not a customer production stream",
+    "Titles may contain BUG/DOC/CI tags",
+    "Reference labels can be imperfect",
+    "No synthetic or translated challenge items",
+    "LLM self-assessed probabilities are uncalibrated",
+    "No execution or learned improvement claim"
+  ]
+}

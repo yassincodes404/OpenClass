@@ -1,0 +1,325 @@
+[
+  {
+    "number": 34883,
+    "labels": [
+      "Bug"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34865,
+    "labels": [
+      "Bug",
+      "Build / CI",
+      "Needs Decision",
+      "Needs Benchmarks"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 34857,
+    "labels": [
+      "Bug"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34828,
+    "labels": [
+      "Bug",
+      "Needs Decision"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34822,
+    "labels": [
+      "Bug"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34816,
+    "labels": [
+      "Bug",
+      "Callbacks"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34792,
+    "labels": [
+      "Bug",
+      "Needs Investigation",
+      "Callbacks"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34768,
+    "labels": [
+      "Bug",
+      "Needs Triage"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34745,
+    "labels": [
+      "Bug",
+      "module:ensemble"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34744,
+    "labels": [
+      "Bug",
+      "Needs Decision",
+      "Callbacks"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 30310,
+    "labels": [
+      "Bug",
+      "Enhancement"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 29922,
+    "labels": [
+      "Enhancement"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 29626,
+    "labels": [
+      "Enhancement",
+      "module:neighbors"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 29394,
+    "labels": [
+      "Enhancement",
+      "Build / CI"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 29381,
+    "labels": [
+      "Easy",
+      "Enhancement"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 29048,
+    "labels": [
+      "Enhancement"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 29046,
+    "labels": [
+      "Enhancement"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 29027,
+    "labels": [
+      "Documentation",
+      "Enhancement",
+      "RFC"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 28982,
+    "labels": [
+      "Enhancement"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 28978,
+    "labels": [
+      "Enhancement",
+      "Build / CI",
+      "free-threading"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 34641,
+    "labels": [
+      "Documentation"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34615,
+    "labels": [
+      "Documentation",
+      "Needs Triage"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34596,
+    "labels": [
+      "Documentation",
+      "Needs Investigation",
+      "free-threading"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34521,
+    "labels": [
+      "Documentation",
+      "Build / CI"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 34459,
+    "labels": [
+      "Documentation",
+      "Needs Triage"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34454,
+    "labels": [
+      "Documentation"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34401,
+    "labels": [
+      "Documentation"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34396,
+    "labels": [
+      "Documentation",
+      "Needs Triage"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34366,
+    "labels": [
+      "Documentation",
+      "frontend"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34354,
+    "labels": [
+      "Documentation"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 34865,
+    "labels": [
+      "Bug",
+      "Build / CI",
+      "Needs Decision",
+      "Needs Benchmarks"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 34521,
+    "labels": [
+      "Documentation",
+      "Build / CI"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 34254,
+    "labels": [
+      "Documentation",
+      "Build / CI",
+      "Hard"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 33510,
+    "labels": [
+      "Bug",
+      "Build / CI",
+      "Needs Triage",
+      "Needs Investigation"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 33174,
+    "labels": [
+      "Bug",
+      "Build / CI"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 33075,
+    "labels": [
+      "Bug",
+      "Build / CI"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 32884,
+    "labels": [
+      "Build / CI"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 32833,
+    "labels": [
+      "Bug",
+      "Documentation",
+      "Build / CI",
+      "wasm"
+    ],
+    "reason": "overlapping labels, duplicate or absent body"
+  },
+  {
+    "number": 32814,
+    "labels": [
+      "Build / CI",
+      "frontend",
+      "Needs Investigation"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  },
+  {
+    "number": 32807,
+    "labels": [
+      "Build / CI",
+      "Needs Triage"
+    ],
+    "reason": "outside preregistered first-15 quota"
+  }
+]

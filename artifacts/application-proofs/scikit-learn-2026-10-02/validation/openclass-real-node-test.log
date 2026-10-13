@@ -1,0 +1,15 @@
+Scope: 2 of 5 workspace projects
+apps/portal test$ vitest run
+services/control-plane test$ vitest run
+apps/portal test:  RUN  v4.1.11 /tmp/openclass-portal-phase-10/apps/portal
+services/control-plane test:  RUN  v4.1.11 /tmp/openclass-portal-phase-10/services/control-plane
+services/control-plane test:  Test Files  10 passed (10)
+services/control-plane test:       Tests  72 passed (72)
+services/control-plane test:    Start at  19:38:12
+services/control-plane test:    Duration  515ms (transform 871ms, setup 0ms, import 2.96s, tests 126ms, environment 1ms)
+services/control-plane test: Done
+apps/portal test:  Test Files  1 passed (1)
+apps/portal test:       Tests  5 passed (5)
+apps/portal test:    Start at  19:38:12
+apps/portal test:    Duration  1.12s (transform 157ms, setup 0ms, import 317ms, tests 87ms, environment 569ms)
+apps/portal test: Done

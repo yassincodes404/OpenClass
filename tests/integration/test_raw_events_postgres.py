@@ -56,8 +56,11 @@ def test_raw_events_survive_application_restart(postgres_url: str) -> None:
                 "source_type": "csv",
             },
         )
-        assert resp.status_code == 201
-        assert len(resp.json()) == 2
+        # Batch ingestion uses the phase-5 contract: 207 with per-item receipts.
+        assert resp.status_code == 207
+        items = resp.json()["items"]
+        assert len(items) == 2
+        assert all(item["status"] == 201 for item in items)
 
     # Verify everything from a completely fresh instance 3
     with fresh_client() as client:

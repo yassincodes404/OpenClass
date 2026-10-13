@@ -2,7 +2,10 @@ import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import type { Pool, PoolClient } from "pg";
 import { describe, expect, it, vi } from "vitest";
 
-const auditStub = { record: vi.fn(async () => undefined), list: vi.fn(async () => ({ items: [], next_cursor: null })) } as unknown as import("./audit.service.js").AuditService;
+const auditStub = {
+  record: vi.fn(async () => undefined),
+  list: vi.fn(async () => ({ items: [], next_cursor: null })),
+} as unknown as import("./audit.service.js").AuditService;
 import { WorkspaceService, type Role } from "./workspace.service.js";
 
 type Row = Record<string, unknown>;
@@ -80,18 +83,28 @@ describe("WorkspaceService", () => {
       if (text.startsWith("SELECT role FROM control_workspace_memberships WHERE workspace_id")) {
         return resultOf([{ role: "viewer" }]);
       }
-      return resultOf([{ subject: "owner-sub", role: "owner", created_at: new Date("2026-10-02T00:00:00Z") }]);
+      return resultOf([
+        { subject: "owner-sub", role: "owner", created_at: new Date("2026-10-02T00:00:00Z") },
+      ]);
     });
-    const members = await new WorkspaceService(pool, auditStub).members({ subject: "viewer-sub" }, workspaceId);
+    const members = await new WorkspaceService(pool, auditStub).members(
+      { subject: "viewer-sub" },
+      workspaceId,
+    );
     expect(members).toHaveLength(1);
     expect(members[0].role).toBe("owner");
   });
 
   it("invite by a reviewer → 403", async () => {
     const pool = fakePool(async () => resultOf([{ role: "reviewer" }]));
-    await expect(new WorkspaceService(pool, auditStub).invite(reviewer, workspaceId, "new-sub", "viewer" as Role)).rejects.toThrow(
-      new ForbiddenException("Workspace role cannot manage members"),
-    );
+    await expect(
+      new WorkspaceService(pool, auditStub).invite(
+        reviewer,
+        workspaceId,
+        "new-sub",
+        "viewer" as Role,
+      ),
+    ).rejects.toThrow(new ForbiddenException("Workspace role cannot manage members"));
   });
 
   it("invite by an admin upserts the membership", async () => {
@@ -101,7 +114,12 @@ describe("WorkspaceService", () => {
       }
       return resultOf([{ role: "admin" }]);
     });
-    const member = await new WorkspaceService(pool, auditStub).invite({ subject: "admin-sub" }, workspaceId, "new-sub", "reviewer");
+    const member = await new WorkspaceService(pool, auditStub).invite(
+      { subject: "admin-sub" },
+      workspaceId,
+      "new-sub",
+      "reviewer",
+    );
     expect(member).toEqual({ subject: "new-sub", role: "reviewer" });
   });
 });

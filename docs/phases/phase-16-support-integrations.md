@@ -44,9 +44,9 @@ Routes: `/projects/:id/integrations` (adapter cards + connect), `/projects/:id/i
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id/integrations` | Zendesk/Intercom connect; others show honest stub |
+| Route                                | Expected                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------ |
+| `/projects/:id/integrations`         | Zendesk/Intercom connect; others show honest stub                        |
 | `/projects/:id/integrations/zendesk` | Known billing → adds “billing” tag; UNKNOWN → triage item, no auto-reply |
 
 ## 8. Seeder + credentials
@@ -55,11 +55,11 @@ Routes: `/projects/:id/integrations` (adapter cards + connect), `/projects/:id/i
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Deliver known billing ticket | Tagged + routed correctly; receipt logged |
-| 2 | Deliver UNKNOWN ticket | Triage queue item; no auto-reply sent |
-| 3 | Bad webhook secret | 401, no ingestion |
+| #   | Action                       | Expected                                  |
+| --- | ---------------------------- | ----------------------------------------- |
+| 1   | Deliver known billing ticket | Tagged + routed correctly; receipt logged |
+| 2   | Deliver UNKNOWN ticket       | Triage queue item; no auto-reply sent     |
+| 3   | Bad webhook secret           | 401, no ingestion                         |
 
 ## 10. Automated tests
 

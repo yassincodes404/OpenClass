@@ -29,7 +29,10 @@ function engineWith(overrides: Partial<EngineClient> = {}): EngineClient {
     listUnknowns: vi.fn(async () => ({ items: [], next_cursor: null })),
     unknownStats: vi.fn(async () => ({ total_unknown: 0, total_runs: 0, unknown_rate: 0 })),
     unknownDetail: vi.fn(),
-    triageUnknown: vi.fn(async (_id: string, _run: string, body: { category: string }) => ({ run_id: "r1", category: body.category })),
+    triageUnknown: vi.fn(async (_id: string, _run: string, body: { category: string }) => ({
+      run_id: "r1",
+      category: body.category,
+    })),
     transitionUnknown: vi.fn(async () => ({ run_id: "r1", status: "triaged" })),
     ...overrides,
   } as unknown as EngineClient;
@@ -51,29 +54,35 @@ describe("UnknownController", () => {
 
   it("viewer cannot triage (403)", async () => {
     const { controller } = controllerWith(poolWith("viewer"), engineWith());
-    await expect(controller.triage({ principal }, "w1", "p1", "r1", { category: "missing_info" })).rejects.toMatchObject({
+    await expect(
+      controller.triage({ principal }, "w1", "p1", "r1", { category: "missing_info" }),
+    ).rejects.toMatchObject({
       getStatus: expect.any(Function),
     });
   });
 
   it("reviewer can triage and the action is audited (advisory only)", async () => {
     const { controller, audit } = controllerWith(poolWith("reviewer"), engineWith());
-    const result = await controller.triage({ principal }, "w1", "p1", "r1", { category: "truly_novel" });
+    const result = await controller.triage({ principal }, "w1", "p1", "r1", {
+      category: "truly_novel",
+    });
     expect(result).toMatchObject({ category: "truly_novel" });
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: "unknown.triaged" }));
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "unknown.triaged" }),
+    );
   });
 
   it("invalid category is rejected (400)", async () => {
     const { controller } = controllerWith(poolWith("reviewer"), engineWith());
-    await expect(controller.triage({ principal }, "w1", "p1", "r1", { category: "new_class" })).rejects.toThrow(
-      "Invalid request body",
-    );
+    await expect(
+      controller.triage({ principal }, "w1", "p1", "r1", { category: "new_class" }),
+    ).rejects.toThrow("Invalid request body");
   });
 
   it("non-member gets 404 (no enumeration)", async () => {
     const { controller } = controllerWith(poolWith(null), engineWith());
-    await expect(controller.list({ principal }, "w1", "p1", undefined, undefined, undefined)).rejects.toThrow(
-      new NotFoundException("Workspace not found"),
-    );
+    await expect(
+      controller.list({ principal }, "w1", "p1", undefined, undefined, undefined),
+    ).rejects.toThrow(new NotFoundException("Workspace not found"));
   });
 });

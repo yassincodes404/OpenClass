@@ -10,7 +10,9 @@ type Row = Record<string, unknown>;
 type FakeResult = { rows: Row[]; rowCount: number };
 
 const principal = { subject: "owner-sub" };
-const statusStub = { status: () => statusStub } as unknown as Parameters<DecisionController["run"]>[5];
+const statusStub = { status: () => statusStub } as unknown as Parameters<
+  DecisionController["run"]
+>[5];
 const REVIEWER = { subject: "reviewer-sub" };
 
 function memberPool(role: string | null): Pool {
@@ -30,10 +32,20 @@ function memberPool(role: string | null): Pool {
 function fakeEngine(overrides: Partial<EngineClient> = {}): EngineClient {
   return {
     listDecisionServices: vi.fn(async () => [{ id: "s1", slug: "support-router", nodes: [] }]),
-    createDecisionService: vi.fn(async () => ({ id: "s1", slug: "support-router", nodes: [{ choices: [{ key: "BILLING" }, { key: "UNKNOWN" }] }] })),
+    createDecisionService: vi.fn(async () => ({
+      id: "s1",
+      slug: "support-router",
+      nodes: [{ choices: [{ key: "BILLING" }, { key: "UNKNOWN" }] }],
+    })),
     getDecisionService: vi.fn(async () => ({ id: "s1", slug: "support-router", nodes: [] })),
     runDecisions: vi.fn(async () => [
-      { id: "r1", selected_choice: "BILLING", supervision_outcome: "TRUSTED", probabilities: { BILLING: 0.8, UNKNOWN: 0.2 }, provider: "mock" },
+      {
+        id: "r1",
+        selected_choice: "BILLING",
+        supervision_outcome: "TRUSTED",
+        probabilities: { BILLING: 0.8, UNKNOWN: 0.2 },
+        provider: "mock",
+      },
     ]),
     listRuns: vi.fn(async () => []),
     getRun: vi.fn(),
@@ -62,7 +74,9 @@ describe("DecisionController", () => {
     const created = await controller.createService({ principal }, "w1", "p1", validService);
     expect(created.nodes[0].choices.map((c) => c.key)).toContain("UNKNOWN");
     expect(engine.createDecisionService).toHaveBeenCalled();
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: "decision_service.created" }));
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "decision_service.created" }),
+    );
   });
 
   it("rejects a service that sends UNKNOWN as a choice (400)", async () => {
@@ -79,33 +93,54 @@ describe("DecisionController", () => {
   it("rejects lowercase choice keys (400)", async () => {
     const { controller } = controllerWith(memberPool("owner"), fakeEngine());
     await expect(
-      controller.createService({ principal }, "w1", "p1", { ...validService, choices: [{ key: "billing", label: "B" }] }),
+      controller.createService({ principal }, "w1", "p1", {
+        ...validService,
+        choices: [{ key: "billing", label: "B" }],
+      }),
     ).rejects.toThrow(BadRequestException);
   });
 
   it("reviewer cannot create services (403) but can run", async () => {
     const { controller, engine } = controllerWith(memberPool("reviewer"), fakeEngine());
-    await expect(controller.createService({ principal: REVIEWER }, "w1", "p1", validService)).rejects.toMatchObject({
+    await expect(
+      controller.createService({ principal: REVIEWER }, "w1", "p1", validService),
+    ).rejects.toMatchObject({
       getStatus: expect.any(Function),
     });
-    const runs = await controller.run({ principal: REVIEWER }, "w1", "p1", "s1", { content: "charged twice" }, statusStub);
+    const runs = await controller.run(
+      { principal: REVIEWER },
+      "w1",
+      "p1",
+      "s1",
+      { content: "charged twice" },
+      statusStub,
+    );
     expect(runs).toHaveLength(1);
     expect(engine.runDecisions).toHaveBeenCalled();
   });
 
   it("runs require content or event ids (400)", async () => {
     const { controller } = controllerWith(memberPool("owner"), fakeEngine());
-    await expect(controller.run({ principal }, "w1", "p1", "s1", {}, statusStub)).rejects.toThrow(BadRequestException);
+    await expect(controller.run({ principal }, "w1", "p1", "s1", {}, statusStub)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it("non-member gets 404 (no enumeration)", async () => {
     const { controller } = controllerWith(memberPool(null), fakeEngine());
-    await expect(controller.listServices({ principal }, "w1", "p1")).rejects.toThrow(new NotFoundException("Workspace not found"));
+    await expect(controller.listServices({ principal }, "w1", "p1")).rejects.toThrow(
+      new NotFoundException("Workspace not found"),
+    );
   });
 
   it("run results are audited with selected choice", async () => {
     const { controller, audit } = controllerWith(memberPool("owner"), fakeEngine());
     await controller.run({ principal }, "w1", "p1", "s1", { content: "x" }, statusStub);
-    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: "decision_run.executed", target: expect.stringContaining("BILLING") }));
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "decision_run.executed",
+        target: expect.stringContaining("BILLING"),
+      }),
+    );
   });
 });

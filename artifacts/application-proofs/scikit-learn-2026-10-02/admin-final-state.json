@@ -1,0 +1,96 @@
+{
+  "gpt": {
+    "classifiers": [
+      {
+        "id": "6c42977b-518c-4bd2-b847-55ef58a9805c",
+        "project_id": "2531a8f4-aca6-46bb-9d87-101039032306",
+        "engine_classifier_id": "ea3ea934-234f-4168-8b9a-2a3791614d38",
+        "slug": "real-maintainer-issue-taxonomy",
+        "name": "Real maintainer issue taxonomy",
+        "created_at": "2026-10-02T17:22:13.657Z",
+        "active_ontology_version_id": "3cb92c13-e84d-403a-b812-c7ef9ce6fbea",
+        "classes": [
+          {
+            "stable_class_id": "58b6dbc0-22e0-425b-a815-8e9f7321528a",
+            "canonical_name": "bug",
+            "display_name": "Bug",
+            "description": "",
+            "aliases": [],
+            "positive_examples": [],
+            "negative_examples": [],
+            "parent_stable_class_id": null
+          },
+          {
+            "stable_class_id": "d76e88fa-8deb-4c4e-84ad-261432e28e47",
+            "canonical_name": "enhancement",
+            "display_name": "Enhancement",
+            "description": "",
+            "aliases": [],
+            "positive_examples": [],
+            "negative_examples": [],
+            "parent_stable_class_id": null
+          },
+          {
+            "stable_class_id": "d506d2ca-6474-4d47-a07d-a570658a2e54",
+            "canonical_name": "documentation",
+            "display_name": "Documentation",
+            "description": "",
+            "aliases": [],
+            "positive_examples": [],
+            "negative_examples": [],
+            "parent_stable_class_id": null
+          }
+        ]
+      }
+    ],
+    "provider_cards": [
+      {
+        "id": "e4e49ca2-63a9-4943-b0c9-01c55ed60d03",
+        "type": "openai-compatible",
+        "endpoint_ref": "OPENCLASS_DISCOVERY_BASE_URL",
+        "model": "openai/gpt-4.1-mini",
+        "timeout_seconds": 60,
+        "is_default": false,
+        "created_at": "2026-10-02T17:22:13.630Z"
+      }
+    ]
+  },
+  "gemini": {
+    "classifiers": [
+      {
+        "id": "413192cf-3805-43a9-adee-8da6b6acd965",
+        "project_id": "4f12358b-a753-4f92-a8c2-d7f4b2a725ef",
+        "engine_classifier_id": "b792d715-d328-47c7-8b74-e9d342a050cc",
+        "slug": "real-maintainer-gemini",
+        "name": "Real maintainer issue taxonomy",
+        "created_at": "2026-10-02T17:28:18.119Z",
+        "active_ontology_version_id": "adc7e403-f57e-49fe-90e5-90f85b55c592",
+        "classes": [
+          {
+            "canonical_name": "bug",
+            "display_name": "Bug"
+          },
+          {
+            "canonical_name": "enhancement",
+            "display_name": "Enhancement"
+          },
+          {
+            "canonical_name": "documentation",
+            "display_name": "Documentation"
+          }
+        ]
+      }
+    ],
+    "provider_cards": [
+      {
+        "id": "60a926a8-baba-499a-95d9-43e260934abf",
+        "type": "openai-compatible",
+        "endpoint_ref": "OPENCLASS_DISCOVERY_BASE_URL",
+        "model": "google/gemini-2.5-flash",
+        "timeout_seconds": 60,
+        "is_default": false,
+        "created_at": "2026-10-02T17:28:18.142Z"
+      }
+    ]
+  }
+}

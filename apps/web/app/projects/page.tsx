@@ -68,8 +68,8 @@ export default function ProjectsPage() {
         <p className="eyebrow">OPENCLASS / PORTAL</p>
         <h1>Projects</h1>
         <p className="lede">
-        A project is a persistent workspace that owns data, decisions, knowledge and every evolution
-        of them.
+          A project is a persistent workspace that owns data, decisions, knowledge and every
+          evolution of them.
         </p>
       </section>
 

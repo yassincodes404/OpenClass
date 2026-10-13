@@ -1,0 +1,23 @@
+{
+  "verified": [
+    {
+      "model": "gpt",
+      "route": "runs",
+      "realProviderVisible": true,
+      "modelVisible": true,
+      "simulatedBadge": false
+    },
+    {
+      "model": "gemini",
+      "route": "runs",
+      "realProviderVisible": true,
+      "modelVisible": true,
+      "simulatedBadge": false
+    },
+    {
+      "route": "report",
+      "trustedDisagreementRows": 12
+    }
+  ],
+  "errors": []
+}

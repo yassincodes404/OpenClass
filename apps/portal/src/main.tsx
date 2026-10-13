@@ -6,5 +6,11 @@ import { AuthProvider } from "./auth";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={new QueryClient()}><AuthProvider><BrowserRouter><Portal /></BrowserRouter></AuthProvider></QueryClientProvider>,
+  <QueryClientProvider client={new QueryClient()}>
+    <AuthProvider>
+      <BrowserRouter>
+        <Portal />
+      </BrowserRouter>
+    </AuthProvider>
+  </QueryClientProvider>,
 );

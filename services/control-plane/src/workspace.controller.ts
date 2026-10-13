@@ -1,4 +1,14 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Req, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import { z } from "zod";
 import { KeycloakGuard, type Principal } from "./auth.js";
 import { WorkspaceService } from "./workspace.service.js";

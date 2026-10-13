@@ -65,6 +65,10 @@ for compatibility and return 409 rather than fabricated passing metrics.
 
 ## Next core work
 
+Current sequencing is governed by the 2026-10-02
+[application proof program](application-proof-program.md). The gates below remain
+required; their order is historical.
+
 1. OC-008: immutable verified datasets, label provenance, persisted baseline/candidate
    replay, hand-checked metrics, policy/version/dataset hashes and failure records.
 2. OC-009/017: immutable decision/spec snapshots, explicit human approval tied to a

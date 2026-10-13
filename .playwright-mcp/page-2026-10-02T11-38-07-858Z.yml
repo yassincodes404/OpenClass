@@ -1,15 +1,15 @@
 - generic [active] [ref=f18e1]:
-  - banner [ref=f18e2]:
-    - link "OpenClass workspace home" [ref=f18e3] [cursor=pointer]:
-      - /url: /
-      - generic [aria-hidden] [ref=f18e4]: O↗
-      - text: OPENCLASS
-    - navigation "Portal navigation" [ref=f18e5]:
-      - link "Workspace" [ref=f18e6] [cursor=pointer]:
-        - /url: /
-      - link "Projects" [ref=f18e7] [cursor=pointer]:
-        - /url: /projects
-    - generic [ref=f18e8]: GENESIS / 0.0.1
-  - main [ref=f18e9]:
-    - status [ref=f18e10]: Loading project…
-  - button "Open Next.js Dev Tools" [ref=f18e16] [cursor=pointer]
+    - banner [ref=f18e2]:
+        - link "OpenClass workspace home" [ref=f18e3] [cursor=pointer]:
+            - /url: /
+            - generic [aria-hidden] [ref=f18e4]: O↗
+            - text: OPENCLASS
+        - navigation "Portal navigation" [ref=f18e5]:
+            - link "Workspace" [ref=f18e6] [cursor=pointer]:
+                - /url: /
+            - link "Projects" [ref=f18e7] [cursor=pointer]:
+                - /url: /projects
+        - generic [ref=f18e8]: GENESIS / 0.0.1
+    - main [ref=f18e9]:
+        - status [ref=f18e10]: Loading project…
+    - button "Open Next.js Dev Tools" [ref=f18e16] [cursor=pointer]

@@ -41,10 +41,10 @@ Routes: `/projects/:id` (overview KPIs + UNKNOWN-rate delta card), `/projects/:i
 
 ## 7. Portal routes
 
-| Route | Expected |
-|---|---|
-| `/projects/:id` | KPIs reflect seeded runs; UNKNOWN spike alert visible when breached |
-| `/projects/:id/analytics` | Trends + cost + pending reviews; alert rule CRUD |
+| Route                     | Expected                                                            |
+| ------------------------- | ------------------------------------------------------------------- |
+| `/projects/:id`           | KPIs reflect seeded runs; UNKNOWN spike alert visible when breached |
+| `/projects/:id/analytics` | Trends + cost + pending reviews; alert rule CRUD                    |
 
 ## 8. Seeder + credentials
 
@@ -52,11 +52,11 @@ Routes: `/projects/:id` (overview KPIs + UNKNOWN-rate delta card), `/projects/:i
 
 ## 9. Manual browser tests
 
-| # | Action | Expected |
-|---|---|---|
-| 1 | Open overview | “Last week 4%, this week 14%” style card + “83 recurring unknowns require review” |
-| 2 | Create alert rule threshold 10% | Alert fires on spike; event logged |
-| 3 | New classification arrives | Dashboard updates via SSE without reload |
+| #   | Action                          | Expected                                                                          |
+| --- | ------------------------------- | --------------------------------------------------------------------------------- |
+| 1   | Open overview                   | “Last week 4%, this week 14%” style card + “83 recurring unknowns require review” |
+| 2   | Create alert rule threshold 10% | Alert fires on spike; event logged                                                |
+| 3   | New classification arrives      | Dashboard updates via SSE without reload                                          |
 
 ## 10. Automated tests
 

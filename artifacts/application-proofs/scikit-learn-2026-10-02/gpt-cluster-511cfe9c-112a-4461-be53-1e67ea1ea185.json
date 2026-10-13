@@ -1,0 +1,22 @@
+{
+  "id": "511cfe9c-112a-4461-be53-1e67ea1ea185",
+  "algorithm": "greedy-cosine-first-fit",
+  "model": "cohere/embed-v4.0",
+  "threshold": 0.55,
+  "created_at": "2026-10-02T17:17:16.811297Z",
+  "members": [
+    {
+      "run_id": "ee54e699-e978-4c89-b5ac-aa2a58027d6f",
+      "similarity": 1
+    },
+    {
+      "run_id": "ab94cd83-2dd4-4966-9902-0bc431a8fe5a",
+      "similarity": 0.7417
+    },
+    {
+      "run_id": "ade58361-b407-44a5-ad54-b4e8c6981691",
+      "similarity": 0.5648
+    }
+  ],
+  "simulated": false
+}

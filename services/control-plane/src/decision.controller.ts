@@ -33,7 +33,10 @@ const createServiceSchema = z.object({
   choices: z
     .array(
       z.object({
-        key: z.string().trim().regex(/^[A-Z][A-Z0-9_]{0,49}$/, "choice keys must be UPPERCASE"),
+        key: z
+          .string()
+          .trim()
+          .regex(/^[A-Z][A-Z0-9_]{0,49}$/, "choice keys must be UPPERCASE"),
         label: z.string().trim().min(1).max(100),
         description: z.string().trim().max(1000).optional(),
       }),
@@ -90,7 +93,9 @@ const runSchema = z
     content: z.string().trim().min(1).max(10_000).optional(),
     raw_event_ids: z.array(z.string().uuid()).max(100).optional(),
   })
-  .refine((value) => value.content || value.raw_event_ids?.length, { message: "content or raw_event_ids is required" });
+  .refine((value) => value.content || value.raw_event_ids?.length, {
+    message: "content or raw_event_ids is required",
+  });
 
 function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
@@ -109,7 +114,11 @@ export class DecisionController {
   ) {}
 
   @Get("decision-services")
-  async listServices(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async listServices(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.listDecisionServices(project.engine_project_id);
   }
@@ -123,7 +132,9 @@ export class DecisionController {
   ) {
     const input = parseBody(createServiceSchema, body);
     if (input.choices.some((choice) => choice.key === "UNKNOWN")) {
-      throw new BadRequestException("UNKNOWN is auto-appended and locked; do not send it as a choice");
+      throw new BadRequestException(
+        "UNKNOWN is auto-appended and locked; do not send it as a choice",
+      );
     }
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
     const created = await this.engine.createDecisionService(project.engine_project_id, input);
@@ -187,7 +198,8 @@ export class DecisionController {
     @Query("result") result?: string,
   ) {
     const limit = limitParam ? Number(limitParam) : 25;
-    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new BadRequestException("limit must be 1–100");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new BadRequestException("limit must be 1–100");
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     const offset = cursor ? Number(Buffer.from(cursor, "base64").toString("utf8")) || 0 : 0;
     const runs = await this.engine.listRuns(project.engine_project_id, 200, offset);
@@ -195,7 +207,8 @@ export class DecisionController {
     const items = filtered.slice(0, limit);
     return {
       items,
-      next_cursor: runs.length === 200 ? Buffer.from(String(offset + limit)).toString("base64") : null,
+      next_cursor:
+        runs.length === 200 ? Buffer.from(String(offset + limit)).toString("base64") : null,
     };
   }
 
@@ -426,14 +439,20 @@ export class DecisionController {
     return project;
   }
 
-  private async requireRole(principal: Principal, workspaceId: string, projectId: string, minimum: Role) {
+  private async requireRole(
+    principal: Principal,
+    workspaceId: string,
+    projectId: string,
+    minimum: Role,
+  ) {
     const membership = await this.db.query(
       "SELECT role FROM control_workspace_memberships WHERE workspace_id = $1 AND subject = $2",
       [workspaceId, principal.subject],
     );
     if (!membership.rowCount) throw new NotFoundException("Workspace not found");
     const role = membership.rows[0].role as Role;
-    if (ROLE_RANK[role] < ROLE_RANK[minimum]) throw new HttpException("Workspace role cannot manage decision services", 403);
+    if (ROLE_RANK[role] < ROLE_RANK[minimum])
+      throw new HttpException("Workspace role cannot manage decision services", 403);
     const project = await this.projectOf(workspaceId, projectId);
     if (!project) throw new NotFoundException("Project not found");
     return project;

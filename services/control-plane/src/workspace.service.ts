@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException, forwardRef } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  forwardRef,
+} from "@nestjs/common";
 import type { Pool, PoolClient, QueryResult } from "pg";
 import type { Principal } from "./auth.js";
 import { AuditService } from "./audit.service.js";
@@ -11,7 +17,14 @@ export type WorkspaceRow = { id: string; slug: string; name: string; role?: Role
 const MANAGER_ROLES: readonly Role[] = ["owner", "admin"];
 
 /** Higher rank = more authority; "minimum role" checks use >= comparison. */
-export const ROLE_RANK: Record<Role, number> = { owner: 5, admin: 4, reviewer: 3, analyst: 2, developer: 1, viewer: 0 };
+export const ROLE_RANK: Record<Role, number> = {
+  owner: 5,
+  admin: 4,
+  reviewer: 3,
+  analyst: 2,
+  developer: 1,
+  viewer: 0,
+};
 
 @Injectable()
 export class WorkspaceService {
@@ -46,7 +59,12 @@ export class WorkspaceService {
       );
       await client.query("COMMIT");
       const row = { ...workspace.rows[0], role: "owner" } as WorkspaceRow;
-      await this.audit.record({ workspaceId: row.id, actor: principal.subject, action: "workspace.created", target: `workspace:${row.slug}` });
+      await this.audit.record({
+        workspaceId: row.id,
+        actor: principal.subject,
+        action: "workspace.created",
+        target: `workspace:${row.slug}`,
+      });
       return row;
     } catch (error) {
       await client.query("ROLLBACK");
@@ -65,14 +83,24 @@ export class WorkspaceService {
     return result.rows as MemberRow[];
   }
 
-  async invite(principal: Principal, workspaceId: string, subject: string, role: Role): Promise<{ subject: string; role: Role }> {
+  async invite(
+    principal: Principal,
+    workspaceId: string,
+    subject: string,
+    role: Role,
+  ): Promise<{ subject: string; role: Role }> {
     await this.requireRole(principal, workspaceId, MANAGER_ROLES);
     const result = await this.db.query(
       "INSERT INTO control_workspace_memberships (workspace_id, subject, role) VALUES ($1, $2, $3)" +
         " ON CONFLICT (workspace_id, subject) DO UPDATE SET role = EXCLUDED.role RETURNING subject, role",
       [workspaceId, subject, role],
     );
-    await this.audit.record({ workspaceId, actor: principal.subject, action: "member.invited", target: `member:${subject}:${role}` });
+    await this.audit.record({
+      workspaceId,
+      actor: principal.subject,
+      action: "member.invited",
+      target: `member:${subject}:${role}`,
+    });
     return result.rows[0];
   }
 
@@ -82,31 +110,44 @@ export class WorkspaceService {
     return result.rows[0].role as Role;
   }
 
-  private async requireRole(principal: Principal, workspaceId: string, allowed: readonly Role[]): Promise<Role> {
+  private async requireRole(
+    principal: Principal,
+    workspaceId: string,
+    allowed: readonly Role[],
+  ): Promise<Role> {
     const role = await this.requireMembership(principal, workspaceId);
-    if (!allowed.includes(role)) throw new ForbiddenException("Workspace role cannot manage members");
+    if (!allowed.includes(role))
+      throw new ForbiddenException("Workspace role cannot manage members");
     return role;
   }
 
   private roleOf(principal: Principal, workspaceId: string): Promise<QueryResult<{ role: Role }>> {
-    return this.db.query("SELECT role FROM control_workspace_memberships WHERE workspace_id = $1 AND subject = $2", [
-      workspaceId,
-      principal.subject,
-    ]);
+    return this.db.query(
+      "SELECT role FROM control_workspace_memberships WHERE workspace_id = $1 AND subject = $2",
+      [workspaceId, principal.subject],
+    );
   }
 
   private slugify(name: string): string {
-    return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80) || "workspace";
+    return (
+      name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 80) || "workspace"
+    );
   }
 
   private async uniqueSlug(client: PoolClient, base: string): Promise<string> {
-    const taken = await client.query("SELECT slug FROM control_workspaces WHERE slug = $1 OR slug LIKE $2", [
-      base,
-      `${base}-%`,
-    ]);
+    const taken = await client.query(
+      "SELECT slug FROM control_workspaces WHERE slug = $1 OR slug LIKE $2",
+      [base, `${base}-%`],
+    );
     if (!taken.rows.some((row: { slug: string }) => row.slug === base)) return base;
     let suffix = 2;
-    while (taken.rows.some((row: { slug: string }) => row.slug === `${base}-${suffix}`)) suffix += 1;
+    while (taken.rows.some((row: { slug: string }) => row.slug === `${base}-${suffix}`))
+      suffix += 1;
     return `${base}-${suffix}`;
   }
 }

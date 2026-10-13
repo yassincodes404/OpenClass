@@ -23,7 +23,11 @@ export function PortalNavigation() {
         {links.map((link) => {
           const active = link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
           return (
-            <Link key={link.href} href={link.href} className={active ? "portal-link active" : "portal-link"}>
+            <Link
+              key={link.href}
+              href={link.href}
+              className={active ? "portal-link active" : "portal-link"}
+            >
               {link.label}
             </Link>
           );

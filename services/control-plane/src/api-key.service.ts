@@ -27,7 +27,11 @@ export function hashKey(raw: string): string {
 export class ApiKeyService {
   constructor(@Inject(CONTROL_DB) private readonly db: Pool) {}
 
-  async create(workspaceId: string, projectId: string, scopes: ApiKeyScope[]): Promise<{ key: string; row: ApiKeyRow }> {
+  async create(
+    workspaceId: string,
+    projectId: string,
+    scopes: ApiKeyScope[],
+  ): Promise<{ key: string; row: ApiKeyRow }> {
     const secret = randomBytes(24).toString("hex");
     const raw = `oc_dev_${secret}`;
     const prefix = raw.slice(0, 14);
@@ -64,7 +68,9 @@ export class ApiKeyService {
       "SELECT workspace_id, project_id, scopes, revoked_at FROM control_api_keys WHERE key_hash = $1",
       [hashKey(raw)],
     );
-    const row = result.rows[0] as { workspace_id: string; project_id: string; scopes: ApiKeyScope[]; revoked_at: Date | null } | undefined;
+    const row = result.rows[0] as
+      | { workspace_id: string; project_id: string; scopes: ApiKeyScope[]; revoked_at: Date | null }
+      | undefined;
     if (!row || row.revoked_at) throw new ForbiddenException("API key is invalid or revoked");
     if (requiredScope && !row.scopes.includes(requiredScope)) {
       throw new ForbiddenException(`API key is missing the '${requiredScope}' scope`);

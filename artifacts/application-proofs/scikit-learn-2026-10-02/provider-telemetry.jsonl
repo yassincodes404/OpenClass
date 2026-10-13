@@ -1,0 +1,574 @@
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1912, "output_tokens": 30, "cost_usd": 0.0008128, "latency_ms": 1170.790506999765}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1546, "output_tokens": 30, "cost_usd": 0.0006664, "latency_ms": 1262.948513000083}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 850, "output_tokens": 30, "cost_usd": 0.000388, "latency_ms": 1698.875162999684}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1838, "output_tokens": 30, "cost_usd": 0.0007832, "latency_ms": 1840.3724569998303}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 961, "output_tokens": 30, "cost_usd": 0.0004324, "latency_ms": 1469.850662000681}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1650, "output_tokens": 30, "cost_usd": 0.000708, "latency_ms": 1588.0638449998514}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1560, "output_tokens": 30, "cost_usd": 0.000672, "latency_ms": 2136.222070999793}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 2016, "output_tokens": 30, "cost_usd": 0.0008544, "latency_ms": 1242.3668909996195}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 2685, "output_tokens": 30, "cost_usd": 0.001122, "latency_ms": 2329.111667999314}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 526, "output_tokens": 30, "cost_usd": 0.0002584, "latency_ms": 3374.183413998253}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 345, "output_tokens": 30, "cost_usd": 0.000186, "latency_ms": 1429.0920650000771}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1436, "output_tokens": 30, "cost_usd": 0.0006224, "latency_ms": 1156.7615700005263}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 584, "output_tokens": 30, "cost_usd": 0.0002816, "latency_ms": 1271.342112999264}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1481, "output_tokens": 30, "cost_usd": 0.0006404, "latency_ms": 1498.2951580004737}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1086, "output_tokens": 30, "cost_usd": 0.0004824, "latency_ms": 2150.1895130004414}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1982, "output_tokens": 30, "cost_usd": 0.0008408, "latency_ms": 1831.1819700011256}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 345, "output_tokens": 30, "cost_usd": 0.000186, "latency_ms": 1842.7788900007727}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 330, "output_tokens": 30, "cost_usd": 0.00018, "latency_ms": 1705.7476380014123}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 561, "output_tokens": 30, "cost_usd": 0.0002724, "latency_ms": 2257.489457000702}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 403, "output_tokens": 30, "cost_usd": 0.0002092, "latency_ms": 1301.9761510004173}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 364, "output_tokens": 30, "cost_usd": 0.0001936, "latency_ms": 1624.0718379995087}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 624, "output_tokens": 30, "cost_usd": 0.0002976, "latency_ms": 2458.1241729993053}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 345, "output_tokens": 30, "cost_usd": 0.000186, "latency_ms": 2268.355389000135}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1436, "output_tokens": 30, "cost_usd": 0.0006224, "latency_ms": 1225.71193299882}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1926, "output_tokens": 30, "cost_usd": 0.0008184, "latency_ms": 1161.0936820015922}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 661, "output_tokens": 30, "cost_usd": 0.0003124, "latency_ms": 1414.64689500026}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1340, "output_tokens": 30, "cost_usd": 0.000584, "latency_ms": 1578.4520440010965}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 373, "output_tokens": 30, "cost_usd": 0.0001972, "latency_ms": 1450.4656219996832}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 877, "output_tokens": 181, "cost_usd": 0.0007156, "latency_ms": 1918.2245779993536}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 354, "output_tokens": 30, "cost_usd": 0.0001896, "latency_ms": 1653.6183379994327}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 2042, "output_tokens": 136, "cost_usd": 0.0009526, "latency_ms": 1483.8464989989006}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1865, "output_tokens": 30, "cost_usd": 0.000794, "latency_ms": 2067.5820779997593}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1728, "output_tokens": 357, "cost_usd": 0.0014109, "latency_ms": 2452.12575000005}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1072, "output_tokens": 30, "cost_usd": 0.0004768, "latency_ms": 1953.001817999393}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 2171, "output_tokens": 251, "cost_usd": 0.0012788, "latency_ms": 2000.1214140011143}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 353, "output_tokens": 30, "cost_usd": 0.0001892, "latency_ms": 1918.4718129999965}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 339, "output_tokens": 30, "cost_usd": 0.0001836, "latency_ms": 1377.6596070001688}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1002, "output_tokens": 256, "cost_usd": 0.0009406, "latency_ms": 2237.4200750000455}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1710, "output_tokens": 387, "cost_usd": 0.0014805, "latency_ms": 2665.0680570000986}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1689, "output_tokens": 157, "cost_usd": 0.0008992, "latency_ms": 1441.8153850001545}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 2955, "output_tokens": 167, "cost_usd": 0.001304, "latency_ms": 1671.0874950003927}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 2234, "output_tokens": 135, "cost_usd": 0.0010077, "latency_ms": 1324.8185880001984}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 494, "output_tokens": 110, "cost_usd": 0.0004232, "latency_ms": 1196.8872110010125}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 315, "output_tokens": 403, "cost_usd": 0.001102, "latency_ms": 3100.1032130006934}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 270, "output_tokens": 560, "cost_usd": 0.001481, "latency_ms": 3563.569390000339}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 2019, "output_tokens": 811, "cost_usd": 0.0026332, "latency_ms": 5240.882129999591}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 979, "output_tokens": 611, "cost_usd": 0.0018212, "latency_ms": 3693.1130359989766}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1431, "output_tokens": 30, "cost_usd": 0.0006204, "latency_ms": 1409.8199119998753}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 474, "output_tokens": 30, "cost_usd": 0.0002376, "latency_ms": 1138.303359000929}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 918, "output_tokens": 30, "cost_usd": 0.0004152, "latency_ms": 1417.8024949997052}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 804, "output_tokens": 30, "cost_usd": 0.0003696, "latency_ms": 964.1843779991177}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 361, "output_tokens": 30, "cost_usd": 0.0001924, "latency_ms": 1107.3915500001021}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 888, "output_tokens": 30, "cost_usd": 0.0004032, "latency_ms": 1395.9059190001426}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1068, "output_tokens": 30, "cost_usd": 0.0004752, "latency_ms": 1264.4130059998133}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 469, "output_tokens": 30, "cost_usd": 0.0002356, "latency_ms": 4515.436313000464}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1049, "output_tokens": 30, "cost_usd": 0.0004676, "latency_ms": 1247.9379999986122}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 894, "output_tokens": 30, "cost_usd": 0.0004056, "latency_ms": 1313.4443910003029}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 594, "output_tokens": 30, "cost_usd": 0.0002856, "latency_ms": 3898.867268999311}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 579, "output_tokens": 30, "cost_usd": 0.0002796, "latency_ms": 1840.300660000139}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 283, "output_tokens": 30, "cost_usd": 0.0001612, "latency_ms": 1290.717391000726}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 576, "output_tokens": 1624, "cost_usd": 0.0042328, "latency_ms": 11423.741078000603}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1611, "output_tokens": 171, "cost_usd": 0.0009108, "latency_ms": 1901.992216000508}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1159, "output_tokens": 126, "cost_usd": 0.0006627, "latency_ms": 1449.8779679997824}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1628, "output_tokens": 205, "cost_usd": 0.0010009, "latency_ms": 1909.639812000023}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 2231, "output_tokens": 218, "cost_usd": 0.0012143, "latency_ms": 1913.9397660001123}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 180, "output_tokens": 418, "cost_usd": 0.001099, "latency_ms": 2554.4942540000193}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 286, "output_tokens": 392, "cost_usd": 0.0010658, "latency_ms": 3119.5437089991174}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 265, "output_tokens": 1228, "cost_usd": 0.0031495, "latency_ms": 6862.361675999637}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 534, "output_tokens": 289, "cost_usd": 0.0008827, "latency_ms": 2013.3609659987997}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 312, "output_tokens": 295, "cost_usd": 0.0008311, "latency_ms": 2205.53105900035}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 394, "output_tokens": 394, "cost_usd": 0.0011032, "latency_ms": 2530.8482609998464}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 199, "output_tokens": 298, "cost_usd": 0.0008047, "latency_ms": 2423.769042001368}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 392, "output_tokens": 30, "cost_usd": 0.0002048, "latency_ms": 1548.7092810017202}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 859, "output_tokens": 30, "cost_usd": 0.0003916, "latency_ms": 1093.1495760014514}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 489, "output_tokens": 30, "cost_usd": 0.0002436, "latency_ms": 1871.021582001049}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 983, "output_tokens": 30, "cost_usd": 0.0004412, "latency_ms": 1050.6922469994606}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 433, "output_tokens": 30, "cost_usd": 0.0002212, "latency_ms": 1069.7580039995955}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 355, "output_tokens": 30, "cost_usd": 0.00019, "latency_ms": 3056.8202119993657}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 366, "output_tokens": 30, "cost_usd": 0.0001944, "latency_ms": 1721.1837960003322}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 323, "output_tokens": 30, "cost_usd": 0.0001772, "latency_ms": 1973.123301000669}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 356, "output_tokens": 30, "cost_usd": 0.0001904, "latency_ms": 2511.0277050007426}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 2175, "output_tokens": 30, "cost_usd": 0.000918, "latency_ms": 1916.5071490006085}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 411, "output_tokens": 30, "cost_usd": 0.0002124, "latency_ms": 1815.994607999528}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1138, "output_tokens": 30, "cost_usd": 0.0005032, "latency_ms": 1400.5499399991095}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "openai/gpt-4.1-mini", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 367, "output_tokens": 307, "cost_usd": 0.0008776, "latency_ms": 2473.3046290002676}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 680, "output_tokens": 233, "cost_usd": 0.0007865, "latency_ms": 1971.3405099992087}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1431, "output_tokens": 259, "cost_usd": 0.0010768, "latency_ms": 2293.668913000147}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 336, "output_tokens": 207, "cost_usd": 0.0006183, "latency_ms": 1764.682039998661}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 316, "output_tokens": 156, "cost_usd": 0.0004848, "latency_ms": 1524.2494079993776}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 2148, "output_tokens": 244, "cost_usd": 0.0012544, "latency_ms": 2120.0324919991544}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1165, "output_tokens": 408, "cost_usd": 0.0013695, "latency_ms": 3035.4858439986856}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1514, "output_tokens": 751, "cost_usd": 0.0023317, "latency_ms": 4848.334531998262}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 470, "output_tokens": 152, "cost_usd": 0.000521, "latency_ms": 1495.6098439997731}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 1523, "output_tokens": 201, "cost_usd": 0.0009594, "latency_ms": 1617.1410369988735}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 920, "output_tokens": 750, "cost_usd": 0.002151, "latency_ms": 4484.427077000873}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "bad_response", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 592, "output_tokens": 144, "cost_usd": 0.0005376, "latency_ms": 1555.938175000847}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 789, "output_tokens": 108, "cost_usd": 0.0005067, "latency_ms": 9643.781034001222}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 307, "output_tokens": 186, "cost_usd": 0.0005571, "latency_ms": 1578.2149480000953}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "google/gemini-2.5-flash", "operation": "/chat/completions", "input_tokens": 875, "output_tokens": 327, "cost_usd": 0.00108, "latency_ms": 8617.195838000043}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.error", "model": "google/gemini-2.5-flash", "status": 429, "operation": "/chat/completions"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "rate_limit", "sqlstate": null}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 254, "output_tokens": 30, "cost_usd": 0.0001496, "latency_ms": 1515.8784819996072}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 251, "output_tokens": 30, "cost_usd": 0.0001484, "latency_ms": 1146.5092879989243}
+{"event": "runtime.error", "exception_type": "ConflictError", "kind": null, "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ConflictError", "kind": null, "sqlstate": null}
+{"event": "provider.error", "model": "openai/text-embedding-3-small", "status": 403, "operation": "/embeddings"}
+{"event": "runtime.error", "exception_type": "ProviderError", "kind": "auth", "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ConflictError", "kind": null, "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ConflictError", "kind": null, "sqlstate": null}
+{"event": "provider.completed", "model": "cohere/embed-v4.0", "operation": "/embeddings", "input_tokens": 482, "output_tokens": null, "cost_usd": null, "latency_ms": 1362.4297469996236}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 655, "output_tokens": 98, "cost_usd": 0.0004188, "latency_ms": 1686.4841890001117}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 310, "output_tokens": 75, "cost_usd": 0.000244, "latency_ms": 1516.4467499998864}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 412, "output_tokens": 115, "cost_usd": 0.0003488, "latency_ms": 1540.921434001575}
+{"event": "runtime.error", "exception_type": "ValidationError", "kind": null, "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ValidationError", "kind": null, "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ValidationError", "kind": null, "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ConflictError", "kind": null, "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ConflictError", "kind": null, "sqlstate": null}
+{"event": "runtime.error", "exception_type": "ValidationError", "kind": null, "sqlstate": null}
+{"event": "provider.completed", "model": "cohere/embed-v4.0", "operation": "/embeddings", "input_tokens": 908, "output_tokens": null, "cost_usd": null, "latency_ms": 815.5045520015847}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 1205, "output_tokens": 112, "cost_usd": 0.0006612, "latency_ms": 1641.7672640000092}
+{"event": "provider.completed", "model": "openai/gpt-4.1-mini", "operation": "/chat/completions", "input_tokens": 306, "output_tokens": 83, "cost_usd": 0.0002552, "latency_ms": 1454.5951849995618}
+{"event": "runtime.error", "exception_type": "ValidationError", "kind": null, "sqlstate": null}
