@@ -112,6 +112,7 @@ class Observation(Model):
 class ChoiceRequest(Model):
     observation: Observation
     ontology: OntologyVersion
+    instructions: str | None = Field(default=None, max_length=10_000)
 
 
 class ChoiceResult(Model):

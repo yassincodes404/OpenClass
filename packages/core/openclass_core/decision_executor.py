@@ -79,9 +79,11 @@ class DecisionExecutor:
             metadata=dict(event.metadata),
         )
 
+        effective_instructions = (node.instructions or service.instructions).strip()
         request = ChoiceRequest(
             observation=observation,
             ontology=ontology,
+            instructions=effective_instructions or None,
         )
 
         # 2. Invoke DecisionProvider
@@ -161,7 +163,7 @@ class DecisionExecutor:
             supervision_reason=supervision_reason,
             latency_ms=result.latency_ms,
             input_snapshot=event.model_dump(mode="json"),
-            instructions_snapshot=node.instructions,
+            instructions_snapshot=effective_instructions,
             choices_snapshot=[c.model_dump(mode="json") for c in node.choices],
             provider_metadata=meta,
         )

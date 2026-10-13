@@ -680,6 +680,10 @@ class ProjectService:
             updates["description"] = update.description
         if update.instructions is not None:
             updates["instructions"] = update.instructions
+            if len(service.nodes) == 1:
+                updates["nodes"] = (
+                    service.nodes[0].model_copy(update={"instructions": update.instructions}),
+                )
         if update.status is not None:
             updates["status"] = update.status
         if update.provider_override is not None:

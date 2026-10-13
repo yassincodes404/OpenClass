@@ -130,13 +130,18 @@ class LayaDecisionProvider:
             return self._local_fallback_choice(request, criteria)
 
     async def _http_choice(self, request: ChoiceRequest, criteria: dict[str, Any]) -> ChoiceResult:
+        compiled_instructions = (
+            f"{INSTRUCTIONS}\n\nService instructions: {request.instructions.strip()}"
+            if request.instructions and request.instructions.strip()
+            else INSTRUCTIONS
+        )
         payload = {
             "model": self._model,
             "state": request.observation.content,
             "questions": {
                 QUESTION: {
                     "type": "choice",
-                    "instructions": INSTRUCTIONS,
+                    "instructions": compiled_instructions,
                     "criteria": criteria,
                 }
             },
@@ -187,10 +192,15 @@ class LayaDecisionProvider:
                 )
                 for k, v in criteria.items()
             }
+            compiled_instructions = (
+                f"{INSTRUCTIONS}\n\nService instructions: {request.instructions.strip()}"
+                if request.instructions and request.instructions.strip()
+                else INSTRUCTIONS
+            )
             questions = {
                 QUESTION: {
                     "type": "choice",
-                    "instructions": INSTRUCTIONS,
+                    "instructions": compiled_instructions,
                     "criteria": crit_dict,
                 }
             }
