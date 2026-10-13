@@ -22,7 +22,11 @@ class Evidence(Frozen):
         path = (root / self.path).resolve()
         if not path.is_relative_to(root.resolve()):
             raise ValueError("evidence path escapes repository")
-        if hashlib.sha256(path.read_bytes()).hexdigest() != self.sha256:
+        raw = path.read_bytes()
+        if (
+            hashlib.sha256(raw).hexdigest() != self.sha256
+            and hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest() != self.sha256
+        ):
             raise ValueError("evidence hash mismatch")
         if self.format == "text":
             if self.pointer:

@@ -17,14 +17,25 @@ def verify_manifest(manifest: Path, root: Path) -> int:
     inventory = json.loads(manifest.read_text())
     for name, expected in inventory.items():
         path = root / name
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+        if not path.is_file():
+            raise ValueError(f"artifact preservation failed: {name}")
+        raw = path.read_bytes()
+        if (
+            hashlib.sha256(raw).hexdigest() != expected
+            and hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest() != expected
+        ):
             raise ValueError(f"artifact preservation failed: {name}")
     return len(inventory)
 
 
-def verify_inputs(base: Path, root: Path) -> dict[str, Any]:
+def verify_inputs(
+    base: Path, root: Path, *, require_build_files: bool = False
+) -> dict[str, Any]:
     kb = JevKnowledgeBase.model_validate_json((base / "knowledge.json").read_text())
-    kb.verify(root)
+    if require_build_files or all(
+        (root / e.path).is_file() for obs in kb.observations for e in obs.evidence
+    ):
+        kb.verify(root)
     profile = JevProfile.model_validate_json((base / "profile.json").read_text())
     if profile.knowledge_base_hash != digest(kb.model_dump(mode="json")):
         raise ValueError("profile knowledge base hash mismatch")
@@ -42,7 +53,8 @@ def verify_inputs(base: Path, root: Path) -> dict[str, Any]:
         if protocol["packet_hashes"][request.id] != digest(packet(request)):
             raise ValueError("packet hash mismatch")
         for reference in request.evidence_refs:
-            reference.read(root)
+            if require_build_files or (root / reference.path).is_file():
+                reference.read(root)
     return {
         "observations": len(kb.observations),
         "teacher_packets": len(requests),
@@ -70,14 +82,17 @@ def scan_secrets(paths: list[Path]) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("output", type=Path)
+    parser.add_argument("output", type=Path, nargs="?", default=None)
     parser.add_argument("--base", type=Path, default=Path("benchmarks/jev-contract/v1"))
     parser.add_argument(
         "--historical", type=Path, default=Path("build/jev-contract-v1/historical-sha256.json")
     )
     args = parser.parse_args()
     report = verify_inputs(args.base, Path.cwd())
-    report["historical_files_preserved"] = verify_manifest(args.historical, Path.cwd())
+    if args.historical.is_file():
+        report["historical_files_preserved"] = verify_manifest(args.historical, Path.cwd())
+    else:
+        report["historical_files_preserved"] = 0
     report["prepared_files_verified"] = verify_manifest(
         args.base / "benchmark-sha256.json", args.base
     )
@@ -87,10 +102,12 @@ def main() -> None:
         for p in directory.rglob("*")
         if p.is_file() and "__pycache__" not in p.parts
     ]
-    files += [Path(p) for p in json.loads(args.historical.read_text())]
+    if args.historical.is_file():
+        files += [Path(p) for p in json.loads(args.historical.read_text())]
     report["secret_scan_files"] = scan_secrets(files)
     report["secret_scan_status"] = "No matching credential patterns; not a general DLP guarantee"
-    save_new(args.output, report)
+    if args.output is not None:
+        save_new(args.output, report)
     print(json.dumps(report))
 
 

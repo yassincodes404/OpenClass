@@ -41,4 +41,4 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["openclass_core", "openclass_server", "openclass_sdk", "openclass_cli", "openclass_provider_mock", "openclass_provider_jev", "openclass_provider_laya"]
+packages = ["openclass_core", "openclass_server", "openclass_sdk", "openclass_cli", "openclass_provider_mock", "openclass_provider_jev", "openclass_provider_laya", "openclass_provider_glm"]
