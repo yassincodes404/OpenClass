@@ -20,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .mappers import audit_event_row, raw_event_row
-from .tables import ProjectIntegrationRow, WebhookReceiptRow
+from .tables import ProjectIntegrationRow, RawEventRow, WebhookReceiptRow
 
 
 class SQLIntegrationRepository:
@@ -69,7 +69,16 @@ class SQLIntegrationRepository:
                 existing = await session.get(WebhookReceiptRow, key)
                 if existing is not None:
                     return result(existing, True)
-                session.add(raw_event_row(event))
+                existing_raw_event = await session.scalar(
+                    select(RawEventRow).where(
+                        RawEventRow.project_id == key[0],
+                        RawEventRow.content_hash == event.content_hash,
+                    )
+                )
+                row = raw_event_row(event)
+                if existing_raw_event is not None:
+                    row.content_hash = fingerprint
+                session.add(row)
                 session.add(audit_event_row(audit))
                 await session.flush()
                 receipt = WebhookReceiptRow(

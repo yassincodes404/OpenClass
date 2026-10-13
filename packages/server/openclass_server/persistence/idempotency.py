@@ -42,20 +42,26 @@ class IdempotencyStore:
         return json.loads(response) if isinstance(response, str) else response
 
     async def store(self, project_id: UUID, key: str, response: Any, ttl_hours: int) -> None:
+        now_ts = datetime.now(UTC)
         async with self.sessions.begin() as session:
             await session.execute(
                 text(
                     "INSERT INTO idempotency_keys"
                     " (project_id, key, response_hash, response, created_at, expires_at)"
                     " VALUES (:project_id, :key, :hash, :response, :created_at, :expires_at)"
-                    " ON CONFLICT (project_id, key) DO NOTHING"
+                    " ON CONFLICT (project_id, key) DO UPDATE SET"
+                    " response_hash = EXCLUDED.response_hash,"
+                    " response = EXCLUDED.response,"
+                    " created_at = EXCLUDED.created_at,"
+                    " expires_at = EXCLUDED.expires_at"
+                    " WHERE idempotency_keys.expires_at < EXCLUDED.created_at"
                 ),
                 {
                     "project_id": str(project_id),
                     "key": key,
                     "hash": response_hash(response),
                     "response": json.dumps(response),
-                    "created_at": datetime.now(UTC),
-                    "expires_at": datetime.now(UTC) + timedelta(hours=ttl_hours),
+                    "created_at": now_ts,
+                    "expires_at": now_ts + timedelta(hours=ttl_hours),
                 },
             )
