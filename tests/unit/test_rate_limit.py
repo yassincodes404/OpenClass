@@ -50,3 +50,19 @@ def test_limiter_returns_headers_data():
     _, _, limit, remaining = limiter.check("c", "/api/v1/projects/p/events", now=0.0)
     assert limit == 3
     assert remaining == 2
+
+
+def test_limiter_ignores_get_requests_and_limits_webhooks():
+    limiter = RateLimiter(ingest_per_minute=1, classify_per_minute=1, max_buckets=2)
+    assert limiter.route_class("/api/v1/projects/p/events", method="GET") is None
+    assert limiter.route_class("/api/v1/projects/p/runs", method="GET") is None
+    webhook_path = "/api/v1/projects/p/integrations/i/webhook"
+    assert limiter.route_class(webhook_path, method="POST") == "ingest"
+    # GET requests never consume tokens
+    for _ in range(5):
+        assert limiter.check("c", "/api/v1/projects/p/events", method="GET", now=0.0)[0] is True
+    # Bounded bucket eviction keeps _buckets <= max_buckets
+    limiter.check("c1", "/api/v1/projects/p/events", now=1.0)
+    limiter.check("c2", "/api/v1/projects/p/events", now=2.0)
+    limiter.check("c3", "/api/v1/projects/p/events", now=3.0)
+    assert len(limiter._buckets) <= 2

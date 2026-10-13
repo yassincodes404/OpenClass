@@ -33,13 +33,25 @@ def test_plain_text_is_untouched():
 
 
 def test_mapping_redacts_nested_values():
+    from openclass_server.redaction import configured_blocklist
+
     payload = {
         "content": "email me at a@b.co",
-        "metadata": {"note": "token sk-abcdefghijklmnopqr", "tags": ["x", "phone 555-1234"]},
+        "metadata": {
+            "note": "token sk-abcdefghijklmnopqr",
+            "tags": ["x", "phone 555-1234"],
+            "nested_items": [{"secret_email": "nested@example.org", "inner_list": ["123-45-6789"]}],
+        },
         "count": 3,
     }
-    redacted = redact_mapping(payload)
+    redacted = redact_mapping(payload, blocklist=configured_blocklist("AcmeSecret , BetaCorp "))
     assert "a@b.co" not in redacted["content"]
     assert "sk-abcdefghijklmnopqr" not in redacted["metadata"]["note"]
     assert "555-1234" not in redacted["metadata"]["tags"][1]
+    assert "nested@example.org" not in redacted["metadata"]["nested_items"][0]["secret_email"]
+    assert "123-45-6789" not in redacted["metadata"]["nested_items"][0]["inner_list"][0]
     assert redacted["count"] == 3
+
+    unredacted = redact_mapping(payload, enabled=False)
+    assert unredacted["content"] == "email me at a@b.co"
+    assert redact_text("Contact a@b.co", enabled=False) == "Contact a@b.co"
