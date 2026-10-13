@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Single source of truth for the Alembic revision readiness requires. Update this
 # constant (and only it) whenever a new migration becomes the expected head.
-EXPECTED_SCHEMA_REVISION = "0023_preserve_cluster_candidates"
+EXPECTED_SCHEMA_REVISION = "0024_decision_run_version_lineage"
 
 
 class Settings(BaseSettings):

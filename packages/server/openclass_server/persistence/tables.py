@@ -160,6 +160,8 @@ class DecisionRunRow(Base):
         ForeignKey("decision_services.id", ondelete="CASCADE"), index=True
     )
     decision_node_id: Mapped[str] = mapped_column(String(36))
+    decision_service_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    service_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     provider: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(100))
     execution_mode: Mapped[str] = mapped_column(String(50))

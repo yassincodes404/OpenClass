@@ -94,6 +94,8 @@ def test_execute_decision_runs_via_api(client: TestClient) -> None:
     assert len(runs) == 1
     run = runs[0]
     assert run["decision_service_id"] == service["id"]
+    assert run["decision_service_version_id"] == service["active_version_id"]
+    assert isinstance(run["service_hash"], str) and len(run["service_hash"]) == 64
     assert run["raw_event_id"] == event["id"]
     assert run["selected_choice"] == "BILLING"
     assert run["supervision_outcome"] in ("TRUSTED", "REVIEW")

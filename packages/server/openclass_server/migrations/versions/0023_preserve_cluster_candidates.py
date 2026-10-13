@@ -17,27 +17,27 @@ def upgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name == "sqlite":
         op.execute(sa.text("PRAGMA foreign_keys=OFF"))
-        op.execute(
-            sa.text(
-                """
-                CREATE TABLE cluster_candidates_new (
-                    id VARCHAR(36) NOT NULL PRIMARY KEY,
-                    project_id VARCHAR(36) NOT NULL REFERENCES projects(id),
-                    cluster_id VARCHAR(36) NULL REFERENCES unknown_clusters(id) ON DELETE SET NULL,
-                    type VARCHAR(30) NOT NULL,
-                    canonical_name VARCHAR(200) NULL,
-                    display_name VARCHAR(200) NULL,
-                    definition TEXT NULL,
-                    aliases JSON NOT NULL,
-                    existing_match VARCHAR(200) NULL,
-                    confidence FLOAT NOT NULL,
-                    reason TEXT NOT NULL,
-                    status VARCHAR(20) NOT NULL,
-                    provider VARCHAR(50) NOT NULL,
-                    created_at DATETIME NOT NULL
-                )
-                """
-            )
+        op.create_table(
+            "cluster_candidates_new",
+            sa.Column("id", sa.String(36), primary_key=True),
+            sa.Column("project_id", sa.String(36), sa.ForeignKey("projects.id"), nullable=False),
+            sa.Column(
+                "cluster_id",
+                sa.String(36),
+                sa.ForeignKey("unknown_clusters.id", ondelete="SET NULL"),
+                nullable=True,
+            ),
+            sa.Column("type", sa.String(30), nullable=False),
+            sa.Column("canonical_name", sa.String(200), nullable=True),
+            sa.Column("display_name", sa.String(200), nullable=True),
+            sa.Column("definition", sa.Text(), nullable=True),
+            sa.Column("aliases", sa.JSON(), nullable=False),
+            sa.Column("existing_match", sa.String(200), nullable=True),
+            sa.Column("confidence", sa.Float(), nullable=False),
+            sa.Column("reason", sa.Text(), nullable=False),
+            sa.Column("status", sa.String(20), nullable=False),
+            sa.Column("provider", sa.String(50), nullable=False),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         )
         op.execute(
             sa.text(
@@ -55,8 +55,8 @@ def upgrade() -> None:
                 """
             )
         )
-        op.execute(sa.text("DROP TABLE cluster_candidates"))
-        op.execute(sa.text("ALTER TABLE cluster_candidates_new RENAME TO cluster_candidates"))
+        op.drop_table("cluster_candidates")
+        op.rename_table("cluster_candidates_new", "cluster_candidates")
         op.create_index(
             "ix_cluster_candidates_project_id",
             "cluster_candidates",

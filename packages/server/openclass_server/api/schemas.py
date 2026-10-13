@@ -123,6 +123,7 @@ class DecisionChoiceCreate(Model):
     key: str = Field(min_length=1, max_length=100)
     label: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
+    aliases: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def clean_choice(self) -> "DecisionChoiceCreate":
@@ -132,6 +133,7 @@ class DecisionChoiceCreate(Model):
         object.__setattr__(self, "key", key)
         object.__setattr__(self, "label", self.label.strip() or key)
         object.__setattr__(self, "description", self.description.strip())
+        object.__setattr__(self, "aliases", [a.strip() for a in self.aliases if a.strip()])
         return self
 
 
@@ -196,6 +198,8 @@ class DecisionServiceResponse(Model):
     nodes: list[dict[str, Any]]
     status: str
     provider_override: str | None
+    version_number: int = 1
+    active_version_id: str | None = None
     created_at: str
     updated_at: str
 
@@ -206,6 +210,8 @@ class DecisionRunResponse(Model):
     raw_event_id: str
     decision_service_id: str
     decision_node_id: str
+    decision_service_version_id: str | None = None
+    service_hash: str | None = None
     provider: str
     model: str
     execution_mode: str

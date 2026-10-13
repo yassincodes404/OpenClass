@@ -152,17 +152,27 @@ class PromotionStore:
         return next((v for v in versions if v["version_number"] == version_number), None)
 
     async def update_service_choices(
-        self, service_id: UUID, payload_choices: list[dict[str, Any]], payload: dict[str, Any]
+        self,
+        service_id: UUID,
+        payload_choices: list[dict[str, Any]],
+        payload: dict[str, Any],
+        *,
+        version_id: str | None = None,
+        version_number: int | None = None,
     ) -> None:
         """Point the decision service at the promoted choice set (snapshot update)."""
-        # The engine choice model forbids extra fields: keep engine-shaped keys.
+        # Keep engine-shaped keys including versioned aliases.
         engine_choices = [
-            {k: v for k, v in choice.items() if k in ("key", "label", "description")}
+            {k: v for k, v in choice.items() if k in ("key", "label", "description", "aliases")}
             for choice in payload_choices
         ]
         payload["nodes"] = payload.get("nodes", [])
         if payload["nodes"]:
             payload["nodes"][0]["choices"] = engine_choices
+        if version_number is not None:
+            payload["version_number"] = int(version_number)
+        if version_id is not None:
+            payload["active_version_id"] = str(version_id)
         async with self.sessions.begin() as session:
             await session.execute(
                 sa.text(
