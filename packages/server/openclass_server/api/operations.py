@@ -298,11 +298,18 @@ def operations_router(
                 payload = row.payload
                 if isinstance(payload, str):
                     payload = json.loads(payload)
+                inner_payload = (
+                    payload["payload"]
+                    if isinstance(payload, dict)
+                    and "event_type" in payload
+                    and isinstance(payload.get("payload"), dict)
+                    else payload
+                )
                 events.append(
                     {
                         "event": row.event_type,
                         "actor": row.actor,
-                        "payload": payload,
+                        "payload": inner_payload,
                         "created_at": stamp,
                     }
                 )
@@ -337,11 +344,18 @@ def operations_router(
                         payload = row.payload
                         if isinstance(payload, str):
                             payload = json.loads(payload)
+                        inner_payload = (
+                            payload["payload"]
+                            if isinstance(payload, dict)
+                            and "event_type" in payload
+                            and isinstance(payload.get("payload"), dict)
+                            else payload
+                        )
                         data = json.dumps(
                             {
                                 "event": row.event_type,
                                 "actor": row.actor,
-                                "payload": payload,
+                                "payload": inner_payload,
                                 "created_at": cursor,
                             }
                         )

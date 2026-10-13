@@ -98,6 +98,16 @@ class ProjectAuditEvent(Model):
         "integration.tested",
         "integration.deleted",
         "integration.webhook_ingested",
+        "unknown.triaged",
+        "unknown.transitioned",
+        "cluster.updated",
+        "candidate.created",
+        "candidate.updated",
+        "candidate.rejected",
+        "evaluation.dataset_created",
+        "evaluation.dataset_sealed",
+        "evaluation.completed",
+        "quality.alert",
     ]
     actor: str = Field(min_length=1, max_length=80)
     payload: dict[str, Any] = Field(default_factory=dict)
