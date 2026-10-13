@@ -224,7 +224,15 @@ class PolicyGraph(Model):
 
 
 def evaluate_predicates(predicates: tuple[Predicate, ...], facts: dict[str, Any]) -> bool:
-    return all(facts.get(p.field) == p.equals for p in predicates)
+    for p in predicates:
+        if p.field not in facts:
+            return False
+        actual = facts[p.field]
+        if isinstance(actual, bool) != isinstance(p.equals, bool):
+            return False
+        if actual != p.equals:
+            return False
+    return True
 
 
 class DecisionOutcome(Model):
