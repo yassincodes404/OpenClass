@@ -1,0 +1,63 @@
+# OpenClass Agentic Engineering & Agentic Harness Blueprint
+
+> **Principal Engineer & Owner:** Abdelhamid Khaled (`AbdelhamidKhald`)  
+> **Repository:** `https://github.com/yassincodes404/OpenClass`  
+> **Branch:** `abdelhamid-khaled/docs/agentic-harness-audit`  
+> **Mode:** ULTRA MODE — Exhaustive Multi-Agent Audit, Harness Architecture & Executable Development Plan
+
+---
+
+## 1. Document Index & Deliverable Map
+
+This directory contains the complete engineering investigation, architectural reconciliation, Agentic Harness assessment, executable P0–P3 backlog, dependency-ordered roadmap, and verification matrix for **OpenClass**:
+
+| Deliverable # | Required Output | Document Path | Summary of Contents |
+| :-: | :--- | :--- | :--- |
+| **1** | **Current System Map & Specification Reconciliation** | [`01-system-map-and-reconciliation.md`](./01-system-map-and-reconciliation.md) | 3-Era architectural diagnosis (Era 1 Genesis Classifier vs. Era 2 Project/Jev Engine vs. Era 3 Portal/Control-Plane), package inventory, contradiction matrix (`CONTRA-01`..`06`), and true status of tickets `OC-001`..`OC-033` and Phases `01`..`20`. |
+| **2** | **End-to-End Capability Coverage Matrix** | [`02-capability-coverage-matrix.md`](./02-capability-coverage-matrix.md) | Every subsystem classified into the 8 mandatory engineering states across Core, Server, Persistence, Providers, SDKs, CLI, Web, Portal, Control Plane, and Tests. |
+| **3** | **Agentic Engineering & Agentic Harness Assessment (`6A`–`6I`)** | [`03-agentic-harness-assessment.md`](./03-agentic-harness-assessment.md) | Separate evaluation of **Agentic Engineering** (development/test harness flaws) and **OpenClass's Product Agentic Harness** (`6A` Orchestration, `6B` State/Memory, `6C` Providers, `6D` Capabilities/Macros/Verifiers, `6E` Teacher/Supervisor, `6F` Discovery/Evolution, `6G` Evaluation/Regression, `6H` Reliability/Security/Observability, `6I` Product/DX). |
+| **4** | **Complete Executable Development Backlog (`OC-BG-001`..`038`)** | [`04-executable-backlog.md`](./04-executable-backlog.md) | Master P0–P3 backlog table + full executable specifications (exact file/line evidence, root cause, target behavior, implementation steps, schema migrations, API/SDK/UI impact, dependencies, acceptance criteria, and effort/risk). |
+| **5 & 7** | **Dependency-Ordered 8-Stage Roadmap & First 10 Tasks** | [`05-roadmap-and-first-10-tasks.md`](./05-roadmap-and-first-10-tasks.md) | 8-stage execution sequence with parallel workstreams, entry/exit criteria, and surgical blueprints for the **First 10 Highest-Value Implementation Tasks**. |
+| **6** | **End-to-End Verification Matrix (`V-01`..`V-12`)** | [`06-verification-matrix.md`](./06-verification-matrix.md) | Executed baseline results + 12 non-shortcut verification scenarios covering known, low-margin, unknown, provider failure, multi-node graphs, capability verifiers, clustering, Teacher proposals, replay gates, promotion/rollback, Teacher-disabled replay, and multi-tenant security. |
+| **8** | **Open Questions, External Blockers & Coverage Review** | Sections 2 & 3 below | Architectural decisions resolved vs. external runtime dependencies (`laya`, live `jev` / `glm` endpoints) and independent 14-workstream coverage verification. |
+
+---
+
+## 2. Open Questions, Architectural Decisions & External Blockers (Deliverable 8)
+
+### 2.1 Architectural Ambiguities Resolved by This Plan (No User Input Required to Proceed)
+1. **Dual Frontend / BFF Split-Brain (`apps/web` vs `apps/portal` + `services/control-plane`)**:
+   - **Resolution (`OC-BG-026`, `OC-BG-027`)**: Keep `packages/server` as the single source of domain and persistence truth for projects, classifiers, decision services, evidence, and evolution, while `services/control-plane` owns multi-tenant identity, workspaces, API keys, and RBAC headers (`X-OpenClass-Workspace-Id`, `X-OpenClass-Actor`). Refactor `apps/portal/src/api.ts` to use `@openclass/sdk` (eliminating the `AGENTS.md` raw `fetch` violation) and synchronize project creation so projects created via SDK/CLI/Web and Portal are mutually visible.
+2. **Four Competing Candidate Pipelines (`Candidate`, `ChoiceCandidate`, `DiscoveryCandidate`, `CandidateEnvelope`)**:
+   - **Resolution (`OC-BG-014`, `OC-BG-021`)**: Make `CandidateEnvelope` (`evolution.py`) the canonical provenance wrapper, unify Portal cluster discovery (`/clusters/{cid}/discover`) into `ProjectEvolutionService` (`project_choice_candidates`), and synchronize `unknown_triage` (`0014`) with `evidence_items` (`0008`).
+
+### 2.2 True External Dependencies & Environment Blockers
+| Dependency / Resource | What It Affects | Offline / Deterministic Verification Path | Live Verification Requirement |
+| :--- | :--- | :--- | :--- |
+| **`laya` Python Package / Daemon (`OPENCLASS_LAYA_URL`)** | In-process or HTTP daemon sub-500ms classification in `providers/laya`. Not published on public PyPI. | `LayaDecisionProvider(allow_fallback=True)` + `httpx.MockTransport` contract tests (`tests/contract/test_laya_provider.py`). | Requires local `laya` wheel or running Laya HTTP daemon on `127.0.0.1:8081`. |
+| **Live `jev` Inference Server (`OPENCLASS_JEV_BASE_URL`)** | Live constrained JSON grammar inference in `tests/e2e/test_jev_live.py` and `scripts/jev_pilot.py`. | `MockDecisionProvider` + `httpx.MockTransport` contract suite (`tests/contract/test_jev_provider.py`) + frozen characterization profile (`benchmarks/jev/jev-profile-v1.json`). | Requires local `llama.cpp` / OpenAI-compatible server with `OPENCLASS_RUN_LIVE_TESTS=1`. |
+| **External Teacher / Discovery / Diagnosis LLM Key (`AI_GATEWAY_API_KEY` / `OPENCLASS_GLM_API_KEY`)** | Live calls in `tests/contract/test_gemini_live.py` and live `OpenAICompatibleChoiceTeacher` / `GLMDiscoveryProvider`. | Deterministic `MockChoiceTeacher`, `MockDiscoveryProvider`, `RuleBasedDiagnosisProvider`, and `httpx.MockTransport` contract tests. | Requires valid API key + `OPENCLASS_RUN_LIVE_TESTS=1`. |
+| **Disposable PostgreSQL 16 + `pgvector` Instance (`OPENCLASS_TEST_DATABASE_URL`)** | Running `tests/integration/test_*_postgres.py` and Control-Plane SQL migration tests locally. | SQLite (`aiosqlite`) runs 396+ unit/contract/integration tests locally; GitHub Actions `postgres` service container runs `pgvector/pgvector:pg16` automatically on every PR. | Local Docker daemon (`docker compose up -d postgres`) or CI `postgres` job. |
+
+---
+
+## 3. Independent Coverage & Completeness Review
+
+Prior to finalizing this blueprint, all 8 specialist audit reports were cross-checked against every requirement in the prompt:
+
+| Workstream | Audited Scope | Key Findings Captured & Mapped to Backlog |
+| :--- | :--- | :--- |
+| **WS-01: Repo Mapping & Spec Reconciliation** | `SPECIFICATION.md`, `genesis.md`, `foundation-hardening.md`, `OpenClass_Product_Experience_Platform_Spec.md`, `Master_Spec.docx`, `tickets.md`, `phase-01..20` | 3-Era split-brain matrix (`CONTRA-01`..`06`), full `OC-001`..`OC-033` & `Phase 01`..`20` audit in `01-system-map-and-reconciliation.md`. |
+| **WS-02: Core Domain Architecture** | `packages/core/openclass_core/*.py`, `tests/unit/test_boundaries.py` | Clean upward boundary, but internal duplication across 3 decision models and 4 candidate models (`OC-BG-010`, `OC-BG-014`, `OC-BG-015`). |
+| **WS-03: Execution Loop & Decision Graphs** | `decision_executor.py`, `decision.py`, `projects.py`, `scripts/jev_contract/runtime.py`, `scripts/decision_graph*.py` | Instruction-drop bug (`OC-BG-005`), tie-breaking bug & ephemeral UUIDs (`OC-BG-006`), single-node execution (`OC-BG-015`), durable checkpoints (`OC-BG-035`). |
+| **WS-04: State Compilation, Context & Memory** | `decision.py`, `projects.py`, `scripts/jev_contract/runtime.py` | `evaluate_predicates` missing-vs-`None` & `bool`-vs-`int` bugs (`OC-BG-006`), dropped `RawEvent.metadata` & `StateCompiler` (`OC-BG-016`). |
+| **WS-05: Decision Providers & Calibration** | `providers/{mock,jev,laya,glm,ollama,openai-compatible}`, `provider_config.py`, `scripts/jev_contract/calibration.py` | Jev missing `real_inference` metadata & Laya `simulated: False` regex fallback (`OC-BG-009`), hardcoded `"laya"`/`"jev"` in `_supervise` (`OC-BG-017`), placeholder packages (`OC-BG-037`). |
+| **WS-06: Capabilities, Tools, Macros & Verification** | `automation.py`, `automation_executor.py`, `scripts/automation_*.py` | `AutomationDecision.action` enum rejecting macro names & missing macro expansion (`OC-BG-018`), `SafeSandboxExecutor` missing timeouts & leaking env vars (`OC-BG-019`). |
+| **WS-07: Teacher, Supervisor & Failure Diagnosis** | `supervisor.py`, `evidence.py`, `evolution.py`, `providers/glm/*`, `scripts/jev_contract/teacher.py` | `provider_config.py` only wiring `MockSupervisorProvider` (`OC-BG-020`), `base_url=""` crash & silent diagnosis fallback (`OC-BG-009`), Teacher v1.1 `apply_candidate` (`OC-BG-021`). |
+| **WS-08: Discovery, Embeddings, Clustering & Evolution** | `discovery.py`, `project_evolution.py`, `candidates.py`, `embeddings*.py`, `cluster_store.py`, `unknown_triage.py` | Re-clustering cascade data loss (`OC-BG-008`), verified datasets & replay evaluation (`OC-BG-011`, `OC-BG-012`), transactional promotion (`OC-BG-013`), unified candidates & embeddings (`OC-BG-014`, `OC-BG-022`). |
+| **WS-09: Persistence, Migrations & Concurrency** | `persistence/*.py`, `migrations/versions/0001..0016`, `services/control-plane/migrations/0001..0004.sql` | `UnknownTriageStore.append_audit` 500 crash (`OC-BG-002`), `DecisionServiceVersion` (`OC-BG-010`), idempotency & webhook content-hash 409 (`OC-BG-024`), UoW transactions (`OC-BG-025`), schema alignment (`OC-BG-026`), 200-row truncation (`OC-BG-030`). |
+| **WS-10: External Integrations** | `integrations.py`, `integration_adapters.py`, `api/integrations.py` | SSRF & arbitrary env-var exfiltration (`OC-BG-004`), webhook content-hash conflict (`OC-BG-024`), outbox & vendor HMAC/MCP probes (`OC-BG-032`). |
+| **WS-11: Security, Identity & Tenant Isolation** | `security.py`, `rate_limit.py`, `redaction.py`, `services/control-plane/src/{auth,api-key,ingestion,security}*.ts` | Control-plane `callerOf` dropping `keyProjectId` & `viewer` role ingestion (`OC-BG-003`), unauthenticated engine (`OC-BG-023`), unwired redaction settings, rate-limiter `GET` bug & prompt injection (`OC-BG-031`). |
+| **WS-12: APIs, SDKs, CLI & TUI** | `api/*.py`, `sdk-python`, `sdk-typescript`, `cli`, `tui` | Broken SDK/API contracts (`OC-BG-007`), 15 missing SDK routes & CLI parity (`OC-BG-028`), `packages/tui` (`OC-BG-038`). |
+| **WS-13: Web Workspace, Portal & Control Plane** | `apps/web/**`, `apps/portal/**`, `services/control-plane/**` | Portal raw `fetch` violation & split project registry (`OC-BG-027`), broken `apps/web` batch upload & evidence attach (`OC-BG-007`). |
+| **WS-14: Tests, Benchmarks, Observability & CI/CD** | `tests/**`, `benchmarks/**`, `.github/workflows/*`, `Dockerfile`, `docker-compose.yml` | 6 Windows/default pytest failures, broken Postgres test & `npm` vs `pnpm` CI (`OC-BG-001`), corrupted `"provider"` error rollup (`OC-BG-029`), real DB/Playwright tests (`OC-BG-033`), self-contained benchmarks & Docker (`OC-BG-034`). |

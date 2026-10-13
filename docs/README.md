@@ -18,6 +18,7 @@ and the [development guide](guides/development.md).
 | [API guide](guides/api.md)                                                                 | Public HTTP contracts                                                |
 | [Webhook guide](guides/integrations.md)                                                    | Authenticated external ingestion and retry semantics                 |
 | [Foundation hardening](architecture/foundation-hardening.md)                               | Current cleanup boundaries and deliberate deferrals                  |
+| [Agentic Engineering & Harness Blueprint](agentic-engineering/README.md)                   | 14-workstream audit, capability matrix, P0–P3 backlog & roadmap      |
 
 Research runners in `scripts/`, fixtures in `benchmarks/`, and historical `build/`
 artifacts support reproducibility. They are not imported into the canonical server
