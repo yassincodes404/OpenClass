@@ -204,7 +204,7 @@ class DecisionRun(Model):
 
     provider: str
     model: str
-    execution_mode: Literal["in_process", "daemon", "deterministic_test_fallback", "mock"]
+    execution_mode: Literal["in_process", "daemon", "api", "deterministic_test_fallback", "mock"]
     real_inference: bool
 
     selected_choice: str

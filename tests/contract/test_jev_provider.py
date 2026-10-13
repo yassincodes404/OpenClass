@@ -70,7 +70,13 @@ async def test_known_request_mapping_and_telemetry(ontology) -> None:
     assert result.unknown_probability == 0.05
     assert result.input_tokens == 318 and result.output_tokens == 34
     assert result.estimated_cost == 0.00001 and result.latency_ms >= 0
-    assert result.provider_metadata == {"simulated": False, "confidence": 0.9, "retry_count": 0}
+    assert result.provider_metadata == {
+        "simulated": False,
+        "real_inference": True,
+        "execution_mode": "api",
+        "confidence": 0.9,
+        "retry_count": 0,
+    }
     assert KEY not in result.model_dump_json()
 
 

@@ -322,6 +322,7 @@ class UnknownClusterRow(Base):
     __tablename__ = "unknown_clusters"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    decision_service_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     algorithm: Mapped[str] = mapped_column(String(50))
     model: Mapped[str] = mapped_column(String(200))
     threshold: Mapped[float] = mapped_column(Float)
@@ -341,7 +342,9 @@ class ClusterCandidateRow(Base):
     __tablename__ = "cluster_candidates"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
-    cluster_id: Mapped[str] = mapped_column(ForeignKey("unknown_clusters.id", ondelete="CASCADE"))
+    cluster_id: Mapped[str | None] = mapped_column(
+        ForeignKey("unknown_clusters.id", ondelete="SET NULL"), nullable=True
+    )
     type: Mapped[str] = mapped_column(String(30))
     canonical_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     display_name: Mapped[str | None] = mapped_column(String(200), nullable=True)

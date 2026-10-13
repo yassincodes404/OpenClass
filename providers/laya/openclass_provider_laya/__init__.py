@@ -260,7 +260,7 @@ class LayaDecisionProvider:
             provider_metadata={
                 "local": True,
                 "engine": "laya-fallback",
-                "simulated": False,
+                "simulated": True,
                 "language": lang,
                 "confidence": unknown_prob if best_known == UNKNOWN else known_probs[best_known],
                 "execution_mode": "deterministic_test_fallback",
@@ -290,11 +290,12 @@ class LayaDecisionProvider:
         known_p = {k: float(v) for k, v in answer.probabilities.items() if k != UNKNOWN}
 
         total_p = sum(known_p.values()) + unknown_p
-        if total_p > 0:
-            unknown_p = float(unknown_p / total_p)
-            known_p = {k: float(v / total_p) for k, v in known_p.items()}
-            diff = 1.0 - (sum(known_p.values()) + unknown_p)
-            unknown_p += diff
+        if total_p <= 0:
+            raise ProviderError("Laya probability distribution has zero total probability")
+        unknown_p = float(unknown_p / total_p)
+        known_p = {k: float(v / total_p) for k, v in known_p.items()}
+        diff = 1.0 - (sum(known_p.values()) + unknown_p)
+        unknown_p += diff
 
         metadata = dict(parsed.provider_metadata)
         metadata.setdefault("local", True)

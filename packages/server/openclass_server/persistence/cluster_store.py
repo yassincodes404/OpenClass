@@ -45,8 +45,14 @@ class ClusterStore:
         model: str,
         threshold: float,
     ) -> list[str]:
-        """Idempotent rerun: drop this project's clusters and write the new set atomically."""
+        """Idempotent rerun: detach existing candidates, drop clusters, and write the new set."""
         async with self.sessions.begin() as session:
+            await session.execute(
+                sa.text(
+                    "UPDATE cluster_candidates SET cluster_id = NULL WHERE project_id = :project_id"
+                ),
+                {"project_id": str(project_id)},
+            )
             await session.execute(
                 sa.text("DELETE FROM unknown_clusters WHERE project_id = :project_id"),
                 {"project_id": str(project_id)},

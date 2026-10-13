@@ -246,3 +246,5 @@ async def test_laya_fallback_engine_works_without_external_service(
     assert result.probabilities["technical"] > result.probabilities["billing"]
     assert result.unknown_probability < 0.5
     assert result.provider_metadata["local"] is True
+    assert result.provider_metadata["simulated"] is True
+    assert result.provider_metadata["real_inference"] is False

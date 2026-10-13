@@ -90,7 +90,7 @@ class OpenAICompatibleDiagnosisProvider:
                         diag_enum = cat
                         break
                 if diag_enum is None:
-                    diag_enum = DiagnosisCategory.ANALYTICAL_GAP
+                    raise ProviderError(f"Unknown diagnosis category: {raw_diag}")
                 return DiagnosisResult(
                     diagnosis=diag_enum,
                     rationale=parsed["rationale"],
