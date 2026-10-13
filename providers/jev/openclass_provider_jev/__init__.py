@@ -183,6 +183,8 @@ class JevDecisionProvider:
                                     estimated_cost=cost,
                                     provider_metadata={
                                         "simulated": False,
+                                        "real_inference": True,
+                                        "execution_mode": "api",
                                         "confidence": answer.confidence,
                                         "retry_count": attempt,
                                     },

@@ -119,4 +119,4 @@ class OpenAICompatibleChoiceTeacher:
             TypeError,
             ValidationError,
         ) as exc:
-            raise ProviderError(f"Teacher proposal failed: {type(exc).__name__}: {exc}") from exc
+            raise ProviderError(f"Teacher proposal failed: {type(exc).__name__}") from exc

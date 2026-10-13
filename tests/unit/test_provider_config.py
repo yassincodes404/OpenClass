@@ -61,3 +61,26 @@ def test_configured_secrets_never_persist_or_echo(database_url, classifier_body)
             assert "synthetic-key" not in response.text
         assert client.get(f"{base}/runs").json() == []
         assert "synthetic-key" not in client.get("/api/v1/providers").text
+
+
+def test_openai_compatible_discovery_and_teacher_defaults(monkeypatch) -> None:
+    from openclass_provider_glm import (
+        GLMDiscoveryProvider,
+        OpenAICompatibleChoiceTeacher,
+        OpenAICompatibleDiagnosisProvider,
+    )
+    from openclass_server.provider_config import (
+        discovery_provider,
+        project_diagnosis_provider,
+        project_teacher_provider,
+    )
+
+    monkeypatch.setenv("AI_GATEWAY_API_KEY", "synthetic-gateway-key")
+    settings = Settings(discovery_provider="openai-compatible")
+    disc = discovery_provider(settings)
+    teacher = project_teacher_provider(settings)
+    diag = project_diagnosis_provider(settings)
+    assert isinstance(disc, GLMDiscoveryProvider)
+    assert isinstance(teacher, OpenAICompatibleChoiceTeacher)
+    assert isinstance(diag, OpenAICompatibleDiagnosisProvider)
+    assert teacher.url.startswith("https://ai-gateway.vercel.sh/v1")

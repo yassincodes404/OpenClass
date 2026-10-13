@@ -144,3 +144,57 @@ def test_mock_cluster_provider_is_deterministic():
 
     result = asyncio.run(provider.discover(request))
     assert result.type == "NEW_CLASS"
+
+
+def test_reclustering_preserves_discovered_candidates_evidence_and_reviews(
+    mock_client: TestClient,
+) -> None:
+    slug, service, cluster_id = _setup(mock_client)
+    discovered = client_discover(mock_client, slug, cluster_id)
+    candidate_id = discovered["id"]
+
+    unknowns = mock_client.get(f"/api/v1/projects/{slug}/unknowns").json()["items"]
+    unknown_ids = [u["run_id"] for u in unknowns]
+    collected = mock_client.post(
+        f"/api/v1/projects/{slug}/discovery-candidates/{candidate_id}/collect",
+        json={"unknown_ids": unknown_ids},
+    )
+    assert collected.status_code == 200, collected.text
+
+    detail_before = mock_client.get(
+        f"/api/v1/projects/{slug}/discovery-candidates/{candidate_id}"
+    ).json()
+    run_ids = detail_before["evidence_run_ids"]
+    assert len(run_ids) >= 5
+
+    req_rev = mock_client.post(
+        f"/api/v1/projects/{slug}/discovery-candidates/{candidate_id}/request-review"
+    )
+    assert req_rev.status_code == 200, req_rev.text
+
+    rev = mock_client.post(
+        f"/api/v1/projects/{slug}/discovery-candidates/{candidate_id}/review",
+        json={"decision": "approve", "rationale": "Consistent cancellation intent cluster"},
+    )
+    assert rev.status_code == 200, rev.text
+
+    reclustered = mock_client.post(
+        f"/api/v1/projects/{slug}/unknowns/cluster", json={"threshold": 0.4}
+    )
+    assert reclustered.status_code == 200, reclustered.text
+
+    listing_after = mock_client.get(f"/api/v1/projects/{slug}/discovery-candidates").json()
+    assert any(entry["id"] == candidate_id for entry in listing_after)
+
+    detail_after = mock_client.get(
+        f"/api/v1/projects/{slug}/discovery-candidates/{candidate_id}"
+    ).json()
+    assert detail_after["id"] == candidate_id
+    assert detail_after["status"] == "approved"
+    assert set(detail_after["evidence_run_ids"]) == set(run_ids)
+
+    history_after = mock_client.get(
+        f"/api/v1/projects/{slug}/discovery-candidates/{candidate_id}/history"
+    ).json()
+    assert len(history_after["reviews"]) == 1
+    assert history_after["reviews"][0]["decision"] == "approve"
