@@ -14,10 +14,16 @@ import {
 } from "@nestjs/common";
 type Response = { status: (code: number) => Response };
 import { z } from "zod";
+import type { ApiKeyScope } from "./api-key.service.js";
 import type { Principal } from "./auth.js";
 import { IngestionGuard, IngestionService, type Caller } from "./ingestion.service.js";
 
-type RequestWithCaller = { principal: Principal; keyPrefix?: string; keyProjectId?: string };
+export type RequestWithCaller = {
+  principal: Principal;
+  keyPrefix?: string;
+  keyProjectId?: string;
+  keyScopes?: ApiKeyScope[];
+};
 
 const ingestSchema = z.object({
   content: z.string().min(1),
@@ -40,10 +46,12 @@ function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
   return result.data;
 }
 
-function callerOf(request: RequestWithCaller): Caller {
+export function callerOf(request: RequestWithCaller): Caller {
   return {
     principal: request.principal,
     keyPrefix: request.keyPrefix,
+    keyProjectId: request.keyProjectId,
+    keyScopes: request.keyScopes,
     rateIdentity: request.keyPrefix ?? request.principal.subject,
   };
 }

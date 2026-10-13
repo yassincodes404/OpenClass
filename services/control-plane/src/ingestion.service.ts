@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 
 import type { Pool } from "pg";
-import { ApiKeyService } from "./api-key.service.js";
+import { ApiKeyService, type ApiKeyScope } from "./api-key.service.js";
 import { AuditService } from "./audit.service.js";
 import type { Principal } from "./auth.js";
 import { KeycloakGuard } from "./auth.js";
@@ -28,6 +28,7 @@ export type Caller = {
   principal: Principal;
   keyPrefix?: string;
   keyProjectId?: string;
+  keyScopes?: ApiKeyScope[];
   rateIdentity: string;
 };
 
@@ -44,20 +45,25 @@ export class IngestionGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<{
+      method?: string;
       headers: Record<string, string | undefined>;
       principal?: Principal;
       keyPrefix?: string;
       keyProjectId?: string;
+      keyScopes?: ApiKeyScope[];
     }>();
     const token = request.headers.authorization?.startsWith("Bearer ")
       ? request.headers.authorization.slice(7)
       : undefined;
     if (token?.startsWith("oc_dev_")) {
       try {
-        const verified = await this.apiKeys.verify(token, "ingest");
+        const requiredScope: ApiKeyScope =
+          request.method?.toUpperCase() === "GET" ? "read" : "ingest";
+        const verified = await this.apiKeys.verify(token, requiredScope);
         request.principal = { subject: `api-key:${verified.projectId}` };
         request.keyPrefix = token.slice(0, 14);
         request.keyProjectId = verified.projectId;
+        request.keyScopes = verified.scopes;
         return true;
       } catch (error) {
         if (error instanceof HttpException) throw error;
@@ -84,7 +90,7 @@ export class IngestionService {
     body: { content: string; source_type?: string; metadata?: Record<string, unknown> },
     idempotencyKey?: string,
   ) {
-    const project = await this.authorize(caller, workspaceId, projectId, "viewer");
+    const project = await this.authorize(caller, workspaceId, projectId, "developer", "ingest");
     this.throttle(caller, project.id);
     await this.enforceQuota(workspaceId);
     if (!body.content?.trim()) throw new BadRequestException("content cannot be blank");
@@ -121,7 +127,7 @@ export class IngestionService {
     sourceType: string,
     idempotencyKey?: string,
   ) {
-    const project = await this.authorize(caller, workspaceId, projectId, "viewer");
+    const project = await this.authorize(caller, workspaceId, projectId, "developer", "ingest");
     this.throttle(caller, project.id);
     await this.enforceQuota(workspaceId);
     if (items.length > MAX_BATCH_ITEMS)
@@ -190,7 +196,7 @@ export class IngestionService {
     projectId: string,
     options: { limit?: number; cursor?: string; q?: string; sourceType?: string },
   ) {
-    const project = await this.authorize(caller, workspaceId, projectId, "viewer");
+    const project = await this.authorize(caller, workspaceId, projectId, "viewer", "read");
     const limit = Math.min(Math.max(options.limit ?? 25, 1), 100);
     const offset = options.cursor ? this.decodeCursor(options.cursor) : 0;
     // Local-scale search: fetch a bounded window from the engine, then filter.
@@ -222,7 +228,7 @@ export class IngestionService {
     projectId: string,
     eventId: string,
   ): Promise<EngineRawEvent> {
-    await this.authorize(caller, workspaceId, projectId, "viewer");
+    await this.authorize(caller, workspaceId, projectId, "viewer", "read");
     const project = await this.byId(workspaceId, projectId);
     try {
       return await this.engine.getEvent(project.engine_project_id, eventId);
@@ -269,9 +275,24 @@ export class IngestionService {
     }
   }
 
-  private async authorize(caller: Caller, workspaceId: string, projectId: string, minimum: Role) {
+  private async authorize(
+    caller: Caller,
+    workspaceId: string,
+    projectId: string,
+    minimum: Role,
+    requiredScope?: ApiKeyScope,
+  ) {
     if (caller.keyProjectId && caller.keyProjectId !== projectId) {
       throw new NotFoundException("Project not found");
+    }
+    if (
+      caller.keyProjectId &&
+      requiredScope &&
+      caller.keyScopes &&
+      !caller.keyScopes.includes(requiredScope) &&
+      !caller.keyScopes.includes("admin")
+    ) {
+      throw new ForbiddenException(`API key is missing the '${requiredScope}' scope`);
     }
     const result = await this.db.query(
       "SELECT role FROM control_workspace_memberships WHERE workspace_id = $1 AND subject = $2",
