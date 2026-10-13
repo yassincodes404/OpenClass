@@ -104,7 +104,13 @@ class ProjectEvolutionService:
         self.teacher = teacher
 
     async def propose(
-        self, project_id: UUID, service_identifier: str, run_ids: tuple[UUID, ...], actor: str
+        self,
+        project_id: UUID,
+        service_identifier: str,
+        run_ids: tuple[UUID, ...],
+        actor: str,
+        *,
+        allow_non_unknown_runs: bool = False,
     ) -> ChoiceCandidate:
         if len(run_ids) < 3 or len(run_ids) > 20 or len(set(run_ids)) != len(run_ids):
             raise ConflictError("Select 3–20 distinct UNKNOWN runs")
@@ -115,7 +121,8 @@ class ProjectEvolutionService:
             [await self.repository.get_decision_run(project_id, run_id) for run_id in run_ids]
         )
         if any(
-            run.decision_service_id != service.id or run.selected_choice != "UNKNOWN"
+            run.decision_service_id != service.id
+            or (not allow_non_unknown_runs and run.selected_choice != "UNKNOWN")
             for run in runs
         ):
             raise ConflictError("Proposal evidence must be UNKNOWN runs of this service")
@@ -179,7 +186,13 @@ class ProjectEvolutionService:
         run_ids = tuple(
             ev.decision_run_id for ev in evidence_items if ev.decision_run_id is not None
         )
-        return await self.propose(project_id, service_identifier, run_ids, actor)
+        return await self.propose(
+            project_id,
+            service_identifier,
+            run_ids,
+            actor,
+            allow_non_unknown_runs=True,
+        )
 
     async def propose_from_case(
         self,

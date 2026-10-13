@@ -36,6 +36,25 @@ class ClusterStore:
                 },
             )
 
+    async def get_cached_embeddings(
+        self, run_ids: list[UUID], model: str
+    ) -> dict[str, list[float]]:
+        if not run_ids:
+            return {}
+        id_strs = [str(run_id) for run_id in run_ids]
+        stmt = sa.text(
+            "SELECT run_id, vector FROM embeddings"
+            " WHERE model = :model AND run_id IN :run_ids"
+        ).bindparams(sa.bindparam("run_ids", expanding=True))
+        async with self.sessions() as session:
+            rows = await session.execute(stmt, {"model": model, "run_ids": id_strs})
+            cached: dict[str, list[float]] = {}
+            for row in rows:
+                vec = json.loads(row.vector) if isinstance(row.vector, str) else row.vector
+                if isinstance(vec, list):
+                    cached[str(row.run_id)] = [float(v) for v in vec]
+            return cached
+
     async def replace_clusters(
         self,
         project_id: UUID,

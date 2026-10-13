@@ -300,3 +300,37 @@ async def test_cannot_promote_modified_service() -> None:
 
     with pytest.raises(ConflictError, match="modified after candidate was generated"):
         await evolution.promote(project_id, candidate.id, actor="tester")
+
+
+@pytest.mark.asyncio
+async def test_propose_from_evidence_accepts_low_trust_and_human_correction_runs() -> None:
+    project_id = uuid4()
+    service = make_service(project_id)
+    runs = [make_run(project_id, service.id, choice="STANDARD") for _ in range(3)]
+    ev_items = [
+        EvidenceItem(
+            project_id=project_id,
+            decision_service_id=service.id,
+            decision_run_id=r.id,
+            trigger_type=EvidenceTriggerType.LOW_TRUST,
+            status=EvidenceStatus.READY_FOR_EVOLUTION,
+            selected_choice="STANDARD",
+            supervision_outcome="REVIEW",
+            source="automatic",
+        )
+        for r in runs
+    ]
+
+    repo = InMemoryChoiceCandidateRepository(service, runs, ev_items)
+    teacher = MockTeacher()
+    evolution = ProjectEvolutionService(repo, teacher)
+
+    candidate = await evolution.propose_from_evidence(
+        project_id,
+        str(service.id),
+        tuple(e.id for e in ev_items),
+        actor="tester",
+    )
+    assert candidate.status == "candidate"
+    assert candidate.proposal.key == "ENTERPRISE"
+

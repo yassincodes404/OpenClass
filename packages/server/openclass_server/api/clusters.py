@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from openclass_server.embeddings_local import HashLexicalEmbedder
 from openclass_server.persistence.cluster_store import ClusterStore
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
+from openclass_server.provider_config import embedding_provider
 from openclass_server.settings import Settings
 
 ALGORITHM = "greedy-cosine-first-fit"
@@ -32,7 +33,7 @@ def clusters_router(
     triage_store: UnknownTriageStore,
 ) -> APIRouter:
     router = APIRouter(tags=["clusters"])
-    embedder = HashLexicalEmbedder()
+    embedder = embedding_provider(config)
 
     async def _unknown_runs(identifier: str, scan_limit: int = 1000) -> list[Any]:
         runs = await projects.list_decision_runs(
@@ -46,19 +47,37 @@ def clusters_router(
         runs = (await _unknown_runs(identifier, scan_limit=max(body.limit, 1000)))[: body.limit]
         if len(runs) < 2:
             raise HTTPException(status_code=400, detail="clustering needs at least 2 UNKNOWN runs")
-        texts = [str(run.input_snapshot.get("content", "")) for run in runs]
-        vectors = await embedder.embed(texts)
-        items = [
-            EmbeddedItem(item_id=str(run.id), text=text, vector=vector)
-            for run, text, vector in zip(runs, texts, vectors, strict=True)
-        ]
-        for item, vector in zip(items, vectors, strict=True):
-            run_uuid = UUID_(item.item_id)
+        run_uuids: list[UUID] = []
+        for run in runs:
+            run_uuid = UUID_(str(run.id))
             if run_uuid is None:  # pragma: no cover - ids are engine-generated
                 raise HTTPException(status_code=400, detail="invalid run id")
-            await clusters.store_embedding(
-                run_uuid, embedder.model_version, embedder.dimensions, vector
+            run_uuids.append(run_uuid)
+
+        cached = await clusters.get_cached_embeddings(run_uuids, embedder.model_version)
+        missing_indices = [
+            idx for idx, run_uuid in enumerate(run_uuids) if str(run_uuid) not in cached
+        ]
+        if missing_indices:
+            missing_texts = [
+                str(runs[idx].input_snapshot.get("content", "")) for idx in missing_indices
+            ]
+            new_vectors = await embedder.embed(missing_texts)
+            for idx, vector in zip(missing_indices, new_vectors, strict=True):
+                run_uuid = run_uuids[idx]
+                cached[str(run_uuid)] = vector
+                await clusters.store_embedding(
+                    run_uuid, embedder.model_version, embedder.dimensions, vector
+                )
+
+        items = [
+            EmbeddedItem(
+                item_id=str(run.id),
+                text=str(run.input_snapshot.get("content", "")),
+                vector=cached[str(run.id)],
             )
+            for run in runs
+        ]
         groups = group_into_clusters(items, body.threshold)
         payload_groups = [
             {
@@ -90,7 +109,7 @@ def clusters_router(
             "cluster_ids": ids,
             "algorithm": ALGORITHM,
             "model": embedder.model_version,
-            "simulated": True,
+            "simulated": config.embedding_provider == "hash-lexical",
             "threshold": body.threshold,
         }
 

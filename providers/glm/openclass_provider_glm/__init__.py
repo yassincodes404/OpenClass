@@ -9,10 +9,20 @@ from openclass_core.providers import ProviderError
 from pydantic import SecretStr, ValidationError
 
 from .diagnosis import OpenAICompatibleDiagnosisProvider
+from .gateway import (
+    GatewayClient,
+    GatewayClusterDiscovery,
+    GatewayDecisionProvider,
+    GatewayEmbedder,
+)
 from .project_teacher import OpenAICompatibleChoiceTeacher
 
 __all__ = [
     "GLMDiscoveryProvider",
+    "GatewayClient",
+    "GatewayClusterDiscovery",
+    "GatewayDecisionProvider",
+    "GatewayEmbedder",
     "OpenAICompatibleChoiceTeacher",
     "OpenAICompatibleDiagnosisProvider",
 ]
