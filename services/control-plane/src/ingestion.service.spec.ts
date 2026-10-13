@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiKeyService } from "./api-key.service.js";
 import { AuditService } from "./audit.service.js";
 import { EngineClient } from "./engine.js";
+import { IngestionController, callerOf } from "./ingestion.controller.js";
 import { IngestionGuard, IngestionService, type Caller } from "./ingestion.service.js";
 import { KeycloakGuard } from "./auth.js";
 import { RateLimitService } from "./rate-limit.service.js";
@@ -198,15 +199,100 @@ describe("IngestionService", () => {
       serviceWith(memberPool(), fakeEngine()).service.list(keyCaller, WORKSPACE, PROJECT, {}),
     ).rejects.toThrow(NotFoundException);
   });
+
+  it("viewer role can list observations but cannot ingest (403)", async () => {
+    const viewerPool = {
+      query: vi.fn(async (text: string): Promise<FakeResult> => {
+        if (text.startsWith("SELECT role FROM control_workspace_memberships"))
+          return { rows: [{ role: "viewer" }], rowCount: 1 };
+        if (text.startsWith("SELECT id, workspace_id, engine_project_id")) {
+          return {
+            rows: [
+              {
+                id: PROJECT,
+                workspace_id: WORKSPACE,
+                engine_project_id: "e1",
+                slug: "acme",
+                name: "Acme",
+                redaction_enabled: true,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    } as unknown as Pool;
+    const { service } = serviceWith(viewerPool, fakeEngine());
+    const page = await service.list(memberCaller, WORKSPACE, PROJECT, {});
+    expect(page.items).toHaveLength(2);
+    await expect(
+      service.ingest(memberCaller, WORKSPACE, PROJECT, { content: "viewer write" }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it("callerOf propagates keyProjectId and keyScopes through IngestionController", async () => {
+    const apiKeyPool = {
+      query: vi.fn(async (text: string): Promise<FakeResult> => {
+        if (text.startsWith("SELECT role FROM control_workspace_memberships"))
+          return { rows: [], rowCount: 0 };
+        if (text.startsWith("SELECT engine_project_id FROM control_projects"))
+          return { rows: [{ engine_project_id: "e1" }], rowCount: 1 };
+        if (text.startsWith("SELECT id, workspace_id, engine_project_id")) {
+          return {
+            rows: [
+              {
+                id: PROJECT,
+                workspace_id: WORKSPACE,
+                engine_project_id: "e1",
+                slug: "acme",
+                name: "Acme",
+                redaction_enabled: true,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    } as unknown as Pool;
+    const { service } = serviceWith(apiKeyPool, fakeEngine());
+    const controller = new IngestionController(service);
+    const req = {
+      principal: { subject: `api-key:${PROJECT}` },
+      keyPrefix: "oc_dev_secrets",
+      keyProjectId: PROJECT,
+      keyScopes: ["ingest"] as const,
+    };
+    expect(callerOf({ ...req, keyScopes: ["ingest"] })).toMatchObject({
+      keyProjectId: PROJECT,
+      keyScopes: ["ingest"],
+    });
+    const resStub = { status: () => resStub };
+    const created = await controller.ingest(
+      { ...req, keyScopes: ["ingest"] },
+      WORKSPACE,
+      PROJECT,
+      { content: "api key observation" },
+      undefined,
+      resStub,
+    );
+    expect(created).toMatchObject({ id: "evt-1" });
+    await expect(
+      controller.list({ ...req, keyScopes: ["ingest"] }, WORKSPACE, PROJECT),
+    ).rejects.toThrow(ForbiddenException);
+  });
 });
 
 describe("IngestionGuard", () => {
-  function contextWith(headers: Record<string, string | undefined>) {
+  function contextWith(headers: Record<string, string | undefined>, method = "POST") {
     const request = {
+      method,
       headers,
       principal: undefined,
       keyPrefix: undefined,
       keyProjectId: undefined,
+      keyScopes: undefined,
     };
     return {
       request,
@@ -214,20 +300,29 @@ describe("IngestionGuard", () => {
     };
   }
 
-  it("routes oc_dev_ keys through API key verification", async () => {
-    const verify = vi.fn(async () => ({
+  it("routes oc_dev_ keys through API key verification with method-specific scope", async () => {
+    const verify = vi.fn(async (_raw: string, scope?: string) => ({
       workspaceId: WORKSPACE,
       projectId: PROJECT,
-      scopes: ["ingest"],
+      scopes: [scope ?? "ingest"],
     }));
     const apiKeys = { verify } as unknown as ApiKeyService;
     const keycloak = { canActivate: vi.fn(async () => true) } as unknown as KeycloakGuard;
     const guard = new IngestionGuard(keycloak, apiKeys);
-    const { request, context } = contextWith({ authorization: "Bearer oc_dev_secretsecretsecret" });
+    const { request, context } = contextWith(
+      { authorization: "Bearer oc_dev_secretsecretsecret" },
+      "POST",
+    );
     expect(await guard.canActivate(context)).toBe(true);
-    expect(verify).toHaveBeenCalled();
+    expect(verify).toHaveBeenCalledWith("oc_dev_secretsecretsecret", "ingest");
     expect(request.keyPrefix).toBe("oc_dev_secrets");
+    expect(request.keyProjectId).toBe(PROJECT);
+    expect(request.keyScopes).toEqual(["ingest"]);
     expect(keycloak.canActivate).not.toHaveBeenCalled();
+
+    const getCtx = contextWith({ authorization: "Bearer oc_dev_secretsecretsecret" }, "GET");
+    expect(await guard.canActivate(getCtx.context)).toBe(true);
+    expect(verify).toHaveBeenCalledWith("oc_dev_secretsecretsecret", "read");
   });
 
   it("revoked keys are rejected", async () => {
@@ -252,3 +347,4 @@ describe("IngestionGuard", () => {
     expect(keycloak.canActivate).toHaveBeenCalled();
   });
 });
+

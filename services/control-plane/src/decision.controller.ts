@@ -2,9 +2,12 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpException,
+  Inject,
+  Injectable,
   NotFoundException,
   Param,
   Post,
@@ -13,8 +16,10 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
+import type { CanActivate, ExecutionContext } from "@nestjs/common";
 type Response = { status: (code: number) => Response };
 import { z } from "zod";
+import { ApiKeyService, type ApiKeyScope } from "./api-key.service.js";
 import { AuditService } from "./audit.service.js";
 import { KeycloakGuard, type Principal } from "./auth.js";
 import { CONTROL_DB } from "./db.js";
@@ -22,9 +27,51 @@ import { EngineClient, type EngineDecisionRun } from "./engine.js";
 import { RateLimitService } from "./rate-limit.service.js";
 import { ROLE_RANK, type Role } from "./workspace.service.js";
 import type { Pool } from "pg";
-import { Inject } from "@nestjs/common";
 
-type RequestWithPrincipal = { principal: Principal };
+export type RequestWithPrincipal = {
+  principal: Principal;
+  keyPrefix?: string;
+  keyProjectId?: string;
+  keyScopes?: ApiKeyScope[];
+};
+
+@Injectable()
+export class DecisionGuard implements CanActivate {
+  constructor(
+    private readonly keycloak: KeycloakGuard,
+    private readonly apiKeys: ApiKeyService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<{
+      method?: string;
+      headers: Record<string, string | undefined>;
+      principal?: Principal;
+      keyPrefix?: string;
+      keyProjectId?: string;
+      keyScopes?: ApiKeyScope[];
+    }>();
+    const token = request.headers.authorization?.startsWith("Bearer ")
+      ? request.headers.authorization.slice(7)
+      : undefined;
+    if (token?.startsWith("oc_dev_")) {
+      try {
+        const requiredScope: ApiKeyScope =
+          request.method?.toUpperCase() === "GET" ? "read" : "classify";
+        const verified = await this.apiKeys.verify(token, requiredScope);
+        request.principal = { subject: `api-key:${verified.projectId}` };
+        request.keyPrefix = token.slice(0, 14);
+        request.keyProjectId = verified.projectId;
+        request.keyScopes = verified.scopes;
+        return true;
+      } catch (error) {
+        if (error instanceof HttpException) throw error;
+        throw new ForbiddenException("API key is invalid or revoked");
+      }
+    }
+    return this.keycloak.canActivate(context);
+  }
+}
 
 const createServiceSchema = z.object({
   name: z.string().trim().min(2).max(200),
@@ -104,7 +151,7 @@ function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
 }
 
 @Controller("control/workspaces/:workspaceId/projects/:projectId")
-@UseGuards(KeycloakGuard)
+@UseGuards(DecisionGuard)
 export class DecisionController {
   constructor(
     @Inject(CONTROL_DB) private readonly db: Pool,
@@ -119,7 +166,7 @@ export class DecisionController {
     @Param("workspaceId") workspaceId: string,
     @Param("projectId") projectId: string,
   ) {
-    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    const project = await this.requireMember(request.principal, workspaceId, projectId, request);
     return this.engine.listDecisionServices(project.engine_project_id);
   }
 
@@ -155,7 +202,7 @@ export class DecisionController {
     @Param("projectId") projectId: string,
     @Param("serviceId") serviceId: string,
   ) {
-    const project = await this.requireMember(request.principal, workspaceId, projectId);
+    const project = await this.requireMember(request.principal, workspaceId, projectId, request);
     return this.engine.getDecisionService(project.engine_project_id, serviceId);
   }
 
@@ -169,8 +216,15 @@ export class DecisionController {
     @Res({ passthrough: true }) response: Response,
   ) {
     const input = parseBody(runSchema, body);
-    const project = await this.requireMember(request.principal, workspaceId, projectId);
-    const decision = this.rateLimits.check(request.principal.subject, "classify");
+    const project = await this.requireMember(
+      request.principal,
+      workspaceId,
+      projectId,
+      request,
+      "classify",
+    );
+    const rateIdentity = request.keyPrefix ?? request.principal.subject;
+    const decision = this.rateLimits.check(rateIdentity, "classify");
     if (!decision.allowed) {
       throw new HttpException(`Rate limit exceeded; retry in ${decision.retryAfterSeconds}s`, 429);
     }
@@ -428,12 +482,36 @@ export class DecisionController {
     return result.rows[0] as { id: string; workspace_id: string; engine_project_id: string };
   }
 
-  private async requireMember(principal: Principal, workspaceId: string, projectId: string) {
+  private async requireMember(
+    principal: Principal,
+    workspaceId: string,
+    projectId: string,
+    request?: RequestWithPrincipal,
+    requiredScope: ApiKeyScope = "read",
+  ) {
+    if (request?.keyProjectId && request.keyProjectId !== projectId) {
+      throw new NotFoundException("Project not found");
+    }
+    if (
+      request?.keyProjectId &&
+      request.keyScopes &&
+      !request.keyScopes.includes(requiredScope) &&
+      !request.keyScopes.includes("admin")
+    ) {
+      throw new ForbiddenException(`API key is missing the '${requiredScope}' scope`);
+    }
     const membership = await this.db.query(
       "SELECT role FROM control_workspace_memberships WHERE workspace_id = $1 AND subject = $2",
       [workspaceId, principal.subject],
     );
-    if (!membership.rowCount) throw new NotFoundException("Workspace not found");
+    if (!membership.rowCount) {
+      if (request?.keyProjectId) {
+        const project = await this.projectOf(workspaceId, projectId);
+        if (!project) throw new NotFoundException("Project not found");
+        return project;
+      }
+      throw new NotFoundException("Workspace not found");
+    }
     const project = await this.projectOf(workspaceId, projectId);
     if (!project) throw new NotFoundException("Project not found");
     return project;

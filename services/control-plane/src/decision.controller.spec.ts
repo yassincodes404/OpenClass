@@ -143,4 +143,40 @@ describe("DecisionController", () => {
       }),
     );
   });
+
+  it("allows scoped API key with classify scope to run decisions without workspace membership", async () => {
+    const { controller, engine } = controllerWith(memberPool(null), fakeEngine());
+    const runs = await controller.run(
+      {
+        principal: { subject: "api-key:p1" },
+        keyPrefix: "oc_dev_secrets",
+        keyProjectId: "p1",
+        keyScopes: ["classify"],
+      },
+      "w1",
+      "p1",
+      "s1",
+      { content: "charged twice" },
+      statusStub,
+    );
+    expect(runs).toHaveLength(1);
+    expect(engine.runDecisions).toHaveBeenCalled();
+
+    await expect(
+      controller.run(
+        {
+          principal: { subject: "api-key:p9" },
+          keyPrefix: "oc_dev_secrets",
+          keyProjectId: "p9",
+          keyScopes: ["classify"],
+        },
+        "w1",
+        "p1",
+        "s1",
+        { content: "charged twice" },
+        statusStub,
+      ),
+    ).rejects.toThrow(NotFoundException);
+  });
 });
+
