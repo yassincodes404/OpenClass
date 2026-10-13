@@ -188,7 +188,16 @@ def create_app(
             IdempotencyStore(async_sessionmaker(engine, expire_on_commit=False)),
         )
     )
-    app.include_router(evolution_router(config, projects, project_repository, evolution))
+    app.include_router(
+        evolution_router(
+            config,
+            projects,
+            project_repository,
+            evolution,
+            async_sessionmaker(engine, expire_on_commit=False),
+            default_decision_provider,
+        )
+    )
     app.include_router(
         decisions_router(config, projects, default_decision_provider, project_repository)
     )
@@ -226,7 +235,11 @@ def create_app(
     )
     app.include_router(
         evaluations_router(
-            config, projects, async_sessionmaker(engine, expire_on_commit=False), triage_store
+            config,
+            projects,
+            async_sessionmaker(engine, expire_on_commit=False),
+            triage_store,
+            default_decision_provider,
         )
     )
     app.include_router(

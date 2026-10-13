@@ -386,6 +386,7 @@ class EvaluationSetRow(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text, default="")
+    dataset_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     sealed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -402,6 +403,8 @@ class EvaluationExampleRow(Base):
     annotator: Mapped[str] = mapped_column(String(200))
     rationale: Mapped[str] = mapped_column(Text, default="")
     slice_tag: Mapped[str] = mapped_column(String(30), default="historical")
+    split: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    example_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -412,6 +415,9 @@ class EvaluationRunRow(Base):
     dataset_id: Mapped[str] = mapped_column(ForeignKey("evaluation_sets.id"))
     candidate_id: Mapped[str] = mapped_column(ForeignKey("cluster_candidates.id"))
     overall_passed: Mapped[bool] = mapped_column(Boolean)
+    is_simulated: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
     gates: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
