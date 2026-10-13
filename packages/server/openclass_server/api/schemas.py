@@ -238,12 +238,25 @@ class TriageEvidenceRequest(Model):
 
 
 class TransitionEvidenceRequest(Model):
-    target_status: str = Field(min_length=1, max_length=30)
+    target_status: str | None = Field(default=None, min_length=1, max_length=30)
+    status: str | None = Field(default=None, min_length=1, max_length=30)
     rationale: str | None = Field(default=None, max_length=2000)
+    note: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def normalize_transition_fields(self) -> "TransitionEvidenceRequest":
+        resolved_status = self.target_status or self.status
+        if not resolved_status or not resolved_status.strip():
+            raise ValueError("target_status is required")
+        resolved_rationale = self.rationale if self.rationale is not None else self.note
+        object.__setattr__(self, "target_status", resolved_status.strip())
+        object.__setattr__(self, "rationale", resolved_rationale)
+        return self
 
 
 class CreateEvidenceCaseRequest(Model):
     title: str = Field(min_length=1, max_length=200)
+    description: str = Field(default="", max_length=2000)
     decision_service_id: str | None = None
     evidence_ids: list[str] = Field(default_factory=list)
 
@@ -251,6 +264,17 @@ class CreateEvidenceCaseRequest(Model):
     def strip_title(self) -> "CreateEvidenceCaseRequest":
         if not self.title.strip():
             raise ValueError("Case title cannot be blank")
+        return self
+
+
+class AddEvidenceToCaseRequest(Model):
+    evidence_id: UUID | None = None
+    evidence_ids: list[UUID] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_evidence_ids(self) -> "AddEvidenceToCaseRequest":
+        if self.evidence_id is None and not self.evidence_ids:
+            raise ValueError("evidence_id or evidence_ids is required")
         return self
 
 

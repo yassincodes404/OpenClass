@@ -570,15 +570,37 @@ export class OpenClass {
       metadata: input.metadata ?? {},
     });
   }
-  createEventsBatch(input: {
+  async createEventsBatch(input: {
     project: string;
     items: Array<{ content: string; metadata?: Record<string, unknown>; source_type?: string }>;
     sourceType?: "text" | "json" | "csv" | "webhook";
   }): Promise<RawEvent[]> {
-    return this.request(`/api/v1/projects/${encodeURIComponent(input.project)}/events/batch`, {
+    const response = await this.request<
+      RawEvent[] | { items?: Array<RawEvent | { event?: RawEvent }> }
+    >(`/api/v1/projects/${encodeURIComponent(input.project)}/events/batch`, {
       items: input.items,
       source_type: input.sourceType ?? "text",
     });
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response && typeof response === "object" && Array.isArray(response.items)) {
+      return response.items
+        .map((item) =>
+          item && typeof item === "object" && "event" in item && item.event
+            ? item.event
+            : (item as RawEvent),
+        )
+        .filter((event): event is RawEvent => Boolean(event && typeof event === "object" && "id" in event));
+    }
+    return [];
+  }
+  ingestBatch(input: {
+    project: string;
+    items: Array<{ content: string; metadata?: Record<string, unknown>; source_type?: string }>;
+    sourceType?: "text" | "json" | "csv" | "webhook";
+  }): Promise<RawEvent[]> {
+    return this.createEventsBatch(input);
   }
   events(project: string, options?: { limit?: number; offset?: number }): Promise<RawEvent[]> {
     const params = new URLSearchParams();
