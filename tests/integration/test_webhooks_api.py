@@ -278,3 +278,31 @@ def test_changed_credentials_invalidate_health_and_old_tokens(
         ).status_code
         == 201
     )
+
+
+def test_distinct_event_keys_with_identical_content_succeed_independently(
+    mock_client: TestClient,
+    webhook: tuple[str, dict[str, str]],
+) -> None:
+    url, headers = webhook
+    first = mock_client.post(
+        url,
+        headers=headers,
+        json=delivery(event_key="ticket:829:revision:14", metadata={"ticket_id": "829"}),
+    )
+    assert first.status_code == 201
+    second = mock_client.post(
+        url,
+        headers=headers,
+        json=delivery(event_key="ticket:830:revision:1", metadata={"ticket_id": "830"}),
+    )
+    assert second.status_code == 201
+    assert second.json()["status"] == "ingested"
+    assert second.json()["event_id"] != first.json()["event_id"]
+    project_base = url.split("/integrations/")[0]
+    events = mock_client.get(f"{project_base}/events").json()
+    assert len(events) == 2
+    audit = mock_client.get(f"{project_base}/audit").json()
+    ingested = [a for a in audit if a["event_type"] == "integration.webhook_ingested"]
+    assert len(ingested) == 2
+

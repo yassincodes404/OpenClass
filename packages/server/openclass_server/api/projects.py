@@ -127,7 +127,7 @@ def projects_router(
         )
         payload = event.model_dump(mode="json")
         payload["deduped"] = deduped
-        if idempotency is not None and idempotency_key and not deduped:
+        if idempotency is not None and idempotency_key:
             project = await projects.get(identifier)
             await idempotency.store(
                 project.id, idempotency_key, payload, config.idempotency_ttl_hours

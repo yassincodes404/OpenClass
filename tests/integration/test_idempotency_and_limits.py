@@ -104,3 +104,73 @@ def test_read_routes_are_not_rate_limited(mock_client: TestClient):
     slug = _make_project(mock_client)
     for _ in range(5):
         assert mock_client.get(f"/api/v1/projects/{slug}/events").status_code == 200
+
+
+def test_content_deduped_event_records_idempotency_key(mock_client: TestClient):
+    slug = _make_project(mock_client)
+    first = mock_client.post(
+        f"/api/v1/projects/{slug}/events",
+        json={"content": "duplicate text"},
+        headers={"Idempotency-Key": "key-first"},
+    )
+    assert first.status_code == 201
+    deduped = mock_client.post(
+        f"/api/v1/projects/{slug}/events",
+        json={"content": "duplicate text"},
+        headers={"Idempotency-Key": "key-second"},
+    )
+    assert deduped.status_code == 200
+    assert deduped.json()["id"] == first.json()["id"]
+    replayed = mock_client.post(
+        f"/api/v1/projects/{slug}/events",
+        json={"content": "duplicate text"},
+        headers={"Idempotency-Key": "key-second"},
+    )
+    assert replayed.status_code == 200
+    assert replayed.headers.get("Idempotency-Replayed") == "true"
+    assert replayed.json()["id"] == first.json()["id"]
+
+
+async def test_expired_idempotency_key_can_be_refreshed(
+    mock_client: TestClient,
+    database_url: str,
+):
+    from datetime import UTC, datetime, timedelta
+    from uuid import UUID
+
+    from openclass_server.persistence.idempotency import IdempotencyStore
+    from openclass_server.persistence.tables import IdempotencyKeyRow
+    from sqlalchemy import update
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    project_resp = mock_client.post(
+        "/api/v1/projects", json={"name": "Expiry Co", "description": ""}
+    )
+    assert project_resp.status_code == 201
+    project_id = UUID(project_resp.json()["id"])
+
+    engine = create_async_engine(database_url)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    store = IdempotencyStore(session_factory)
+    try:
+        await store.store(project_id, "expiring-key", {"id": "old-id"}, ttl_hours=1)
+        past = datetime.now(UTC) - timedelta(hours=2)
+        async with session_factory.begin() as session:
+            await session.execute(
+                update(IdempotencyKeyRow)
+                .where(
+                    IdempotencyKeyRow.project_id == str(project_id),
+                    IdempotencyKeyRow.key == "expiring-key",
+                )
+                .values(created_at=past - timedelta(hours=1), expires_at=past)
+            )
+
+        assert await store.get(project_id, "expiring-key") is None
+
+        await store.store(project_id, "expiring-key", {"id": "refreshed-id"}, ttl_hours=24)
+
+        record = await store.get(project_id, "expiring-key")
+        assert record == {"id": "refreshed-id"}
+    finally:
+        await engine.dispose()
+
