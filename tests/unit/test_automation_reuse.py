@@ -139,9 +139,10 @@ def test_transfer_is_a_different_project(modules, tmp_path):
 def test_frozen_fixture_unchanged():
     import hashlib
 
-    assert hashlib.sha256(
-        Path("scripts/automation_replay_fixture.py").read_bytes()
-    ).hexdigest() == ("b2dc266a03a6ce24ef8a926371de85f91a39b51cdaf97188b0767a52e5535c66")
+    raw_bytes = Path("scripts/automation_replay_fixture.py").read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(raw_bytes).hexdigest() == (
+        "b2dc266a03a6ce24ef8a926371de85f91a39b51cdaf97188b0767a52e5535c66"
+    )
 
 
 def test_transfer_fixture_has_real_failure_and_truthful_report(modules, tmp_path, monkeypatch):

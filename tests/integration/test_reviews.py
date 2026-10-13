@@ -5,6 +5,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from openclass_core.models import ReviewRequest, ReviewResult
 from openclass_core.providers import ProviderError, SupervisorProvider
+from openclass_provider_mock import MockDecisionProvider
 from openclass_server.main import create_app
 from openclass_server.settings import EXPECTED_SCHEMA_REVISION, Settings
 
@@ -88,7 +89,11 @@ class LeakingSupervisor:
 def test_supervisor_failures_are_safe_and_persist_nothing(
     database_url: str, classifier_body: dict
 ) -> None:
-    app = create_app(Settings(database_url=database_url), supervisor_provider=LeakingSupervisor())
+    app = create_app(
+        Settings(database_url=database_url),
+        provider=MockDecisionProvider(),
+        supervisor_provider=LeakingSupervisor(),
+    )
     with TestClient(app) as client:
         created = client.post("/api/v1/classifiers", json=classifier_body)
         base = f"/api/v1/classifiers/{created.json()['id']}"

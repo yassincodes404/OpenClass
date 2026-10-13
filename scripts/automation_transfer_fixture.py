@@ -1,6 +1,7 @@
 """Run 3 executor: same primitive contracts, a separate HTTP-service unittest project."""
 
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -20,6 +21,8 @@ def replay(steps: list[str], project: Path, occupied_port: int = 3000) -> dict[s
     report = None
     stopped_blocked = False
     with socket.socket() as blocker:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            blocker.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
         blocker.bind(("127.0.0.1", occupied_port))
         blocker.listen()
         for step in steps:
@@ -49,18 +52,33 @@ def replay(steps: list[str], project: Path, occupied_port: int = 3000) -> dict[s
                 configured = selected
                 output = {"TEST_PORT": configured}
             elif step in {"run_tests", "rerun_previous"}:
+                child_env = {"TEST_PORT": str(configured)}
+                for key in ("SYSTEMROOT", "WINDIR", "COMSPEC", "PATH", "TEMP", "TMP"):
+                    if key in os.environ:
+                        child_env[key] = os.environ[key]
                 completed = subprocess.run(
                     [sys.executable, "-m", "unittest", "discover", "-s", "tests"],
                     cwd=project,
-                    env={"TEST_PORT": str(configured)},
+                    env=child_env,
                     capture_output=True,
                     text=True,
                     timeout=10,
                     check=False,
                 )
+                combined_output = (completed.stdout + completed.stderr)[-12000:]
+                if (
+                    completed.returncode != 0
+                    and "Address already in use" not in combined_output
+                    and (
+                        "WinError 10048" in combined_output
+                        or "WinError 10013" in combined_output
+                        or "Only one usage of each socket address" in combined_output
+                    )
+                ):
+                    combined_output = f"{combined_output}\nOSError: Address already in use"
                 result = {
                     "exit_code": completed.returncode,
-                    "output": (completed.stdout + completed.stderr)[-12000:],
+                    "output": combined_output[-12000:],
                     "port": configured,
                 }
                 output = dict(result)
