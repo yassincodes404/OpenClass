@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -20,17 +21,27 @@ from openclass_core.evaluation_metrics import (
 )
 from openclass_core.projects import (
     UNKNOWN_CHOICE,
+    DecisionRun,
+    DecisionService,
     DecisionServiceChoice,
     RawEvent,
 )
 from openclass_core.projects import ProjectService as ProjectDomainService
-from openclass_core.providers import DecisionProvider
-from pydantic import BaseModel, Field
+from openclass_core.providers import DecisionProvider, ProviderError
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
 from openclass_server.provider_config import resolve_decision_provider
 from openclass_server.settings import Settings
+
+FORBIDDEN_LABEL_SOURCES: frozenset[str] = frozenset(
+    {"prediction", "model_prediction", "unverified_prediction"}
+)
+
+
+def _normalize_text(text: str) -> str:
+    return " ".join(text.strip().casefold().split())
 
 
 class EvaluationCreate(BaseModel):
@@ -48,11 +59,25 @@ class ExampleCreate(BaseModel):
     text: str = Field(min_length=1, max_length=10_000)
     label: str = Field(min_length=1, max_length=100)
     source: str
+    source_type: str | None = None
     annotator: str = Field(min_length=2, max_length=200)
     rationale: str = Field(default="", max_length=2000)
     slice_tag: str = "historical"
     split: str = "holdout"
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _reject_prediction_metadata(self) -> ExampleCreate:
+        label_source = str(self.metadata.get("label_source", "")).strip().lower()
+        meta_source_type = str(self.metadata.get("source_type", "")).strip().lower()
+        top_source_type = (self.source_type or "").strip().lower()
+        if (
+            label_source in FORBIDDEN_LABEL_SOURCES
+            or meta_source_type in FORBIDDEN_LABEL_SOURCES
+            or top_source_type in FORBIDDEN_LABEL_SOURCES
+        ):
+            raise ValueError("Predictions cannot be used as evaluation ground truth")
+        return self
 
 
 def evaluations_router(
@@ -157,6 +182,81 @@ def evaluations_router(
                 for row in rows
             ]
 
+    async def _discovery_texts(project_id: UUID, candidate_id: str | None = None) -> set[str]:
+        async with sessions() as session:
+            if candidate_id is not None:
+                rows = await session.execute(
+                    sa.text(
+                        "SELECT DISTINCT r.payload FROM decision_runs r"
+                        " WHERE r.project_id = :pid AND ("
+                        "   r.id IN ("
+                        "     SELECT run_id FROM candidate_evidence WHERE candidate_id = :cid"
+                        "   )"
+                        "   OR r.id IN ("
+                        "     SELECT m.run_id FROM cluster_members m"
+                        "     JOIN cluster_candidates c ON c.cluster_id = m.cluster_id"
+                        "     WHERE c.id = :cid"
+                        "   )"
+                        " )"
+                    ),
+                    {"pid": str(project_id), "cid": candidate_id},
+                )
+            else:
+                rows = await session.execute(
+                    sa.text(
+                        "SELECT DISTINCT r.payload FROM decision_runs r"
+                        " WHERE r.project_id = :pid AND ("
+                        "   r.id IN ("
+                        "     SELECT m.run_id FROM cluster_members m"
+                        "     JOIN unknown_clusters uc ON uc.id = m.cluster_id"
+                        "     WHERE uc.project_id = :pid"
+                        "   )"
+                        "   OR r.id IN ("
+                        "     SELECT ce.run_id FROM candidate_evidence ce"
+                        "     JOIN cluster_candidates cc ON cc.id = ce.candidate_id"
+                        "     WHERE cc.project_id = :pid"
+                        "   )"
+                        " )"
+                    ),
+                    {"pid": str(project_id)},
+                )
+        normalized: set[str] = set()
+        for row in rows:
+            payload = json.loads(row.payload) if isinstance(row.payload, str) else row.payload
+            if isinstance(payload, dict):
+                snapshot = payload.get("input_snapshot")
+                if isinstance(snapshot, dict):
+                    content = str(snapshot.get("content", "")).strip()
+                    if content:
+                        normalized.add(_normalize_text(content))
+        return normalized
+
+    async def _assert_no_holdout_leakage(
+        project_id: UUID,
+        examples: list[dict[str, Any]],
+        candidate_id: str | None = None,
+    ) -> None:
+        holdout_entries = [
+            ex
+            for ex in examples
+            if str((ex.get("metadata") or {}).get("source_type", "")).strip().lower()
+            == "verified_holdout"
+        ]
+        if not holdout_entries:
+            return
+        discovery_norms = await _discovery_texts(project_id, candidate_id)
+        if not discovery_norms:
+            return
+        for ex in holdout_entries:
+            if _normalize_text(str(ex.get("text", ""))) in discovery_norms:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "Holdout leakage detected: verified_holdout example"
+                        " overlaps candidate discovery evidence"
+                    ),
+                )
+
     @router.post("/api/v1/projects/{identifier}/eval-datasets", status_code=201)
     async def create_dataset(identifier: str, body: DatasetCreate) -> dict[str, Any]:
         project = await projects.get(identifier)
@@ -195,7 +295,13 @@ def evaluations_router(
         if dataset["sealed_at"] is not None:
             raise HTTPException(status_code=409, detail="dataset is sealed and immutable")
         try:
-            draft = ExampleDraft.model_validate(body.model_dump())
+            payload = body.model_dump(exclude={"source_type"})
+            if body.source_type is not None:
+                payload["metadata"] = {
+                    **payload.get("metadata", {}),
+                    "source_type": body.source_type,
+                }
+            draft = ExampleDraft.model_validate(payload)
             example = draft.to_example(await _allowed_labels(identifier))
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
@@ -240,6 +346,7 @@ def evaluations_router(
         if dataset["sealed_at"] is not None:
             raise HTTPException(status_code=409, detail="dataset is already sealed")
         examples = await _examples(dataset_id)
+        await _assert_no_holdout_leakage(project.id, examples)
         dhash = compute_dataset_hash([_as_example(entry) for entry in examples])
         async with sessions.begin() as session:
             await session.execute(
@@ -303,7 +410,7 @@ def evaluations_router(
         async with sessions() as session:
             row = await session.execute(
                 sa.text(
-                    "SELECT canonical_name, aliases, status FROM cluster_candidates"
+                    "SELECT canonical_name, definition, aliases, status FROM cluster_candidates"
                     " WHERE id = :id AND project_id = :pid"
                 ),
                 {"id": body.candidate_id, "pid": str(project.id)},
@@ -311,6 +418,9 @@ def evaluations_router(
             candidate = row.first()
         if candidate is None or not candidate.canonical_name:
             raise HTTPException(status_code=404, detail="Candidate not found or has no class")
+        examples = await _examples(body.dataset_id)
+        await _assert_no_holdout_leakage(project.id, examples, body.candidate_id)
+
         services = await projects.list_decision_services(identifier=identifier)
         service = next(
             (entry for entry in services if body.service_id in (None, str(entry.id), entry.slug)),
@@ -329,11 +439,11 @@ def evaluations_router(
         candidate_choice = DecisionServiceChoice(
             key=candidate.canonical_name.upper(),
             label=candidate.canonical_name.replace("_", " ").title(),
-            description=f"Candidate {body.candidate_id}",
+            description=candidate.definition or f"Candidate {body.candidate_id}",
             aliases=tuple(str(alias) for alias in (aliases or [])),
         )
         candidate_node = service.nodes[0].model_copy(
-            update={"choices": (*baseline_choices, candidate_choice, UNKNOWN_CHOICE)}
+            update={"choices": (candidate_choice, *baseline_choices, UNKNOWN_CHOICE)}
         )
         candidate_service = service.model_copy(
             update={
@@ -350,12 +460,24 @@ def evaluations_router(
             exec_provider = resolve_decision_provider(config, config.decision_provider)
 
         executor = DecisionExecutor(exec_provider)
-        examples = await _examples(body.dataset_id)
         baseline_pairs: list[tuple[str, str]] = []
         candidate_pairs: list[tuple[str, str]] = []
         run_provider = "mock"
         run_model = "lexical-demo-v1"
         is_simulated = True
+
+        async def _execute_with_retry(
+            raw_event: RawEvent, target_service: DecisionService
+        ) -> DecisionRun:
+            for attempt in range(6):
+                try:
+                    return await executor.execute(raw_event, target_service)
+                except ProviderError as error:
+                    if error.kind == "rate_limit" and attempt < 5:
+                        await asyncio.sleep(5.0 * (attempt + 1))
+                        continue
+                    raise
+            raise RuntimeError("unreachable")
 
         for example in examples:
             gold = example["label"]
@@ -364,10 +486,20 @@ def evaluations_router(
                 content=example["text"],
                 source_type="text",
             )
-            base_run = await executor.execute(raw_event, service)
-            cand_run = await executor.execute(raw_event, candidate_service)
-            baseline_pairs.append((gold, base_run.selected_choice))
-            candidate_pairs.append((gold, cand_run.selected_choice))
+            base_run = await _execute_with_retry(raw_event, service)
+            cand_run = await _execute_with_retry(raw_event, candidate_service)
+            base_pred = (
+                "UNKNOWN"
+                if base_run.selected_choice != "UNKNOWN" and base_run.margin == 0.0
+                else base_run.selected_choice
+            )
+            cand_pred = (
+                "UNKNOWN"
+                if cand_run.selected_choice != "UNKNOWN" and cand_run.margin == 0.0
+                else cand_run.selected_choice
+            )
+            baseline_pairs.append((gold, base_pred))
+            candidate_pairs.append((gold, cand_pred))
             run_provider = cand_run.provider
             run_model = cand_run.model
             is_simulated = bool(
@@ -380,6 +512,18 @@ def evaluations_router(
             baseline_pairs, candidate_pairs, known_labels=baseline_labels
         )
         unknown_p, unknown_r = unknown_precision_recall(candidate_pairs)
+        regression_metrics = {
+            "regressions": gates["regressions"],
+            "zero_regressions": gates["zero_regressions"],
+        }
+        holdout_examples = sum(
+            1
+            for ex in examples
+            if (ex.get("metadata") or {}).get("source_type") == "verified_holdout"
+            or ex.get("split") == "holdout"
+            or ex.get("source") == "verified_holdout"
+        )
+        holdout_metrics = {"holdout_examples": holdout_examples}
         metrics = {
             "baseline": {
                 "accuracy": accuracy(baseline_pairs),
@@ -393,6 +537,10 @@ def evaluations_router(
                 "unknown_precision": unknown_p,
                 "unknown_recall": unknown_r,
             },
+            "regressions": gates["regressions"],
+            "zero_regressions": gates["zero_regressions"],
+            "regression_metrics": regression_metrics,
+            "holdout_metrics": holdout_metrics,
             "examples": len(examples),
             "simulated": is_simulated,
             "provider": run_provider,
@@ -434,6 +582,8 @@ def evaluations_router(
             "provider": run_provider,
             "model": run_model,
             "metrics": metrics,
+            "regression_metrics": regression_metrics,
+            "holdout_metrics": holdout_metrics,
             "gates": gates["gates"],
         }
 

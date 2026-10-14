@@ -4,11 +4,23 @@ import os
 from typing import Any
 
 from fastapi import HTTPException
-from openclass_core.candidates import ClusterDiscoveryProvider, MockClusterDiscoveryProvider
+from openclass_core.candidates import (
+    ClusterDiscoveryProvider,
+    ClusterDiscoveryRequest,
+    ClusterDiscoveryResult,
+    MockClusterDiscoveryProvider,
+)
 from openclass_core.embeddings import EmbeddingProvider
-from openclass_core.evidence import DiagnosisProvider
-from openclass_core.project_evolution import ChoiceTeacher
-from openclass_core.providers import DecisionProvider, DiscoveryProvider, SupervisorProvider
+from openclass_core.evidence import DiagnosisProvider, DiagnosisResult
+from openclass_core.models import DiscoveryRequest, DiscoveryResult
+from openclass_core.project_evolution import ChoiceProposal, ChoiceTeacher
+from openclass_core.projects import DecisionRun, DecisionService
+from openclass_core.providers import (
+    DecisionProvider,
+    DiscoveryProvider,
+    ProviderError,
+    SupervisorProvider,
+)
 from openclass_provider_glm import (
     GatewayClusterDiscovery,
     GatewayDecisionProvider,
@@ -32,6 +44,40 @@ from pydantic import SecretStr
 from openclass_server.embeddings_local import HashLexicalEmbedder
 from openclass_server.security import contains_secret
 from openclass_server.settings import Settings
+
+
+class DisabledDiscoveryProvider:
+    async def discover(self, request: DiscoveryRequest) -> DiscoveryResult:
+        raise ProviderError(
+            "Discovery/teacher provider is disabled (discovery_provider='none')",
+            kind="unsupported",
+        )
+
+
+class DisabledClusterDiscoveryProvider:
+    async def discover(self, request: ClusterDiscoveryRequest) -> ClusterDiscoveryResult:
+        raise ProviderError(
+            "Discovery/teacher provider is disabled (discovery_provider='none')",
+            kind="unsupported",
+        )
+
+
+class DisabledChoiceTeacher:
+    async def propose(
+        self, service: DecisionService, runs: tuple[DecisionRun, ...]
+    ) -> ChoiceProposal:
+        raise ProviderError(
+            "Discovery/teacher provider is disabled (discovery_provider='none')",
+            kind="unsupported",
+        )
+
+
+class DisabledDiagnosisProvider:
+    async def diagnose(self, context: dict[str, Any]) -> DiagnosisResult:
+        raise ProviderError(
+            "Discovery/teacher provider is disabled (discovery_provider='none')",
+            kind="unsupported",
+        )
 
 
 def gateway_key(settings: Settings) -> SecretStr:
@@ -96,6 +142,8 @@ def embedding_provider(settings: Settings) -> EmbeddingProvider:
 def cluster_discovery_provider(
     settings: Settings,
 ) -> tuple[ClusterDiscoveryProvider, str]:
+    if settings.discovery_provider == "none":
+        return DisabledClusterDiscoveryProvider(), "none"
     if settings.discovery_provider == "mock":
         return MockClusterDiscoveryProvider(), "mock"
     default_url = (
@@ -140,6 +188,8 @@ def supervisor_provider(settings: Settings) -> SupervisorProvider:
 
 
 def discovery_provider(settings: Settings) -> DiscoveryProvider:
+    if settings.discovery_provider == "none":
+        return DisabledDiscoveryProvider()
     if settings.discovery_provider == "mock":
         return MockDiscoveryProvider()
     key = settings.discovery_api_key
@@ -168,6 +218,8 @@ def discovery_provider(settings: Settings) -> DiscoveryProvider:
 
 
 def project_teacher_provider(settings: Settings) -> ChoiceTeacher:
+    if settings.discovery_provider == "none":
+        return DisabledChoiceTeacher()
     if settings.discovery_provider == "mock":
         return MockChoiceTeacher()
     key = settings.discovery_api_key
@@ -196,6 +248,8 @@ def project_teacher_provider(settings: Settings) -> ChoiceTeacher:
 
 
 def project_diagnosis_provider(settings: Settings) -> DiagnosisProvider:
+    if settings.discovery_provider == "none":
+        return DisabledDiagnosisProvider()
     if settings.discovery_provider == "mock":
         return MockDiagnosisProvider()
     key = settings.discovery_api_key

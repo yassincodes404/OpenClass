@@ -11,6 +11,7 @@ import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException
 from openclass_core.candidates import (
     ClusterDiscoveryRequest,
+    decide_proposal,
     review_gaps,
     validate_candidate_transition,
 )
@@ -23,6 +24,13 @@ from openclass_server.provider_config import cluster_discovery_provider
 from openclass_server.settings import Settings
 
 
+class DiscoverRequest(BaseModel):
+    canonical_name: str | None = Field(default=None, min_length=1, max_length=100)
+    display_name: str | None = Field(default=None, min_length=1, max_length=200)
+    definition: str | None = Field(default=None, max_length=2000)
+    aliases: list[str] | None = None
+
+
 class CollectRequest(BaseModel):
     unknown_ids: list[str] = Field(min_length=1, max_length=100)
 
@@ -30,6 +38,8 @@ class CollectRequest(BaseModel):
 class ReviewRequest(BaseModel):
     decision: Literal["approve", "reject", "needs_evidence"]
     rationale: str = Field(min_length=5, max_length=2000)
+    canonical_name: str | None = Field(default=None, min_length=1, max_length=100)
+    aliases: list[str] | None = None
 
 
 class RejectRequest(BaseModel):
@@ -120,7 +130,11 @@ def candidates_router(
         "/api/v1/projects/{identifier}/clusters/{cluster_id}/discover",
         status_code=201,
     )
-    async def discover(identifier: str, cluster_id: str) -> dict[str, Any]:
+    async def discover(
+        identifier: str,
+        cluster_id: str,
+        body: DiscoverRequest | None = None,
+    ) -> dict[str, Any]:
         project = await projects.get(identifier)
         async with sessions() as session:
             exists = await session.execute(
@@ -134,13 +148,42 @@ def candidates_router(
         member_texts = await _member_texts(str(project.id), cluster_id)
         if not member_texts:
             raise HTTPException(status_code=400, detail="cluster has no members")
+        existing_cls = tuple(await _existing_classes(identifier))
         result = await provider.discover(
             ClusterDiscoveryRequest(
                 cluster_id=UUID(cluster_id),
                 member_texts=tuple(member_texts[:20]),
-                existing_classes=tuple(await _existing_classes(identifier)),
+                existing_classes=existing_cls,
                 provider=provider_name,
             )
+        )
+        if result.type != "NEW_CLASS":
+            fallback = decide_proposal(member_texts[:20], existing_cls)
+            if fallback.type == "NEW_CLASS":
+                result = fallback
+        canonical_name = (
+            body.canonical_name.strip().lower()
+            if body is not None and body.canonical_name is not None
+            else result.canonical_name
+        )
+        display_name = (
+            body.display_name.strip()
+            if body is not None and body.display_name is not None
+            else (
+                canonical_name.replace("_", " ").title()
+                if body is not None and body.canonical_name is not None and canonical_name
+                else result.display_name
+            )
+        )
+        definition = (
+            body.definition.strip()
+            if body is not None and body.definition is not None
+            else result.definition
+        )
+        aliases_list = (
+            [str(alias).strip() for alias in body.aliases if str(alias).strip()]
+            if body is not None and body.aliases is not None
+            else list(result.aliases)
         )
         candidate_id = str(uuid4())
         async with sessions.begin() as session:
@@ -159,10 +202,10 @@ def candidates_router(
                     "project_id": str(project.id),
                     "cluster_id": cluster_id,
                     "type": result.type,
-                    "canonical_name": result.canonical_name,
-                    "display_name": result.display_name,
-                    "definition": result.definition,
-                    "aliases": json.dumps(list(result.aliases)),
+                    "canonical_name": canonical_name,
+                    "display_name": display_name,
+                    "definition": definition,
+                    "aliases": json.dumps(aliases_list),
                     "existing_match": result.existing_match,
                     "confidence": result.confidence,
                     "reason": result.reason,
@@ -187,10 +230,10 @@ def candidates_router(
         return {
             "id": candidate_id,
             "type": result.type,
-            "canonical_name": result.canonical_name,
-            "display_name": result.display_name,
-            "definition": result.definition,
-            "aliases": list(result.aliases),
+            "canonical_name": canonical_name,
+            "display_name": display_name,
+            "definition": definition,
+            "aliases": aliases_list,
             "existing_match": result.existing_match,
             "confidence": result.confidence,
             "reason": result.reason,
@@ -350,6 +393,26 @@ def candidates_router(
         }[body.decision]
         _transition(candidate, target)
         async with sessions.begin() as session:
+            if body.canonical_name is not None:
+                cname = body.canonical_name.strip().lower()
+                await session.execute(
+                    sa.text(
+                        "UPDATE cluster_candidates"
+                        " SET canonical_name = :cname, display_name = :dname"
+                        " WHERE id = :id"
+                    ),
+                    {
+                        "cname": cname,
+                        "dname": cname.replace("_", " ").title(),
+                        "id": candidate_id,
+                    },
+                )
+            if body.aliases is not None:
+                cleaned_aliases = [str(a).strip() for a in body.aliases if str(a).strip()]
+                await session.execute(
+                    sa.text("UPDATE cluster_candidates SET aliases = :aliases WHERE id = :id"),
+                    {"aliases": json.dumps(cleaned_aliases), "id": candidate_id},
+                )
             await session.execute(
                 sa.text(
                     "INSERT INTO candidate_reviews"

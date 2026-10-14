@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     novelty: NoveltyPolicy = NoveltyPolicy()
     decision_provider: Literal["mock", "jev", "laya", "openai-compatible"] = "laya"
     supervisor_provider: Literal["mock", "glm", "openai-compatible"] = "mock"
-    discovery_provider: Literal["mock", "glm", "openai-compatible"] = "mock"
+    discovery_provider: Literal["mock", "glm", "openai-compatible", "none"] = "mock"
     embedding_provider: Literal["hash-lexical", "openai-compatible"] = "hash-lexical"
     embedding_model: Literal["openai/text-embedding-3-small", "cohere/embed-v4.0"] = (
         "openai/text-embedding-3-small"

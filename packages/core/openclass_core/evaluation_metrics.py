@@ -84,6 +84,18 @@ def false_novelty_rate(
     return wrong_unknown / len(known_gold)
 
 
+def count_regressions(
+    baseline_pairs: list[Prediction],
+    candidate_pairs: list[Prediction],
+) -> int:
+    """Count examples that baseline classified accurately as a known class but candidate missed."""
+    return sum(
+        1
+        for (gold, base_pred), (_, cand_pred) in zip(baseline_pairs, candidate_pairs, strict=False)
+        if gold != "UNKNOWN" and base_pred == gold and cand_pred != gold
+    )
+
+
 class Gates:
     """Configurable regression gates; all must pass for promotion eligibility."""
 
@@ -106,6 +118,7 @@ class Gates:
     ) -> dict[str, object]:
         baseline_accuracy = accuracy(baseline_pairs)
         candidate_accuracy = accuracy(candidate_pairs)
+        regressions = count_regressions(baseline_pairs, candidate_pairs)
         checks: dict[str, object] = {
             "accuracy_delta": None
             if baseline_accuracy is None or candidate_accuracy is None
@@ -114,6 +127,8 @@ class Gates:
             "candidate_accuracy": None
             if candidate_accuracy is None
             else round(candidate_accuracy, 4),
+            "regressions": regressions,
+            "zero_regressions": regressions == 0,
         }
         gate_results: list[dict[str, object]] = []
 
@@ -147,6 +162,15 @@ class Gates:
                 }
             )
 
+        gate_results.append(
+            {
+                "gate": "zero_regressions",
+                "passed": bool(baseline_pairs and candidate_pairs) and regressions == 0,
+                "value": regressions,
+                "threshold": 0,
+            }
+        )
+
         for label in self.protected_classes:
             before = per_class_accuracy(baseline_pairs, label)
             after = per_class_accuracy(candidate_pairs, label)
@@ -169,5 +193,7 @@ class Gates:
                 )
 
         checks["gates"] = gate_results
-        checks["overall_passed"] = all(bool(gate["passed"]) for gate in gate_results)
+        checks["overall_passed"] = all(bool(gate["passed"]) for gate in gate_results) and bool(
+            checks["zero_regressions"]
+        )
         return checks
