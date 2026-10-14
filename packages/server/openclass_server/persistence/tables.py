@@ -176,6 +176,38 @@ class DecisionRunRow(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
 
 
+class DecisionRunCheckpointRow(Base):
+    __tablename__ = "decision_run_checkpoints"
+    run_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_runs.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    project_id: Mapped[str] = mapped_column(String(36), index=True)
+    decision_service_id: Mapped[str] = mapped_column(String(36), index=True)
+    run_status: Mapped[str] = mapped_column(String(32), default="completed", index=True)
+    current_node_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    next_node_key: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    selected_choice: Mapped[str] = mapped_column(String(120))
+    supervision_outcome: Mapped[str] = mapped_column(String(32))
+    supervision_reason: Mapped[str] = mapped_column(Text, default="")
+    completed_steps: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    state_snapshot: Mapped[dict[str, Any]] = mapped_column(JSON)
+    pinned_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    pinned_version_number: Mapped[int] = mapped_column(Integer, default=1)
+    pinned_service_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    pending_operation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    latency_ms: Mapped[float] = mapped_column(Float, default=0.0)
+    resumed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resume_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cancelled_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class ProviderUsageRow(Base):
     __tablename__ = "provider_usage"
     __table_args__ = (

@@ -354,3 +354,129 @@ async def test_decision_executor_cycle_detection_and_node_supervision_policy() -
     assert hr_run.selected_choice == "APPROVE"
     assert hr_run.supervision_outcome == "REVIEW"
     assert "High-risk" in hr_run.supervision_reason
+    assert hr_run.run_status == "paused"
+    assert hr_run.current_node_key == high_risk_node.name
+    assert hr_run.decision_node_id == high_risk_node.id
+
+
+async def test_decision_executor_multi_node_pause_and_resume_downstream_execution() -> None:
+    from openclass_core.models import ChoiceRequest, ChoiceResult
+    from openclass_core.projects import DecisionServiceTransition
+
+    billing_node = DecisionServiceNode(
+        name="billing-specialist",
+        instructions="Classify specific billing action",
+        choices=(
+            DecisionServiceChoice(key="REFUND", label="Refund", description="Issue refund"),
+            DecisionServiceChoice(key="INVOICE", label="Invoice", description="Send invoice"),
+            DecisionServiceChoice(key="UNKNOWN", label="Unknown", description="Unknown"),
+        ),
+    )
+    root_node = DecisionServiceNode(
+        name="root-router",
+        instructions="Route customer ticket to department",
+        pause_on_review=True,
+        choices=(
+            DecisionServiceChoice(
+                key="BILLING",
+                label="Billing Department",
+                description="Billing questions",
+            ),
+            DecisionServiceChoice(
+                key="TECH",
+                label="Tech Support",
+                description="Technical bugs",
+            ),
+            DecisionServiceChoice(
+                key="UNKNOWN",
+                label="Unknown",
+                description="Unknown",
+            ),
+        ),
+    )
+    transition = DecisionServiceTransition(
+        from_node_key="root-router",
+        choice_key="BILLING",
+        to_node_key="billing-specialist",
+        require_approval=True,
+    )
+    service = DecisionService(
+        project_id=uuid4(),
+        slug="supervised-router",
+        name="Supervised Router",
+        instructions="Route and specialize support requests",
+        nodes=(root_node, billing_node),
+        transitions=(transition,),
+    )
+
+    executed_nodes: list[str] = []
+
+    class TwoStageProvider:
+        async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+            class_names = {c.canonical_name for c in request.ontology.classes}
+            if "billing" in class_names:
+                executed_nodes.append("root-router")
+                return ChoiceResult(
+                    provider="jev",
+                    model="typesafe-ai/jev",
+                    probabilities={"billing": 0.48, "tech": 0.42},
+                    unknown_probability=0.10,
+                    latency_ms=10.0,
+                )
+            executed_nodes.append("billing-specialist")
+            return ChoiceResult(
+                provider="jev",
+                model="typesafe-ai/jev",
+                probabilities={"refund": 0.90, "invoice": 0.05},
+                unknown_probability=0.05,
+                latency_ms=14.0,
+            )
+
+    event = RawEvent(
+        project_id=service.project_id,
+        source_type="webhook",
+        content="Customer wants a billing review and refund.",
+        metadata={"customer_tier": "vip"},
+    )
+    executor = DecisionExecutor(TwoStageProvider())
+    paused_run = await executor.execute(event, service)
+
+    # Node 2 MUST NOT execute while Node 1 is paused for supervision/approval
+    assert executed_nodes == ["root-router"]
+    assert paused_run.run_status == "paused"
+    assert paused_run.current_node_key == "root-router"
+    assert paused_run.next_node_key == "billing-specialist"
+    assert paused_run.decision_node_id == root_node.id
+    assert len(paused_run.steps) == 1
+    assert paused_run.steps[0]["node_name"] == "root-router"
+    assert paused_run.pending_operation is not None
+    assert paused_run.pending_operation["node_key"] == "root-router"
+    assert paused_run.pending_operation["next_node_key"] == "billing-specialist"
+
+    # Resume with approved choice BILLING -> executes downstream Node 2
+    resumed_run = await executor.resume(
+        paused_run,
+        service,
+        approved_choice="BILLING",
+        operator="senior-reviewer",
+        rationale="Confirmed billing refund request.",
+    )
+
+    assert executed_nodes == ["root-router", "billing-specialist"]
+    assert resumed_run.run_status == "completed"
+    assert resumed_run.current_node_key == "billing-specialist"
+    assert resumed_run.next_node_key is None
+    assert resumed_run.pending_operation is None
+    assert resumed_run.resumed_by == "senior-reviewer"
+    assert resumed_run.resume_rationale == "Confirmed billing refund request."
+    assert resumed_run.resumed_at is not None
+    assert resumed_run.selected_choice == "REFUND"
+    assert resumed_run.decision_node_id == billing_node.id
+    assert len(resumed_run.steps) == 2
+    assert resumed_run.steps[0]["selected_choice"] == "BILLING"
+    assert resumed_run.steps[0]["supervision_outcome"] == "TRUSTED"
+    assert resumed_run.steps[0]["approved_by"] == "senior-reviewer"
+    assert resumed_run.steps[1]["node_name"] == "billing-specialist"
+    assert resumed_run.steps[1]["selected_choice"] == "REFUND"
+    assert resumed_run.state_snapshot["facts"] == {"customer_tier": "vip"}
+    assert resumed_run.state_snapshot["resolved_decisions"][0]["choice"] == "BILLING"
