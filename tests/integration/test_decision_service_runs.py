@@ -88,3 +88,68 @@ def test_run_requires_input(mock_client: TestClient):
         f"/api/v1/projects/{slug}/decision-services/{service['id']}/runs", json={}
     )
     assert runs.status_code == 422
+
+
+def test_resume_checkpointed_run_records_feedback_and_completes(mock_client: TestClient):
+    slug, service = _make_service(mock_client)
+    runs = mock_client.post(
+        f"/api/v1/projects/{slug}/decision-services/{service['id']}/runs",
+        json={"content": "The weather on Mars is lovely this time of year"},
+    )
+    assert runs.status_code == 201
+    run = runs.json()[0]
+    assert run["supervision_outcome"] in {"REVIEW", "ESCALATE", "UNKNOWN"}
+
+    resumed = mock_client.post(
+        f"/api/v1/projects/{slug}/runs/{run['id']}/resume",
+        json={
+            "approved_choice": "BILLING",
+            "operator": "ops-lead",
+            "rationale": "Manually triaged to billing queue.",
+        },
+    )
+    assert resumed.status_code == 200, resumed.text
+    payload = resumed.json()
+    assert payload == {
+        "run_id": run["id"],
+        "status": "completed",
+        "selected_choice": "BILLING",
+        "supervision_outcome": "TRUSTED",
+        "resumed_by": "ops-lead",
+        "rationale": "Manually triaged to billing queue.",
+    }
+
+    invalid_choice = mock_client.post(
+        f"/api/v1/projects/{slug}/runs/{run['id']}/resume",
+        json={"approved_choice": "NOT_A_CHOICE", "operator": "ops-lead"},
+    )
+    assert invalid_choice.status_code == 422
+
+
+def test_cancel_decision_run_and_prevent_subsequent_resume(mock_client: TestClient):
+    slug, service = _make_service(mock_client)
+    runs = mock_client.post(
+        f"/api/v1/projects/{slug}/decision-services/{service['id']}/runs",
+        json={"content": "The weather on Mars is lovely this time of year"},
+    )
+    assert runs.status_code == 201
+    run = runs.json()[0]
+
+    cancelled = mock_client.post(
+        f"/api/v1/projects/{slug}/runs/{run['id']}/cancel",
+        json={"operator": "ops-lead", "reason": "Duplicate upstream event."},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json() == {
+        "run_id": run["id"],
+        "status": "cancelled",
+        "cancelled_by": "ops-lead",
+        "reason": "Duplicate upstream event.",
+    }
+
+    resumed_after_cancel = mock_client.post(
+        f"/api/v1/projects/{slug}/runs/{run['id']}/resume",
+        json={"approved_choice": "BILLING", "operator": "ops-lead"},
+    )
+    assert resumed_after_cancel.status_code == 409
+

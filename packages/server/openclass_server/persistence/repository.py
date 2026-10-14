@@ -306,11 +306,17 @@ class SQLRepository:
             if current is None or stored is None:
                 raise NotFoundError("Candidate not found")
             current_classifier = Classifier.model_validate(current.payload)
-            if current_classifier.active_ontology_version_id != candidate.base_ontology_version_id:
+            stored_candidate = Candidate.model_validate(stored.payload)
+            if (
+                current_classifier.active_ontology_version_id
+                != stored_candidate.base_ontology_version_id
+                or current_classifier.active_ontology_version_id
+                != candidate.base_ontology_version_id
+            ):
                 raise ConflictError("Candidate base ontology is stale")
-            if candidate.status != "candidate":
+            if stored_candidate.status != "candidate" or candidate.status != "candidate":
                 raise ConflictError("Candidate is not pending approval")
-            if not candidate.evaluation_passed:
+            if not (stored_candidate.evaluation_passed and candidate.evaluation_passed):
                 raise ConflictError("Candidate evaluation has not passed")
             session.add(
                 OntologyRow(
@@ -325,9 +331,9 @@ class SQLRepository:
                 update={"active_ontology_version_id": ontology.id}
             )
             current.payload = updated_classifier.model_dump(mode="json")
-            stored.payload = candidate.model_copy(update={"status": "approved"}).model_dump(
-                mode="json"
-            )
+            stored.payload = stored_candidate.model_copy(
+                update={"status": "approved", "evaluation_passed": True}
+            ).model_dump(mode="json")
             session.add_all(self._event(event) for event in events)
 
     async def events(
