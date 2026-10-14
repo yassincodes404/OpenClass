@@ -14,8 +14,11 @@ members = [
     "openclass-provider-jev",
     "openclass-provider-laya",
     "openclass-provider-mock",
+    "openclass-provider-ollama",
+    "openclass-provider-openai-compatible",
     "openclass-sdk",
     "openclass-server",
+    "openclass-tui",
     "openclass-workspace",
 ]
 
@@ -605,6 +608,36 @@ dependencies = [
 requires-dist = [{ name = "openclass-core", editable = "packages/core" }]
 
 [[package]]
+name = "openclass-provider-ollama"
+version = "0.0.1"
+source = { editable = "providers/ollama" }
+dependencies = [
+    { name = "openclass-core" },
+    { name = "openclass-provider-glm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "openclass-core", editable = "packages/core" },
+    { name = "openclass-provider-glm", editable = "providers/glm" },
+]
+
+[[package]]
+name = "openclass-provider-openai-compatible"
+version = "0.0.1"
+source = { editable = "providers/openai-compatible" }
+dependencies = [
+    { name = "openclass-core" },
+    { name = "openclass-provider-glm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "openclass-core", editable = "packages/core" },
+    { name = "openclass-provider-glm", editable = "providers/glm" },
+]
+
+[[package]]
 name = "openclass-sdk"
 version = "0.0.1"
 source = { editable = "packages/sdk-python" }
@@ -655,6 +688,21 @@ requires-dist = [
 ]
 
 [[package]]
+name = "openclass-tui"
+version = "0.0.1"
+source = { editable = "packages/tui" }
+dependencies = [
+    { name = "httpx" },
+    { name = "openclass-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "openclass-sdk", editable = "packages/sdk-python" },
+]
+
+[[package]]
 name = "openclass-workspace"
 version = "0.0.1"
 source = { virtual = "." }
@@ -665,8 +713,11 @@ dependencies = [
     { name = "openclass-provider-jev" },
     { name = "openclass-provider-laya" },
     { name = "openclass-provider-mock" },
+    { name = "openclass-provider-ollama" },
+    { name = "openclass-provider-openai-compatible" },
     { name = "openclass-sdk" },
     { name = "openclass-server" },
+    { name = "openclass-tui" },
 ]
 
 [package.dev-dependencies]
@@ -686,8 +737,11 @@ requires-dist = [
     { name = "openclass-provider-jev", editable = "providers/jev" },
     { name = "openclass-provider-laya", editable = "providers/laya" },
     { name = "openclass-provider-mock", editable = "providers/mock" },
+    { name = "openclass-provider-ollama", editable = "providers/ollama" },
+    { name = "openclass-provider-openai-compatible", editable = "providers/openai-compatible" },
     { name = "openclass-sdk", editable = "packages/sdk-python" },
     { name = "openclass-server", editable = "packages/server" },
+    { name = "openclass-tui", editable = "packages/tui" },
 ]
 
 [package.metadata.requires-dev]
