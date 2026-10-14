@@ -133,9 +133,7 @@ class GatewayClient:
                 raise ValueError("Expected object")
             return parsed, body
         except (KeyError, IndexError, ValueError, TypeError):
-            raise ProviderError(
-                "Gateway structured output invalid", kind="bad_response"
-            ) from None
+            raise ProviderError("Gateway structured output invalid", kind="bad_response") from None
 
 
 class GatewayDecisionProvider(GatewayClient):
@@ -145,9 +143,7 @@ class GatewayDecisionProvider(GatewayClient):
         probabilities = {
             "type": "object",
             "additionalProperties": False,
-            "properties": {
-                name: {"type": "number", "minimum": 0, "maximum": 1} for name in names
-            },
+            "properties": {name: {"type": "number", "minimum": 0, "maximum": 1} for name in names},
             "required": names,
         }
         schema = {
@@ -286,6 +282,4 @@ class GatewayClusterDiscovery(GatewayClient):
                 raise ValueError("Invalid new class")
             return result
         except ValueError:
-            raise ProviderError(
-                "Gateway cluster proposal invalid", kind="bad_response"
-            ) from None
+            raise ProviderError("Gateway cluster proposal invalid", kind="bad_response") from None

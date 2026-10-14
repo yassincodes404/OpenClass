@@ -41,6 +41,27 @@ def classifier_body() -> dict:
     }
 
 
+@pytest.fixture(autouse=True)
+def _isolate_provider_env(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest) -> None:
+    if request.node.get_closest_marker("live") is not None or (
+        os.getenv("OPENCLASS_RUN_LIVE_TESTS") == "1"
+    ):
+        return
+    for key in (
+        "OPENCLASS_DECISION_PROVIDER",
+        "OPENCLASS_SUPERVISOR_PROVIDER",
+        "OPENCLASS_DISCOVERY_PROVIDER",
+        "OPENCLASS_EMBEDDING_PROVIDER",
+        "OPENCLASS_JEV_API_KEY",
+        "OPENCLASS_GLM_API_KEY",
+        "OPENCLASS_DISCOVERY_API_KEY",
+        "OPENCLASS_VERCEL_GATEWAY_KEY",
+        "AI_GATEWAY_API_KEY",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("OPENCLASS_DECISION_PROVIDER", "mock")
+
+
 @pytest.fixture
 def database_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     url = f"sqlite+aiosqlite:///{tmp_path / 'test.db'}"
@@ -51,7 +72,11 @@ def database_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
 
 @pytest.fixture
 def client(database_url: str) -> Iterator[TestClient]:
-    settings = Settings(database_url=database_url, laya_allow_fallback=True)
+    settings = Settings(
+        database_url=database_url,
+        laya_allow_fallback=True,
+        laya_timeout_seconds=0.2,
+    )
     with TestClient(create_app(settings)) as client:
         yield client
 

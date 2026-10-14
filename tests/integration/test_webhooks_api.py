@@ -305,4 +305,3 @@ def test_distinct_event_keys_with_identical_content_succeed_independently(
     audit = mock_client.get(f"{project_base}/audit").json()
     ingested = [a for a in audit if a["event_type"] == "integration.webhook_ingested"]
     assert len(ingested) == 2
-

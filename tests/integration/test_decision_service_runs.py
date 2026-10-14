@@ -152,4 +152,3 @@ def test_cancel_decision_run_and_prevent_subsequent_resume(mock_client: TestClie
         json={"approved_choice": "BILLING", "operator": "ops-lead"},
     )
     assert resumed_after_cancel.status_code == 409
-

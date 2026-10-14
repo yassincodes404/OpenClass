@@ -27,9 +27,14 @@ GATEWAY_KEY = (
     os.getenv("OPENCLASS_VERCEL_GATEWAY_KEY", "").strip()
     or os.getenv("AI_GATEWAY_API_KEY", "").strip()
 )
+RUN_LIVE = os.getenv("OPENCLASS_RUN_LIVE_TESTS") == "1"
 
 
-@pytest.mark.skipif(not GATEWAY_KEY, reason="No Vercel AI Gateway key configured")
+@pytest.mark.live
+@pytest.mark.skipif(
+    not RUN_LIVE or not GATEWAY_KEY,
+    reason="Set OPENCLASS_RUN_LIVE_TESTS=1 and configure AI_GATEWAY_API_KEY",
+)
 @pytest.mark.asyncio
 async def test_live_gemini_diagnosis() -> None:
     provider = OpenAICompatibleDiagnosisProvider(
@@ -56,7 +61,11 @@ async def test_live_gemini_diagnosis() -> None:
     assert result.simulated is False
 
 
-@pytest.mark.skipif(not GATEWAY_KEY, reason="No Vercel AI Gateway key configured")
+@pytest.mark.live
+@pytest.mark.skipif(
+    not RUN_LIVE or not GATEWAY_KEY,
+    reason="Set OPENCLASS_RUN_LIVE_TESTS=1 and configure AI_GATEWAY_API_KEY",
+)
 @pytest.mark.asyncio
 async def test_live_gemini_teacher_proposal() -> None:
     teacher = OpenAICompatibleChoiceTeacher(

@@ -74,9 +74,7 @@ class DecisionExecutor:
             for n in service.nodes:
                 if n.id == selected_choice_spec.target_node_id:
                     return n
-            raise ValueError(
-                f"Target DecisionNode {selected_choice_spec.target_node_id} not found"
-            )
+            raise ValueError(f"Target DecisionNode {selected_choice_spec.target_node_id} not found")
         if selected_choice_spec.target_node_name is not None:
             target_name = selected_choice_spec.target_node_name.strip().lower()
             for n in service.nodes:
@@ -137,9 +135,7 @@ class DecisionExecutor:
 
             # 1. Compile OntologyVersion from bounded node choices
             seen_terms: set[str] = {
-                c.key.lower().strip().casefold()
-                for c in current_node.choices
-                if c.key != "UNKNOWN"
+                c.key.lower().strip().casefold() for c in current_node.choices if c.key != "UNKNOWN"
             }
             classes: list[OntologyClass] = []
             for c in current_node.choices:
@@ -226,9 +222,7 @@ class DecisionExecutor:
                 ) from error
 
             # 3. Map canonical probabilities back to uppercase Choice keys
-            key_lookup = {
-                c.key.lower(): c.key for c in current_node.choices if c.key != "UNKNOWN"
-            }
+            key_lookup = {c.key.lower(): c.key for c in current_node.choices if c.key != "UNKNOWN"}
 
             probabilities: dict[str, float] = {}
             for canonical, prob in result.probabilities.items():
@@ -247,9 +241,7 @@ class DecisionExecutor:
                 reverse=True,
             )
             top_choice, top_prob = sorted_probs[0]
-            second_choice, second_prob = (
-                sorted_probs[1] if len(sorted_probs) > 1 else (None, 0.0)
-            )
+            second_choice, second_prob = sorted_probs[1] if len(sorted_probs) > 1 else (None, 0.0)
             margin = float(top_prob - (second_prob or 0.0))
             unknown_prob = probabilities.get("UNKNOWN", 0.0)
 
@@ -297,9 +289,7 @@ class DecisionExecutor:
             if top_choice == "UNKNOWN" or supervision_outcome == "UNKNOWN":
                 break
 
-            selected_spec = next(
-                (c for c in current_node.choices if c.key == top_choice), None
-            )
+            selected_spec = next((c for c in current_node.choices if c.key == top_choice), None)
             next_node = self._resolve_target_node(service, selected_spec)
             if next_node is None:
                 break

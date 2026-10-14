@@ -169,9 +169,7 @@ def test_guarded_promotion_creates_v2_and_activates(mock_client: TestClient):
     ).json()
     assert alias_runs[0]["selected_choice"] == body["added_class"]
 
-    updated_service = mock_client.get(
-        f"/api/v1/projects/{slug}/decision-services/{service}"
-    ).json()
+    updated_service = mock_client.get(f"/api/v1/projects/{slug}/decision-services/{service}").json()
     assert updated_service["version_number"] == 2
     assert updated_service["active_version_id"] == body["version"]["id"]
     # Second promotion of an active candidate conflicts.

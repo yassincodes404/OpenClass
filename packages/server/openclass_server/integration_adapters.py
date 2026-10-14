@@ -93,11 +93,10 @@ class HTTPIntegrationProbe:
             except IntegrationConfigurationError:
                 status = IntegrationStatus.DISCONNECTED
                 error = "Webhook authentication credential is unavailable"
-        elif integration.type in {
-            IntegrationType.REST_API,
-            IntegrationType.MCP,
-            IntegrationType.PROVIDER,
-        }:
+        elif integration.type == IntegrationType.REST_API or (
+            integration.type in {IntegrationType.MCP, IntegrationType.PROVIDER}
+            and (integration.endpoint or "").strip()
+        ):
             endpoint = integration.endpoint or ""
             try:
                 validated_endpoint = validate_outbound_url(
@@ -204,4 +203,3 @@ class HTTPIntegrationProbe:
                 if isinstance(name, str) and name.strip():
                     names.append(name.strip())
         return tuple(names)
-

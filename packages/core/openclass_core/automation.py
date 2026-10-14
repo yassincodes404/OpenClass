@@ -111,9 +111,7 @@ class AutomationDiscoveryProvider(Protocol):
     ) -> AutomationMacroCandidate: ...
 
 
-def _apply_action_result(
-    state: AutomationState, result: AutomationActionResult
-) -> AutomationState:
+def _apply_action_result(state: AutomationState, result: AutomationActionResult) -> AutomationState:
     env_vars = dict(state.env_vars)
     direct_updates: dict[str, object] = {}
     for key, value in result.state_patch.items():

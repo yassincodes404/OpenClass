@@ -173,4 +173,3 @@ async def test_expired_idempotency_key_can_be_refreshed(
         assert record == {"id": "refreshed-id"}
     finally:
         await engine.dispose()
-

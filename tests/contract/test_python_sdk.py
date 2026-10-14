@@ -480,4 +480,3 @@ def test_sdk_phase_05_to_16_routes() -> None:
             )["id"]
             == "ar-1"
         )
-

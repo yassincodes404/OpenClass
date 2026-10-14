@@ -118,4 +118,3 @@ def test_internal_token_authentication_and_workspace_headers(database_url: str) 
             headers={"Authorization": "Bearer engine-shared-secret"},
         )
         assert bearer_ok.status_code == 200
-

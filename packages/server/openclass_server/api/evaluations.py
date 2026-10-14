@@ -105,9 +105,7 @@ def evaluations_router(
                 for alias in aliases or []:
                     labels.add(str(alias).upper())
             choice_rows = await session.execute(
-                sa.text(
-                    "SELECT payload FROM project_choice_candidates WHERE project_id = :pid"
-                ),
+                sa.text("SELECT payload FROM project_choice_candidates WHERE project_id = :pid"),
                 {"pid": str(project.id)},
             )
             for crow in choice_rows:
@@ -315,11 +313,7 @@ def evaluations_router(
             raise HTTPException(status_code=404, detail="Candidate not found or has no class")
         services = await projects.list_decision_services(identifier=identifier)
         service = next(
-            (
-                entry
-                for entry in services
-                if body.service_id in (None, str(entry.id), entry.slug)
-            ),
+            (entry for entry in services if body.service_id in (None, str(entry.id), entry.slug)),
             services[0] if services else None,
         )
         if service is None:

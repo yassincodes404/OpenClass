@@ -292,4 +292,3 @@ def test_apply_candidate_produces_versioned_policy_graph_and_enforces_guards() -
     # 5. Stale base_policy_hash is rejected
     with pytest.raises(ValueError, match="stale candidate base"):
         apply_candidate(graph, envelope(add_choice_prop, base_policy_hash="0" * 64))
-

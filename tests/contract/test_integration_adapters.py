@@ -138,4 +138,3 @@ def test_decoded_secret_content_cannot_escape_redaction(
     )
     with pytest.raises(ValueError, match="Input contains an integration credential"):
         EnvironmentSecrets().reject_secret_content(integration, {"metadata": {"nested": [secret]}})
-

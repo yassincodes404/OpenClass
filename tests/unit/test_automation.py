@@ -128,9 +128,7 @@ async def test_loop_expands_registered_macro_and_validates_state_patch() -> None
 
     class BadPatchExecutor:
         async def execute(self, action, state):
-            return AutomationActionResult(
-                action=action, state_patch={"undeclared_field": "hacked"}
-            )
+            return AutomationActionResult(action=action, state_patch={"undeclared_field": "hacked"})
 
     bad_loop = AutomationLoop(
         ScriptedDecision([AutomationActionName.RUN_PYTHON_TESTS]), BadPatchExecutor()

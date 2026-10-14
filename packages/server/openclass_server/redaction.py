@@ -67,6 +67,4 @@ def redact_mapping(
     """Recursively redact every string value inside a JSON-like mapping."""
     if not enabled:
         return dict(mapping)
-    return {
-        key: _redact_value(value, blocklist, enabled=enabled) for key, value in mapping.items()
-    }
+    return {key: _redact_value(value, blocklist, enabled=enabled) for key, value in mapping.items()}

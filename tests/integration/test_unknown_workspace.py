@@ -148,6 +148,3 @@ def test_project_audit_and_summary_succeed_after_triage_and_clustering(
     summary_res = mock_client.get(f"/api/v1/projects/{slug}/summary")
     assert summary_res.status_code == 200
     assert summary_res.json()["audit_events"] >= 3
-
-
-

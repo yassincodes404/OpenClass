@@ -194,9 +194,7 @@ def evolution_router(
         )
         known_pairs = [(g, p) for g, p in candidate_pairs if g in baseline_labels]
         acc_known = accuracy(known_pairs) if known_pairs else 1.0
-        target_pairs = [
-            (g, p) for g, p in candidate_pairs if g == candidate.proposal.key
-        ]
+        target_pairs = [(g, p) for g, p in candidate_pairs if g == candidate.proposal.key]
         disambig = accuracy(target_pairs) if target_pairs else 0.0
         gate_list = gates.get("gates")
         regressions = tuple(
@@ -292,17 +290,13 @@ def evolution_router(
                 )
                 latest_eval = eval_row.first()
             if latest_eval is not None and bool(latest_eval.overall_passed):
-                candidate = await project_repository.get_choice_candidate(
-                    project.id, candidate_id
-                )
+                candidate = await project_repository.get_choice_candidate(project.id, candidate_id)
                 if candidate.status != "candidate":
                     msg = f"Candidate {candidate_id} is in status '{candidate.status}'"
                     raise ConflictError(f"{msg}, cannot promote")
                 if candidate.proposal.kind != ProposalKind.NEW_CHOICE:
                     raise ConflictError("Only NEW_CHOICE candidates can be promoted")
-                assert (
-                    candidate.proposal.key is not None and candidate.proposal.label is not None
-                )
+                assert candidate.proposal.key is not None and candidate.proposal.label is not None
                 service = await project_repository.get_decision_service(
                     project.id, str(candidate.decision_service_id)
                 )
@@ -312,9 +306,7 @@ def evolution_router(
                     raise ConflictError(
                         "Decision service was modified after candidate was generated"
                     )
-                existing_choices = [
-                    c for c in service.nodes[0].choices if c.key != "UNKNOWN"
-                ]
+                existing_choices = [c for c in service.nodes[0].choices if c.key != "UNKNOWN"]
                 if any(c.key == candidate.proposal.key for c in existing_choices):
                     raise ConflictError(
                         f"Choice {candidate.proposal.key} already exists in decision service"

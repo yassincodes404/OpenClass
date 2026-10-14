@@ -696,4 +696,3 @@ test("phase 05-16 unknown clustering, discovery, evaluation, ontology, and ops e
   const ops = await client.operationsSummary("p1");
   assert.equal(ops.total_runs, 42);
 });
-

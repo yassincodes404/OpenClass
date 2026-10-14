@@ -136,7 +136,7 @@ stateDiagram-v2
     full_probs: dict[str, float] = {}
     for c in node.choices:
         full_probs[c.key] = max(0.0, float(raw_probs.get(c.key, 0.0)))
-    full_probs[UNKNOWN_CHOICE_KEY] = max(0.0, float( response.unknown_probability ))
+    full_probs[UNKNOWN_CHOICE_KEY] = max(0.0, float(response.unknown_probability))
     ...
     ranked = sorted(full_probs.items(), key=lambda kv: kv[1], reverse=True)
     selected_choice, top_prob = ranked[0]

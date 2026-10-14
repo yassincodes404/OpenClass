@@ -7,11 +7,14 @@ COPY pyproject.toml uv.lock ./
 COPY packages/core packages/core
 COPY packages/server packages/server
 COPY packages/cli packages/cli
+COPY packages/tui packages/tui
 COPY packages/sdk-python packages/sdk-python
 COPY providers/mock providers/mock
 COPY providers/jev providers/jev
 COPY providers/glm providers/glm
 COPY providers/laya providers/laya
+COPY providers/openai-compatible providers/openai-compatible
+COPY providers/ollama providers/ollama
 RUN uv sync --frozen --all-packages --no-dev
 COPY alembic.ini LICENSE ./
 COPY examples examples

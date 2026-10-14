@@ -50,9 +50,7 @@ def test_cli_connection_failure_is_actionable(monkeypatch: pytest.MonkeyPatch, c
 def test_cli_project_cluster_discover_and_promote_commands(
     monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:
-    monkeypatch.setattr(
-        sys, "argv", ["openclass", "cluster", "my-proj", "--threshold", "0.85"]
-    )
+    monkeypatch.setattr(sys, "argv", ["openclass", "cluster", "my-proj", "--threshold", "0.85"])
     monkeypatch.setattr(
         OpenClass,
         "cluster_unknowns",
@@ -98,4 +96,3 @@ def test_cli_project_cluster_discover_and_promote_commands(
     main()
     promoted = json.loads(capsys.readouterr().out)
     assert promoted["version_number"] == 2
-

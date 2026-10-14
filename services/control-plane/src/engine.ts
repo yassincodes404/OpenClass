@@ -6,7 +6,13 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 
-export type EngineProject = { id: string; slug: string; name: string; description: string; status?: string };
+export type EngineProject = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  status?: string;
+};
 export type EngineClassifier = {
   id: string;
   slug: string;
@@ -14,7 +20,11 @@ export type EngineClassifier = {
   description?: string;
   active_ontology_version_id: string;
 };
-export type EngineOntologyClass = { canonical_name: string; display_name: string; aliases?: string[] };
+export type EngineOntologyClass = {
+  canonical_name: string;
+  display_name: string;
+  aliases?: string[];
+};
 export type EngineOntology = { id: string; version_number: number; classes: EngineOntologyClass[] };
 export type EngineRawEvent = {
   id: string;
@@ -33,7 +43,12 @@ export type EngineDecisionService = {
   instructions: string;
   status: string;
   provider_override?: string | null;
-  nodes: Array<{ id: string; name: string; instructions: string; choices: Array<{ key: string; label: string; description?: string }> }>;
+  nodes: Array<{
+    id: string;
+    name: string;
+    instructions: string;
+    choices: Array<{ key: string; label: string; description?: string }>;
+  }>;
 };
 export type EngineDecisionRun = {
   id: string;
@@ -106,11 +121,17 @@ export class EngineClient {
   }
 
   async getClassifier(identifier: string): Promise<EngineClassifier> {
-    return this.request<EngineClassifier>("GET", `/api/v1/classifiers/${encodeURIComponent(identifier)}`);
+    return this.request<EngineClassifier>(
+      "GET",
+      `/api/v1/classifiers/${encodeURIComponent(identifier)}`,
+    );
   }
 
   async getOntology(identifier: string): Promise<EngineOntology> {
-    return this.request<EngineOntology>("GET", `/api/v1/classifiers/${encodeURIComponent(identifier)}/ontology`);
+    return this.request<EngineOntology>(
+      "GET",
+      `/api/v1/classifiers/${encodeURIComponent(identifier)}/ontology`,
+    );
   }
 
   async providers(): Promise<unknown[]> {
@@ -130,7 +151,10 @@ export class EngineClient {
     if (from) params.set("date_from", from);
     if (to) params.set("date_to", to);
     const query = params.toString();
-    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/providers/usage${query ? `?${query}` : ""}`);
+    return this.request<unknown[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/providers/usage${query ? `?${query}` : ""}`,
+    );
   }
 
   async ingestEvent(
@@ -138,12 +162,21 @@ export class EngineClient {
     body: { content: string; source_type?: string; metadata?: Record<string, unknown> },
     idempotencyKey?: string,
   ): Promise<{ status: number; body: Record<string, unknown> }> {
-    return this.requestStatus("POST", `/api/v1/projects/${engineProjectId}/events`, body, [200, 201], idempotencyKey);
+    return this.requestStatus(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/events`,
+      body,
+      [200, 201],
+      idempotencyKey,
+    );
   }
 
   async ingestEventsBatch(
     engineProjectId: string,
-    body: { items: Array<{ content: string; metadata?: Record<string, unknown> }>; source_type?: string },
+    body: {
+      items: Array<{ content: string; metadata?: Record<string, unknown> }>;
+      source_type?: string;
+    },
     idempotencyKey?: string,
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     return this.requestStatus(
@@ -167,7 +200,10 @@ export class EngineClient {
   }
 
   async getEvent(engineProjectId: string, eventId: string): Promise<EngineRawEvent> {
-    return this.request<EngineRawEvent>("GET", `/api/v1/projects/${engineProjectId}/events/${eventId}`);
+    return this.request<EngineRawEvent>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/events/${eventId}`,
+    );
   }
 
   async projectSummary(engineProjectId: string): Promise<{ events: number }> {
@@ -176,7 +212,12 @@ export class EngineClient {
 
   async createDecisionService(
     engineProjectId: string,
-    body: { name: string; instructions: string; description?: string; choices: Array<{ key: string; label: string; description?: string }> },
+    body: {
+      name: string;
+      instructions: string;
+      description?: string;
+      choices: Array<{ key: string; label: string; description?: string }>;
+    },
   ): Promise<EngineDecisionService> {
     return this.request<EngineDecisionService>(
       "POST",
@@ -187,10 +228,16 @@ export class EngineClient {
   }
 
   async listDecisionServices(engineProjectId: string): Promise<EngineDecisionService[]> {
-    return this.request<EngineDecisionService[]>("GET", `/api/v1/projects/${engineProjectId}/decision-services`);
+    return this.request<EngineDecisionService[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/decision-services`,
+    );
   }
 
-  async getDecisionService(engineProjectId: string, serviceId: string): Promise<EngineDecisionService> {
+  async getDecisionService(
+    engineProjectId: string,
+    serviceId: string,
+  ): Promise<EngineDecisionService> {
     return this.request<EngineDecisionService>(
       "GET",
       `/api/v1/projects/${engineProjectId}/decision-services/${encodeURIComponent(serviceId)}`,
@@ -210,7 +257,11 @@ export class EngineClient {
     );
   }
 
-  async listRuns(engineProjectId: string, limit: number, offset: number): Promise<EngineDecisionRun[]> {
+  async listRuns(
+    engineProjectId: string,
+    limit: number,
+    offset: number,
+  ): Promise<EngineDecisionRun[]> {
     return this.request<EngineDecisionRun[]>(
       "GET",
       `/api/v1/projects/${engineProjectId}/runs?limit=${limit}&offset=${offset}`,
@@ -218,7 +269,10 @@ export class EngineClient {
   }
 
   async getRun(engineProjectId: string, runId: string): Promise<EngineDecisionRun> {
-    return this.request<EngineDecisionRun>("GET", `/api/v1/projects/${engineProjectId}/runs/${runId}`);
+    return this.request<EngineDecisionRun>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/runs/${runId}`,
+    );
   }
 
   async listUnknowns(
@@ -247,11 +301,21 @@ export class EngineClient {
     runId: string,
     body: { category: string; assignee?: string; note?: string },
   ): Promise<unknown> {
-    return this.request("POST", `/api/v1/projects/${engineProjectId}/unknowns/${runId}/triage`, body, 200);
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/unknowns/${runId}/triage`,
+      body,
+      200,
+    );
   }
 
   async transitionUnknown(engineProjectId: string, runId: string, to: string): Promise<unknown> {
-    return this.request("POST", `/api/v1/projects/${engineProjectId}/unknowns/${runId}/transition`, { to }, 200);
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/unknowns/${runId}/transition`,
+      { to },
+      200,
+    );
   }
 
   async runClustering(engineProjectId: string, threshold?: number): Promise<unknown> {
@@ -265,7 +329,10 @@ export class EngineClient {
   }
 
   async clusterDetail(engineProjectId: string, clusterId: string): Promise<unknown> {
-    return this.request("GET", `/api/v1/projects/${engineProjectId}/unknowns/clusters/${clusterId}`);
+    return this.request(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/unknowns/clusters/${clusterId}`,
+    );
   }
 
   async discoverCluster(engineProjectId: string, clusterId: string): Promise<unknown> {
@@ -316,7 +383,10 @@ export class EngineClient {
     return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/eval-datasets`);
   }
 
-  async createDataset(engineProjectId: string, body: { name: string; description?: string }): Promise<unknown> {
+  async createDataset(
+    engineProjectId: string,
+    body: { name: string; description?: string },
+  ): Promise<unknown> {
     return this.request("POST", `/api/v1/projects/${engineProjectId}/eval-datasets`, body, 201);
   }
 
@@ -334,7 +404,12 @@ export class EngineClient {
   }
 
   async sealDataset(engineProjectId: string, datasetId: string): Promise<unknown> {
-    return this.request("POST", `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}/seal`, {}, 200);
+    return this.request(
+      "POST",
+      `/api/v1/projects/${engineProjectId}/eval-datasets/${datasetId}/seal`,
+      {},
+      200,
+    );
   }
 
   async runEvaluation(
@@ -369,14 +444,22 @@ export class EngineClient {
     return this.request("GET", `/api/v1/projects/${engineProjectId}/ontology`);
   }
 
-  async ontologyDiff(engineProjectId: string, fromVersion: number, toVersion: number): Promise<unknown> {
+  async ontologyDiff(
+    engineProjectId: string,
+    fromVersion: number,
+    toVersion: number,
+  ): Promise<unknown> {
     return this.request(
       "GET",
       `/api/v1/projects/${engineProjectId}/ontology/diff?from_version=${fromVersion}&to_version=${toVersion}`,
     );
   }
 
-  async rollbackOntology(engineProjectId: string, fromVersion: number, rationale: string): Promise<unknown> {
+  async rollbackOntology(
+    engineProjectId: string,
+    fromVersion: number,
+    rationale: string,
+  ): Promise<unknown> {
     return this.request(
       "POST",
       `/api/v1/projects/${engineProjectId}/ontology/rollback`,
@@ -421,11 +504,17 @@ export class EngineClient {
   }
 
   async listAdapters(engineProjectId: string): Promise<unknown[]> {
-    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/adapters`);
+    return this.request<unknown[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/integrations/adapters`,
+    );
   }
 
   async listRoutes(engineProjectId: string): Promise<unknown[]> {
-    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/routes`);
+    return this.request<unknown[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/integrations/routes`,
+    );
   }
 
   async createRoute(
@@ -442,7 +531,10 @@ export class EngineClient {
   }
 
   async routingOutcomes(engineProjectId: string): Promise<unknown[]> {
-    return this.request<unknown[]>("GET", `/api/v1/projects/${engineProjectId}/integrations/outcomes`);
+    return this.request<unknown[]>(
+      "GET",
+      `/api/v1/projects/${engineProjectId}/integrations/outcomes`,
+    );
   }
 
   private async requestStatus(
@@ -468,10 +560,13 @@ export class EngineClient {
       throw new BadGatewayException("Engine is temporarily unavailable");
     }
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-    if (expectedStatuses.includes(response.status)) return { status: response.status, body: payload };
-    const message = typeof payload.detail === "string" ? payload.detail : "Engine rejected the request";
+    if (expectedStatuses.includes(response.status))
+      return { status: response.status, body: payload };
+    const message =
+      typeof payload.detail === "string" ? payload.detail : "Engine rejected the request";
     if (response.status === 404) throw new NotFoundException(message);
-    if (response.status === 429) throw new BadGatewayException("Engine rate limit reached; retry shortly");
+    if (response.status === 429)
+      throw new BadGatewayException("Engine rate limit reached; retry shortly");
     if (response.status >= 400 && response.status < 500) throw new BadRequestException(message);
     throw new BadGatewayException("Engine request failed");
   }

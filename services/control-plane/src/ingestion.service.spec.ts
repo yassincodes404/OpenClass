@@ -347,4 +347,3 @@ describe("IngestionGuard", () => {
     expect(keycloak.canActivate).toHaveBeenCalled();
   });
 });
-

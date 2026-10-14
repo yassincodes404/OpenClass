@@ -179,4 +179,3 @@ describe("DecisionController", () => {
     ).rejects.toThrow(NotFoundException);
   });
 });
-
