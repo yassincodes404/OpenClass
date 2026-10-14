@@ -2,23 +2,26 @@
 name = "openclass-workspace"
 version = "0.0.1"
 requires-python = ">=3.12"
-dependencies = ["openclass-core", "openclass-server", "openclass-cli", "openclass-sdk", "openclass-provider-mock", "openclass-provider-jev", "openclass-provider-glm", "openclass-provider-laya"]
+dependencies = ["openclass-core", "openclass-server", "openclass-cli", "openclass-tui", "openclass-sdk", "openclass-provider-mock", "openclass-provider-jev", "openclass-provider-glm", "openclass-provider-laya", "openclass-provider-openai-compatible", "openclass-provider-ollama"]
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["packages/core", "packages/server", "packages/cli", "packages/sdk-python", "providers/mock", "providers/jev", "providers/glm", "providers/laya"]
+members = ["packages/core", "packages/server", "packages/cli", "packages/tui", "packages/sdk-python", "providers/mock", "providers/jev", "providers/glm", "providers/laya", "providers/openai-compatible", "providers/ollama"]
 
 [tool.uv.sources]
 openclass-core = { workspace = true }
 openclass-server = { workspace = true }
 openclass-cli = { workspace = true }
+openclass-tui = { workspace = true }
 openclass-sdk = { workspace = true }
 openclass-provider-mock = { workspace = true }
 openclass-provider-jev = { workspace = true }
 openclass-provider-glm = { workspace = true }
 openclass-provider-laya = { workspace = true }
+openclass-provider-openai-compatible = { workspace = true }
+openclass-provider-ollama = { workspace = true }
 
 [dependency-groups]
 dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1", "mypy>=1.15,<2", "build>=1,<2"]
@@ -41,4 +44,5 @@ select = ["E", "F", "I", "UP", "B", "ASYNC"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["openclass_core", "openclass_server", "openclass_sdk", "openclass_cli", "openclass_provider_mock", "openclass_provider_jev", "openclass_provider_laya", "openclass_provider_glm"]
+mypy_path = ["packages/core", "packages/server", "packages/sdk-python", "packages/cli", "packages/tui", "providers/mock", "providers/jev", "providers/laya", "providers/glm", "providers/openai-compatible", "providers/ollama"]
+packages = ["openclass_core", "openclass_server", "openclass_sdk", "openclass_cli", "openclass_tui", "openclass_provider_mock", "openclass_provider_jev", "openclass_provider_laya", "openclass_provider_glm", "openclass_provider_openai_compatible", "openclass_provider_ollama"]

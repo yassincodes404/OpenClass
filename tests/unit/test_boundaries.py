@@ -50,6 +50,11 @@ import pytest
         ("providers/mock", {"openclass_server", "openclass_sdk", "openclass_cli"}),
         ("providers/laya", {"openclass_server", "openclass_sdk", "openclass_cli"}),
         ("providers/glm", {"openclass_server", "openclass_sdk", "openclass_cli"}),
+        (
+            "providers/openai-compatible",
+            {"openclass_server", "openclass_sdk", "openclass_cli"},
+        ),
+        ("providers/ollama", {"openclass_server", "openclass_sdk", "openclass_cli"}),
     ],
 )
 def test_dependency_direction(directory: str, forbidden: set[str]) -> None:
