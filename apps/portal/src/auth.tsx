@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     keycloak
-      .init({ onLoad: "check-sso", pkceMethod: "S256", checkLoginIframe: false })
+      .init({ pkceMethod: "S256", checkLoginIframe: false })
       .then((ok) => {
         if (!cancelled) {
           setAuthenticated(ok);

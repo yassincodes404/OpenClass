@@ -43,6 +43,112 @@ export type PresetId = "known_billing" | "unknown_cancel" | "review_compliance" 
 
 export type StageStepIndex = 0 | 1 | 2 | 3 | 4;
 
+export interface StageProbability {
+  label: string;
+  value: number;
+  display: string;
+  isUnknown?: boolean;
+}
+
+export interface ScenarioDistribution {
+  probabilities: StageProbability[];
+  topLabel: string;
+  topProbability: number;
+  topDisplay: string;
+  secondLabel: string;
+  secondProbability: number;
+  secondDisplay: string;
+  unknownProbability: number;
+  unknownDisplay: string;
+  topMargin: number;
+  topMarginDisplay: string;
+}
+
+const CANONICAL_CLASS_ORDER = ["billing", "technical", "sales", "UNKNOWN"] as const;
+
+export function deriveScenarioDistribution(
+  rawScores: Readonly<Record<string, number>>,
+  options?: { isError?: boolean },
+): ScenarioDistribution {
+  const isError = options?.isError === true;
+  const orderedKeys = [
+    ...CANONICAL_CLASS_ORDER.filter((key) => key in rawScores),
+    ...Object.keys(rawScores).filter(
+      (key) => !CANONICAL_CLASS_ORDER.includes(key as (typeof CANONICAL_CLASS_ORDER)[number]),
+    ),
+  ];
+
+  const probabilities: StageProbability[] = orderedKeys.map((label) => {
+    const value = Number((rawScores[label] ?? 0).toFixed(3));
+    const isUnknown = label === "UNKNOWN";
+    return {
+      label,
+      value,
+      display: isError ? (isUnknown ? "ISOLATED" : "ERR") : value.toFixed(3),
+      ...(isUnknown ? { isUnknown: true } : {}),
+    };
+  });
+
+  const sorted = [...probabilities].sort((a, b) => b.value - a.value);
+  const top = sorted[0] ?? { label: "UNKNOWN", value: 0, display: "0.000" };
+  const second = sorted[1] ?? { label: "UNKNOWN", value: 0, display: "0.000" };
+  const unknownEntry = probabilities.find((item) => item.isUnknown || item.label === "UNKNOWN") ?? {
+    label: "UNKNOWN",
+    value: 0,
+    display: "0.000",
+  };
+
+  const topProbability = top.value;
+  const secondProbability = second.value;
+  const unknownProbability = unknownEntry.value;
+  const topMargin = Number((topProbability - secondProbability).toFixed(3));
+
+  return {
+    probabilities,
+    topLabel: top.label,
+    topProbability,
+    topDisplay: topProbability.toFixed(3),
+    secondLabel: second.label,
+    secondProbability,
+    secondDisplay: secondProbability.toFixed(3),
+    unknownProbability,
+    unknownDisplay: unknownProbability.toFixed(3),
+    topMargin,
+    topMarginDisplay: topMargin.toFixed(3),
+  };
+}
+
+export const KNOWN_BILLING_DIST = deriveScenarioDistribution({
+  billing: 0.9,
+  technical: 0.033,
+  sales: 0.017,
+  UNKNOWN: 0.05,
+});
+
+export const UNKNOWN_CANCEL_DIST = deriveScenarioDistribution({
+  billing: 0.017,
+  technical: 0.017,
+  sales: 0.016,
+  UNKNOWN: 0.95,
+});
+
+export const REVIEW_COMPLIANCE_DIST = deriveScenarioDistribution({
+  billing: 0.41,
+  technical: 0.27,
+  sales: 0.1,
+  UNKNOWN: 0.22,
+});
+
+export const ERROR_OUTAGE_DIST = deriveScenarioDistribution(
+  {
+    billing: 0,
+    technical: 0,
+    sales: 0,
+    UNKNOWN: 0,
+  },
+  { isError: true },
+);
+
 export interface StageStepSpec {
   index: StageStepIndex;
   code: string;
@@ -54,11 +160,15 @@ export interface StageStepSpec {
   headline: string;
   narration: string;
   traceSnippet: string;
+  probabilities: StageProbability[];
   telemetry: {
     ontologyVersion: string;
     topClass: string;
     unknownProb: string;
-    topMargin: string;
+    topMarginDisplay: string;
+    topProbability: number | null;
+    unknownProbability: number;
+    topMargin: number;
     noveltyState: "known" | "likely_novel" | "ambiguous_review" | "provider_error";
     outcomeBadge: string;
     authorityRule: string;
@@ -72,12 +182,7 @@ export interface PresetScenario {
   observation: string;
   sublabel: string;
   accentTone: "known" | "unknown" | "review" | "error";
-  probabilities: Array<{
-    label: string;
-    value: number;
-    display: string;
-    isUnknown?: boolean;
-  }>;
+  probabilities: StageProbability[];
   steps: [StageStepSpec, StageStepSpec, StageStepSpec, StageStepSpec, StageStepSpec];
 }
 
@@ -86,20 +191,15 @@ export interface PresetScenario {
  * rules (`examples/support-intents/classifier.json`, `novelty.py`,
  * `supervisor.py`, and `project_evolution.py`).
  */
-export const PRESET_SCENARIOS: readonly PresetScenario[] = [
+export const PREDEFINED_SCENARIOS: readonly PresetScenario[] = [
   {
     id: "known_billing",
     badge: "FAST PATH · KNOWN",
     shortTitle: "01 / Known Intent",
     observation: "I was charged twice for my monthly invoice",
-    sublabel: "Matches supported class `billing` with 0.917 margin → immediate fast-path commit",
+    sublabel: `Matches supported class \`${KNOWN_BILLING_DIST.topLabel}\` (${KNOWN_BILLING_DIST.topDisplay}) with ${KNOWN_BILLING_DIST.topMarginDisplay} margin → immediate fast-path commit`,
     accentTone: "known",
-    probabilities: [
-      { label: "billing", value: 0.9, display: "0.900" },
-      { label: "technical", value: 0.033, display: "0.033" },
-      { label: "sales", value: 0.017, display: "0.017" },
-      { label: "UNKNOWN", value: 0.05, display: "0.050", isUnknown: true },
-    ],
+    probabilities: KNOWN_BILLING_DIST.probabilities,
     steps: [
       {
         index: 0,
@@ -113,11 +213,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "The observation arrives over HTTP SDK or authenticated webhook and is pinned to the active immutable OntologySnapshot v1 (891dc20d).",
         traceSnippet:
           'POST /api/v1/classifiers/support-intent/classify\n{"observation": "I was charged twice for my monthly invoice"}',
+        probabilities: KNOWN_BILLING_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "pending evaluation…",
-          unknownProb: "—",
-          topMargin: "—",
+          topClass: `${KNOWN_BILLING_DIST.topLabel} (${KNOWN_BILLING_DIST.topDisplay})`,
+          unknownProb: `${KNOWN_BILLING_DIST.unknownDisplay}`,
+          topMarginDisplay: `${KNOWN_BILLING_DIST.topMarginDisplay}`,
+          topProbability: KNOWN_BILLING_DIST.topProbability,
+          unknownProbability: KNOWN_BILLING_DIST.unknownProbability,
+          topMargin: KNOWN_BILLING_DIST.topMargin,
           noveltyState: "known",
           outcomeBadge: "INGESTED → PINNED TO v1",
           authorityRule: "Raw source event is immutable; predictions never overwrite input.",
@@ -133,13 +237,16 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
         headline: "Bounded DecisionProvider scores the closed choice set + UNKNOWN.",
         narration:
           "Fast-path provider (Jev / Laya / mock) evaluates {billing, technical, sales, UNKNOWN} under a strict grammar contract without calling a slow reasoning LLM.",
-        traceSnippet:
-          '{"probabilities": {"billing": 0.950, "technical": 0.033, "sales": 0.017}, "unknown_probability": 0.050}',
+        traceSnippet: `{"probabilities": {"billing": ${KNOWN_BILLING_DIST.topDisplay}, "technical": 0.033, "sales": 0.017}, "unknown_probability": ${KNOWN_BILLING_DIST.unknownDisplay}}`,
+        probabilities: KNOWN_BILLING_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "billing (0.950)",
-          unknownProb: "0.050 (below 0.450 ceiling)",
-          topMargin: "0.917 (above 0.200 gate)",
+          topClass: `${KNOWN_BILLING_DIST.topLabel} (${KNOWN_BILLING_DIST.topDisplay})`,
+          unknownProb: `${KNOWN_BILLING_DIST.unknownDisplay} (below 0.450 ceiling)`,
+          topMarginDisplay: `${KNOWN_BILLING_DIST.topMarginDisplay} (above 0.200 gate)`,
+          topProbability: KNOWN_BILLING_DIST.topProbability,
+          unknownProbability: KNOWN_BILLING_DIST.unknownProbability,
+          topMargin: KNOWN_BILLING_DIST.topMargin,
           noveltyState: "known",
           outcomeBadge: "SCORED → HIGH CONFIDENCE",
           authorityRule: "Provider returns probabilities only; it has zero writable DB access.",
@@ -153,15 +260,17 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
         activeEdges: ["edge-ingest-score", "edge-score-policy"],
         packetCoord: { x: 456, y: 210 },
         headline: "Deterministic NoveltyDetector & SupervisionPolicy verify margin.",
-        narration:
-          "Because unknown_probability (0.050) < 0.450 and top_margin (0.917) >= 0.200, deterministic core policy marks the decision TRUSTED / KNOWN.",
-        traceSnippet:
-          '{"novelty": {"state": "known", "score": 0.05, "reasons": ["known_class_supported"]}, "supervision": "TRUSTED"}',
+        narration: `Because unknown_probability (${KNOWN_BILLING_DIST.unknownDisplay}) < 0.450 and top_margin (${KNOWN_BILLING_DIST.topMarginDisplay}) >= 0.200, deterministic core policy marks the decision TRUSTED / KNOWN.`,
+        traceSnippet: `{"novelty": {"state": "known", "score": ${KNOWN_BILLING_DIST.unknownDisplay}, "reasons": ["known_class_supported"]}, "top_probability": ${KNOWN_BILLING_DIST.topDisplay}, "top_margin": ${KNOWN_BILLING_DIST.topMarginDisplay}, "supervision": "TRUSTED"}`,
+        probabilities: KNOWN_BILLING_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "billing (0.950)",
-          unknownProb: "0.050",
-          topMargin: "0.917 >= 0.200",
+          topClass: `${KNOWN_BILLING_DIST.topLabel} (${KNOWN_BILLING_DIST.topDisplay})`,
+          unknownProb: `${KNOWN_BILLING_DIST.unknownDisplay}`,
+          topMarginDisplay: `${KNOWN_BILLING_DIST.topMarginDisplay} >= 0.200`,
+          topProbability: KNOWN_BILLING_DIST.topProbability,
+          unknownProbability: KNOWN_BILLING_DIST.unknownProbability,
+          topMargin: KNOWN_BILLING_DIST.topMargin,
           noveltyState: "known",
           outcomeBadge: "GATE PASSED → TRUSTED",
           authorityRule: "Core domain code—not the model—decides whether a run is trusted.",
@@ -177,13 +286,16 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
         headline: "Route to supported workflow on the synchronous fast path.",
         narration:
           "ClassificationRun is committed atomically with selected_class: 'billing' and ontology_version_id: 'v1'. Zero rows are added to the unknown pool.",
-        traceSnippet:
-          '{"run_id": "run_94a1f0", "selected_class": "billing", "ontology_version_id": "v1", "unknown_pool_write": false}',
+        traceSnippet: `{"run_id": "run_94a1f0", "selected_class": "billing", "top_probability": ${KNOWN_BILLING_DIST.topDisplay}, "top_margin": ${KNOWN_BILLING_DIST.topMarginDisplay}, "ontology_version_id": "v1", "unknown_pool_write": false}`,
+        probabilities: KNOWN_BILLING_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "billing (0.950)",
-          unknownProb: "0.050",
-          topMargin: "0.917",
+          topClass: `${KNOWN_BILLING_DIST.topLabel} (${KNOWN_BILLING_DIST.topDisplay})`,
+          unknownProb: `${KNOWN_BILLING_DIST.unknownDisplay}`,
+          topMarginDisplay: `${KNOWN_BILLING_DIST.topMarginDisplay}`,
+          topProbability: KNOWN_BILLING_DIST.topProbability,
+          unknownProbability: KNOWN_BILLING_DIST.unknownProbability,
+          topMargin: KNOWN_BILLING_DIST.topMargin,
           noveltyState: "known",
           outcomeBadge: "KNOWN → billing",
           authorityRule: "Fast path finishes in <50ms target without Teacher escalation.",
@@ -206,11 +318,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "PostgreSQL immutability triggers lock the run record and ontology snapshot v1 so historical decisions remain 100% reproducible.",
         traceSnippet:
           "SELECT id, selected_class, ontology_version_id FROM classification_runs WHERE id = 'run_94a1f0'; -- BEFORE UPDATE/DELETE RAISE ABORT",
+        probabilities: KNOWN_BILLING_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (locked)",
-          topClass: "billing (0.950)",
-          unknownProb: "0.050",
-          topMargin: "0.917",
+          topClass: `${KNOWN_BILLING_DIST.topLabel} (${KNOWN_BILLING_DIST.topDisplay})`,
+          unknownProb: `${KNOWN_BILLING_DIST.unknownDisplay}`,
+          topMarginDisplay: `${KNOWN_BILLING_DIST.topMarginDisplay}`,
+          topProbability: KNOWN_BILLING_DIST.topProbability,
+          unknownProbability: KNOWN_BILLING_DIST.unknownProbability,
+          topMargin: KNOWN_BILLING_DIST.topMargin,
           noveltyState: "known",
           outcomeBadge: "COMMITTED · APPEND-ONLY",
           authorityRule: "SQL triggers reject UPDATE and DELETE on ontology_versions & runs.",
@@ -223,15 +339,9 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
     badge: "DISCOVERY PATH · UNKNOWN",
     shortTitle: "02 / Novel Concept",
     observation: "Cancel my plan",
-    sublabel:
-      "Unsupported by {billing, technical, sales} → persisted as UNKNOWN → clustered → gated candidate",
+    sublabel: `Unsupported by {billing, technical, sales} → persisted as UNKNOWN (${UNKNOWN_CANCEL_DIST.unknownDisplay}) → clustered → gated candidate`,
     accentTone: "unknown",
-    probabilities: [
-      { label: "billing", value: 0.017, display: "0.017" },
-      { label: "technical", value: 0.017, display: "0.017" },
-      { label: "sales", value: 0.016, display: "0.016" },
-      { label: "UNKNOWN", value: 0.95, display: "0.950", isUnknown: true },
-    ],
+    probabilities: UNKNOWN_CANCEL_DIST.probabilities,
     steps: [
       {
         index: 0,
@@ -245,11 +355,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "A closed-world classifier would force 'Cancel my plan' into 'billing' (0.54) and trigger the wrong queue. OpenClass evaluates it against explicit novelty bounds.",
         traceSnippet:
           'POST /api/v1/classifiers/support-intent/classify\n{"observation": "Cancel my plan"}',
+        probabilities: UNKNOWN_CANCEL_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (billing, technical, sales)",
-          topClass: "evaluating…",
-          unknownProb: "—",
-          topMargin: "—",
+          topClass: `UNKNOWN (${UNKNOWN_CANCEL_DIST.topDisplay})`,
+          unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay}`,
+          topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay}`,
+          topProbability: UNKNOWN_CANCEL_DIST.topProbability,
+          unknownProbability: UNKNOWN_CANCEL_DIST.unknownProbability,
+          topMargin: UNKNOWN_CANCEL_DIST.topMargin,
           noveltyState: "likely_novel",
           outcomeBadge: "OBSERVED → CHECKING COVERAGE",
           authorityRule: "Active ontology v1 contains no 'cancellation' concept yet.",
@@ -262,16 +376,18 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
         activeNodes: ["node-ingest", "node-score"],
         activeEdges: ["edge-ingest-score"],
         packetCoord: { x: 276, y: 210 },
-        headline: "DecisionProvider assigns 0.950 probability mass to UNKNOWN.",
-        narration:
-          "All known classes score 0.017. Rather than hallucinating a label, the bounded choice distribution surfaces strong_unknown_probability (0.950).",
-        traceSnippet:
-          '{"selected_class": null, "unknown_probability": 0.950, "novelty": {"state": "likely_novel", "score": 0.95, "reasons": ["strong_unknown_probability"]}}',
+        headline: `DecisionProvider assigns ${UNKNOWN_CANCEL_DIST.unknownDisplay} probability mass to UNKNOWN.`,
+        narration: `All known classes score <= ${UNKNOWN_CANCEL_DIST.secondDisplay}. Rather than hallucinating a label, the bounded choice distribution surfaces strong_unknown_probability (${UNKNOWN_CANCEL_DIST.unknownDisplay}).`,
+        traceSnippet: `{"selected_class": null, "unknown_probability": ${UNKNOWN_CANCEL_DIST.unknownDisplay}, "novelty": {"state": "likely_novel", "score": ${UNKNOWN_CANCEL_DIST.unknownDisplay}, "reasons": ["strong_unknown_probability"]}}`,
+        probabilities: UNKNOWN_CANCEL_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "none (max known 0.017)",
-          unknownProb: "0.950 (exceeds threshold)",
-          topMargin: "0.000",
+          topClass: `UNKNOWN (${UNKNOWN_CANCEL_DIST.topDisplay} · max known ${UNKNOWN_CANCEL_DIST.secondDisplay})`,
+          unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay} (exceeds threshold)`,
+          topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay} (known margin 0.000)`,
+          topProbability: UNKNOWN_CANCEL_DIST.topProbability,
+          unknownProbability: UNKNOWN_CANCEL_DIST.unknownProbability,
+          topMargin: UNKNOWN_CANCEL_DIST.topMargin,
           noveltyState: "likely_novel",
           outcomeBadge: "ABSTAINED → PERMANENT UNKNOWN",
           authorityRule: "UNKNOWN is permanent; a single unknown is not proof of a new class.",
@@ -287,13 +403,16 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
         headline: "Persisted to the Unknown & Evidence Pool for clustering.",
         narration:
           "The run, full probability distribution, and novelty reasons are stored atomically in unknown_events / evidence_items (trigger: SEMANTIC_UNKNOWN).",
-        traceSnippet:
-          "INSERT INTO evidence_items (trigger_type, status, selected_choice, unknown_probability) VALUES ('semantic_unknown', 'pending', 'UNKNOWN', 0.95);",
+        traceSnippet: `INSERT INTO evidence_items (trigger_type, status, selected_choice, unknown_probability) VALUES ('semantic_unknown', 'pending', 'UNKNOWN', ${UNKNOWN_CANCEL_DIST.unknownDisplay});`,
+        probabilities: UNKNOWN_CANCEL_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (unchanged)",
-          topClass: "UNKNOWN (selected_class: null)",
-          unknownProb: "0.950",
-          topMargin: "0.000",
+          topClass: `UNKNOWN (${UNKNOWN_CANCEL_DIST.topDisplay} · selected_class: null)`,
+          unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay}`,
+          topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay}`,
+          topProbability: UNKNOWN_CANCEL_DIST.topProbability,
+          unknownProbability: UNKNOWN_CANCEL_DIST.unknownProbability,
+          topMargin: UNKNOWN_CANCEL_DIST.topMargin,
           noveltyState: "likely_novel",
           outcomeBadge: "STORED IN EVIDENCE POOL",
           authorityRule: "Saved for discovery. This is not yet a new-class proposal.",
@@ -311,11 +430,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "Once 3+ similar unknown observations accumulate ('Cancel my plan', 'Stop my subscription', 'End membership'), ChoiceTeacher proposes candidate 'cancellation'.",
         traceSnippet:
           '{"proposal_type": "NEW_CLASS", "canonical_name": "cancellation", "status": "candidate", "base_service_hash": "891dc20d", "evaluation_passed": false}',
+        probabilities: UNKNOWN_CANCEL_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (still active)",
-          topClass: "Candidate: cancellation (inactive)",
-          unknownProb: "0.950 (evidence n=3)",
-          topMargin: "cluster cohesion 0.84",
+          topClass: `Candidate: cancellation (${UNKNOWN_CANCEL_DIST.topDisplay} inactive)`,
+          unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay} (evidence n=3)`,
+          topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay} (cluster cohesion 0.84)`,
+          topProbability: UNKNOWN_CANCEL_DIST.topProbability,
+          unknownProbability: UNKNOWN_CANCEL_DIST.unknownProbability,
+          topMargin: UNKNOWN_CANCEL_DIST.topMargin,
           noveltyState: "likely_novel",
           outcomeBadge: "CANDIDATE PROPOSED (INACTIVE)",
           authorityRule: "Teacher LLM owns semantic proposal; it cannot activate ontology changes.",
@@ -338,11 +461,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "Candidate 'cancellation' must pass baseline-vs-candidate replay with zero regressions and receive human sign-off before promoting Ontology v2 (0a83f9d9).",
         traceSnippet:
           "POST /api/v1/projects/support/candidates/cand_01/promote\n// Fails closed (HTTP 409 Conflict) until verified replay evaluation & human review pass",
+        probabilities: UNKNOWN_CANCEL_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 → v2 gated (OC-008 / OC-009)",
-          topClass: "cancellation (pending replay)",
-          unknownProb: "0.950 → <0.05 post-v2",
-          topMargin: "requires 0 regressions",
+          topClass: `cancellation (${UNKNOWN_CANCEL_DIST.topDisplay} pending replay)`,
+          unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay} → <0.050 post-v2`,
+          topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay} (requires 0 regressions)`,
+          topProbability: UNKNOWN_CANCEL_DIST.topProbability,
+          unknownProbability: UNKNOWN_CANCEL_DIST.unknownProbability,
+          topMargin: UNKNOWN_CANCEL_DIST.topMargin,
           noveltyState: "likely_novel",
           outcomeBadge: "HELD AT REPLAY & HUMAN GATE",
           authorityRule: "Predictions never become ground truth; unverified promotion returns 409.",
@@ -355,15 +482,9 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
     badge: "SUPERVISION PATH · REVIEW",
     shortTitle: "03 / Ambiguous Margin",
     observation: "Export compliance packet for EU invoice audit",
-    sublabel:
-      "Split distribution (billing 0.41 vs technical 0.27, margin 0.14 < 0.20) → advisory Supervisor review",
+    sublabel: `Split distribution (billing ${REVIEW_COMPLIANCE_DIST.topDisplay} vs technical ${REVIEW_COMPLIANCE_DIST.secondDisplay}, margin ${REVIEW_COMPLIANCE_DIST.topMarginDisplay} < 0.200) → advisory Supervisor review`,
     accentTone: "review",
-    probabilities: [
-      { label: "billing", value: 0.41, display: "0.410" },
-      { label: "technical", value: 0.27, display: "0.270" },
-      { label: "sales", value: 0.1, display: "0.100" },
-      { label: "UNKNOWN", value: 0.22, display: "0.220", isUnknown: true },
-    ],
+    probabilities: REVIEW_COMPLIANCE_DIST.probabilities,
     steps: [
       {
         index: 0,
@@ -377,11 +498,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "The input touches both invoice records and compliance export tooling, testing boundary overlap between 'billing' and 'technical'.",
         traceSnippet:
           'POST /api/v1/classifiers/support-intent/classify\n{"observation": "Export compliance packet for EU invoice audit"}',
+        probabilities: REVIEW_COMPLIANCE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "evaluating…",
-          unknownProb: "—",
-          topMargin: "—",
+          topClass: `${REVIEW_COMPLIANCE_DIST.topLabel} (${REVIEW_COMPLIANCE_DIST.topDisplay})`,
+          unknownProb: `${REVIEW_COMPLIANCE_DIST.unknownDisplay}`,
+          topMarginDisplay: `${REVIEW_COMPLIANCE_DIST.topMarginDisplay} (< 0.200 min_margin)`,
+          topProbability: REVIEW_COMPLIANCE_DIST.topProbability,
+          unknownProbability: REVIEW_COMPLIANCE_DIST.unknownProbability,
+          topMargin: REVIEW_COMPLIANCE_DIST.topMargin,
           noveltyState: "ambiguous_review",
           outcomeBadge: "OBSERVED → BOUNDARY TEST",
           authorityRule: "Supervision policy monitors top-2 class margin on every run.",
@@ -394,18 +519,20 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
         activeNodes: ["node-ingest", "node-score"],
         activeEdges: ["edge-ingest-score"],
         packetCoord: { x: 276, y: 210 },
-        headline: "Top-2 classes collide: billing (0.480) vs. technical (0.340).",
-        narration:
-          "The model selects 'billing', but the top-2 margin is only 0.140—below the 0.200 minimum safety margin required for autonomous trust.",
-        traceSnippet:
-          '{"probabilities": {"billing": 0.480, "technical": 0.340, "sales": 0.180}, "unknown_probability": 0.220, "top_margin": 0.140}',
+        headline: `Top-2 classes collide: billing (${REVIEW_COMPLIANCE_DIST.topDisplay}) vs. technical (${REVIEW_COMPLIANCE_DIST.secondDisplay}).`,
+        narration: `The model selects 'billing' (${REVIEW_COMPLIANCE_DIST.topDisplay}), but the top-2 margin against 'technical' (${REVIEW_COMPLIANCE_DIST.secondDisplay}) is only ${REVIEW_COMPLIANCE_DIST.topMarginDisplay}—below the 0.200 minimum safety margin required for autonomous trust.`,
+        traceSnippet: `{"probabilities": {"billing": ${REVIEW_COMPLIANCE_DIST.topDisplay}, "technical": ${REVIEW_COMPLIANCE_DIST.secondDisplay}, "sales": 0.100}, "unknown_probability": ${REVIEW_COMPLIANCE_DIST.unknownDisplay}, "top_margin": ${REVIEW_COMPLIANCE_DIST.topMarginDisplay}}`,
+        probabilities: REVIEW_COMPLIANCE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "billing (0.480)",
-          unknownProb: "0.220",
-          topMargin: "0.140 (< 0.200 min_margin)",
+          topClass: `${REVIEW_COMPLIANCE_DIST.topLabel} (${REVIEW_COMPLIANCE_DIST.topDisplay})`,
+          unknownProb: `${REVIEW_COMPLIANCE_DIST.unknownDisplay}`,
+          topMarginDisplay: `${REVIEW_COMPLIANCE_DIST.topMarginDisplay} (< 0.200 min_margin)`,
+          topProbability: REVIEW_COMPLIANCE_DIST.topProbability,
+          unknownProbability: REVIEW_COMPLIANCE_DIST.unknownProbability,
+          topMargin: REVIEW_COMPLIANCE_DIST.topMargin,
           noveltyState: "ambiguous_review",
-          outcomeBadge: "LOW MARGIN DETECTED (0.140)",
+          outcomeBadge: `LOW MARGIN DETECTED (${REVIEW_COMPLIANCE_DIST.topMarginDisplay})`,
           authorityRule: "Low margin signals boundary ambiguity even when a known class is #1.",
         },
       },
@@ -419,13 +546,16 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
         headline: "SupervisionPolicy routes the run to REVIEW (LOW_TRUST).",
         narration:
           "Deterministic supervision rules flag low_margin_between_top_classes and emit a LOW_TRUST evidence item for Supervisor inspection.",
-        traceSnippet:
-          '{"supervision_outcome": "REVIEW", "supervision_reason": "Margin 0.14 below safety threshold 0.20", "trigger_type": "low_trust"}',
+        traceSnippet: `{"supervision_outcome": "REVIEW", "supervision_reason": "Margin ${REVIEW_COMPLIANCE_DIST.topMarginDisplay} below safety threshold 0.200", "probabilities": {"billing": ${REVIEW_COMPLIANCE_DIST.topDisplay}, "technical": ${REVIEW_COMPLIANCE_DIST.secondDisplay}, "sales": 0.100}, "unknown_probability": ${REVIEW_COMPLIANCE_DIST.unknownDisplay}, "trigger_type": "low_trust"}`,
+        probabilities: REVIEW_COMPLIANCE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "billing (0.480 · flagged)",
-          unknownProb: "0.220",
-          topMargin: "0.140 < 0.200",
+          topClass: `${REVIEW_COMPLIANCE_DIST.topLabel} (${REVIEW_COMPLIANCE_DIST.topDisplay} · flagged)`,
+          unknownProb: `${REVIEW_COMPLIANCE_DIST.unknownDisplay}`,
+          topMarginDisplay: `${REVIEW_COMPLIANCE_DIST.topMarginDisplay} < 0.200`,
+          topProbability: REVIEW_COMPLIANCE_DIST.topProbability,
+          unknownProbability: REVIEW_COMPLIANCE_DIST.unknownProbability,
+          topMargin: REVIEW_COMPLIANCE_DIST.topMargin,
           noveltyState: "ambiguous_review",
           outcomeBadge: "ROUTED TO SUPERVISOR REVIEW",
           authorityRule: "High or split model probabilities never bypass SupervisionPolicy.",
@@ -443,11 +573,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "An independent SupervisorProvider re-examines the input, class definitions, and probabilities, emitting structured finding 'ambiguous_class_boundary'.",
         traceSnippet:
           'POST /api/v1/classifiers/support-intent/runs/run_1/reviews\n{"finding": "possible_misclassification", "recommendation": "clarify_class_boundary"}',
+        probabilities: REVIEW_COMPLIANCE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
-          topClass: "billing (advisory check)",
-          unknownProb: "0.220",
-          topMargin: "0.140",
+          topClass: `${REVIEW_COMPLIANCE_DIST.topLabel} (${REVIEW_COMPLIANCE_DIST.topDisplay} · advisory check)`,
+          unknownProb: `${REVIEW_COMPLIANCE_DIST.unknownDisplay}`,
+          topMarginDisplay: `${REVIEW_COMPLIANCE_DIST.topMarginDisplay}`,
+          topProbability: REVIEW_COMPLIANCE_DIST.topProbability,
+          unknownProbability: REVIEW_COMPLIANCE_DIST.unknownProbability,
+          topMargin: REVIEW_COMPLIANCE_DIST.topMargin,
           noveltyState: "ambiguous_review",
           outcomeBadge: "SUPERVISOR: POSSIBLE BOUNDARY GAP",
           authorityRule: "Supervisor runs off the critical path; it never blocks fast-path SLA.",
@@ -470,11 +604,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "The SupervisorReview record is locked in 0002_supervisor_reviews. Operators can promote the evidence to refine class instructions without silent drift.",
         traceSnippet:
           '{"review_id": "rev_88c", "classification_run_id": "run_1", "advisory_only": true, "mutated_run": false}',
+        probabilities: REVIEW_COMPLIANCE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (unchanged)",
-          topClass: "billing (run preserved)",
-          unknownProb: "0.220",
-          topMargin: "0.140",
+          topClass: `${REVIEW_COMPLIANCE_DIST.topLabel} (${REVIEW_COMPLIANCE_DIST.topDisplay} · run preserved)`,
+          unknownProb: `${REVIEW_COMPLIANCE_DIST.unknownDisplay}`,
+          topMarginDisplay: `${REVIEW_COMPLIANCE_DIST.topMarginDisplay}`,
+          topProbability: REVIEW_COMPLIANCE_DIST.topProbability,
+          unknownProbability: REVIEW_COMPLIANCE_DIST.unknownProbability,
+          topMargin: REVIEW_COMPLIANCE_DIST.topMargin,
           noveltyState: "ambiguous_review",
           outcomeBadge: "ADVISORY FINDING PERSISTED",
           authorityRule: "A Supervisor review never mutates the classification run or ontology.",
@@ -490,12 +628,7 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
     sublabel:
       "Operational failure separated deterministically from semantic UNKNOWN so outages never corrupt discovery",
     accentTone: "error",
-    probabilities: [
-      { label: "billing", value: 0, display: "ERR" },
-      { label: "technical", value: 0, display: "ERR" },
-      { label: "sales", value: 0, display: "ERR" },
-      { label: "UNKNOWN", value: 0, display: "ISOLATED", isUnknown: true },
-    ],
+    probabilities: ERROR_OUTAGE_DIST.probabilities,
     steps: [
       {
         index: 0,
@@ -509,11 +642,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "In naive agent harnesses, a failed LLM call or malformed JSON response falls back to 'UNKNOWN', flooding the discovery pool with fake novelty.",
         traceSnippet:
           'POST /api/v1/projects/support/decision-services/router/runs\n{"content": "Refund request #4091"}',
+        probabilities: ERROR_OUTAGE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
           topClass: "awaiting provider…",
           unknownProb: "—",
-          topMargin: "—",
+          topMarginDisplay: "—",
+          topProbability: null,
+          unknownProbability: ERROR_OUTAGE_DIST.unknownProbability,
+          topMargin: ERROR_OUTAGE_DIST.topMargin,
           noveltyState: "provider_error",
           outcomeBadge: "DISPATCHING TO PROVIDER",
           authorityRule: "Operational errors and semantic uncertainty are distinct failure layers.",
@@ -531,11 +668,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "After bounded retries, the provider adapter raises a sanitized ProviderError(kind='unavailable') with all secrets and internal URLs stripped.",
         traceSnippet:
           'raise ProviderError("Decision provider unavailable after 2 retries", kind="unavailable") # zero API keys in message',
+        probabilities: ERROR_OUTAGE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
           topClass: "N/A (ProviderError)",
           unknownProb: "N/A (not scored)",
-          topMargin: "N/A",
+          topMarginDisplay: "N/A",
+          topProbability: null,
+          unknownProbability: ERROR_OUTAGE_DIST.unknownProbability,
+          topMargin: ERROR_OUTAGE_DIST.topMargin,
           noveltyState: "provider_error",
           outcomeBadge: "FAULT: HTTP 502 / TIMEOUT",
           authorityRule: "No secrets in logs, provider errors, fixtures, or events (AGENTS.md).",
@@ -553,11 +694,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "Execution halts before novelty scoring. The transaction rolls back any partial run state so zero phantom classifications are recorded.",
         traceSnippet:
           "except ProviderError:\n    await repository.record_provider_error(project_id, provider, model, latency_ms)\n    raise # never writes to unknown_events",
+        probabilities: ERROR_OUTAGE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
           topClass: "aborted cleanly",
           unknownProb: "0 unknown writes",
-          topMargin: "—",
+          topMarginDisplay: "—",
+          topProbability: null,
+          unknownProbability: ERROR_OUTAGE_DIST.unknownProbability,
+          topMargin: ERROR_OUTAGE_DIST.topMargin,
           noveltyState: "provider_error",
           outcomeBadge: "ISOLATED BEFORE NOVELTY POOL",
           authorityRule: "Infrastructure failure != semantic novelty.",
@@ -575,11 +720,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "Because nothing is written to unknown_events or evidence_items, a 10-minute model outage never triggers false Teacher candidate proposals.",
         traceSnippet:
           "SELECT COUNT(*) FROM unknown_events WHERE created_at >= :outage_start; -- returns 0",
+        probabilities: ERROR_OUTAGE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (immutable)",
           topClass: "none",
           unknownProb: "unpolluted (0 rows)",
-          topMargin: "—",
+          topMarginDisplay: "—",
+          topProbability: null,
+          unknownProbability: ERROR_OUTAGE_DIST.unknownProbability,
+          topMargin: ERROR_OUTAGE_DIST.topMargin,
           noveltyState: "provider_error",
           outcomeBadge: "QUARANTINED · 0 UNKNOWN WRITES",
           authorityRule: "Discovery evidence only admits valid probability distributions.",
@@ -602,11 +751,15 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
           "provider_usage records the error count and latency, HTTP 502/503 is returned cleanly, and the client can retry with the same Idempotency-Key.",
         traceSnippet:
           'HTTP/1.1 503 Service Unavailable\n{"detail": "Decision provider unavailable"} // Retry-safe with Idempotency-Key',
+        probabilities: ERROR_OUTAGE_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (intact)",
           topClass: "retryable via SDK",
           unknownProb: "—",
-          topMargin: "—",
+          topMarginDisplay: "—",
+          topProbability: null,
+          unknownProbability: ERROR_OUTAGE_DIST.unknownProbability,
+          topMargin: ERROR_OUTAGE_DIST.topMargin,
           noveltyState: "provider_error",
           outcomeBadge: "OBSERVABLE & RECOVERABLE",
           authorityRule: "Idempotency keys prevent duplicate ingestion on client retry.",
@@ -615,6 +768,8 @@ export const PRESET_SCENARIOS: readonly PresetScenario[] = [
     ],
   },
 ] as const;
+
+export const PRESET_SCENARIOS = PREDEFINED_SCENARIOS;
 
 interface DiagramNodeDef {
   id: string;
@@ -998,17 +1153,17 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
             <rect x="0" y="0" width="960" height="440" fill="url(#oc-instrument-grid)" />
 
             {/* Lane Labels */}
-            <text x="604" y="40" className="oc-svg-lane-label tone-known">
+            <text x="602" y="40" className="oc-svg-lane-label tone-known">
               LANE A · SYNCHRONOUS FAST PATH (TRUSTED KNOWN)
             </text>
-            <text x="604" y="146" className="oc-svg-lane-label tone-review">
+            <text x="602" y="146" className="oc-svg-lane-label tone-review">
               LANE B · ASYNCHRONOUS SUPERVISOR AUDIT (OC-016)
             </text>
-            <text x="604" y="254" className="oc-svg-lane-label tone-unknown">
-              LANE C · PERMANENT UNKNOWN → CLUSTERING → TEACHER → REPLAY GATE
+            <text x="602" y="254" className="oc-svg-lane-label tone-unknown">
+              LANE C · PERMANENT UNKNOWN → TEACHER → REPLAY GATE
             </text>
-            <text x="604" y="344" className="oc-svg-lane-label tone-error">
-              LANE D · OPERATIONAL FAULT ISOLATION (ZERO UNKNOWN POLLUTION)
+            <text x="602" y="344" className="oc-svg-lane-label tone-error">
+              LANE D · FAULT ISOLATION (ZERO UNKNOWN POLLUTION)
             </text>
 
             {/* Base Inactive Edges */}
@@ -1123,7 +1278,7 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
                   {activePreset.id === "error_timeout" ? "∑ P = N/A (FAULT)" : "∑ P = 1.000"}
                 </span>
               </div>
-              {activePreset.probabilities.map((prob) => (
+              {activeStep.probabilities.map((prob) => (
                 <div
                   key={prob.label}
                   className={`oc-prob-row ${prob.isUnknown ? "is-unknown" : ""}`}
@@ -1158,7 +1313,7 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
               </div>
               <div>
                 <dt>Top-2 margin</dt>
-                <dd>{activeStep.telemetry.topMargin}</dd>
+                <dd>{activeStep.telemetry.topMarginDisplay}</dd>
               </div>
             </dl>
 

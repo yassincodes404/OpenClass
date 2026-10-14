@@ -1282,4 +1282,667 @@ export class OpenClass {
     const query = after !== undefined ? `?after=${encodeURIComponent(after)}` : "";
     return this.request(`/api/v1/projects/${encodeURIComponent(project)}/ops/events${query}`);
   }
+
+  resumeDecisionRun(
+    inputOrProject:
+      | ({
+          project: string;
+          runId: string;
+        } & ResumeDecisionRunInput)
+      | string,
+    runId?: string,
+    body?: ResumeDecisionRunInput,
+  ): Promise<Record<string, unknown>> {
+    if (typeof inputOrProject === "string") {
+      return this.request(
+        `/api/v1/projects/${encodeURIComponent(inputOrProject)}/runs/${encodeURIComponent(runId ?? "")}/resume`,
+        serializeResumeBody(body),
+        "POST",
+      );
+    }
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(inputOrProject.project)}/runs/${encodeURIComponent(inputOrProject.runId)}/resume`,
+      serializeResumeBody(inputOrProject),
+      "POST",
+    );
+  }
+
+  cancelDecisionRun(
+    inputOrProject:
+      | ({
+          project: string;
+          runId: string;
+        } & CancelDecisionRunInput)
+      | string,
+    runId?: string,
+    body?: CancelDecisionRunInput,
+  ): Promise<Record<string, unknown>> {
+    if (typeof inputOrProject === "string") {
+      return this.request(
+        `/api/v1/projects/${encodeURIComponent(inputOrProject)}/runs/${encodeURIComponent(runId ?? "")}/cancel`,
+        serializeCancelBody(body ?? { reason: "" }),
+        "POST",
+      );
+    }
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(inputOrProject.project)}/runs/${encodeURIComponent(inputOrProject.runId)}/cancel`,
+      serializeCancelBody(inputOrProject),
+      "POST",
+    );
+  }
+}
+
+export { OpenClass as OpenClassClient };
+
+export interface ResumeDecisionRunInput {
+  approved_choice?: string | null;
+  approvedChoice?: string | null;
+  operator?: string;
+  rationale?: string;
+  strict_version_check?: boolean;
+  strictVersionCheck?: boolean;
+  use_pinned_version?: boolean;
+  usePinnedVersion?: boolean;
+}
+
+export interface CancelDecisionRunInput {
+  operator?: string;
+  reason: string;
+}
+
+function serializeResumeBody(body?: ResumeDecisionRunInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = {};
+  const approvedChoice = body?.approved_choice ?? body?.approvedChoice;
+  if (approvedChoice !== undefined) payload.approved_choice = approvedChoice;
+  if (body?.operator !== undefined) payload.operator = body.operator;
+  if (body?.rationale !== undefined) payload.rationale = body.rationale;
+  const strictVersionCheck = body?.strict_version_check ?? body?.strictVersionCheck;
+  if (strictVersionCheck !== undefined) payload.strict_version_check = strictVersionCheck;
+  const usePinnedVersion = body?.use_pinned_version ?? body?.usePinnedVersion;
+  if (usePinnedVersion !== undefined) payload.use_pinned_version = usePinnedVersion;
+  return payload;
+}
+
+function serializeCancelBody(body: CancelDecisionRunInput): Record<string, unknown> {
+  const payload: Record<string, unknown> = { reason: body.reason };
+  if (body.operator !== undefined) payload.operator = body.operator;
+  return payload;
+}
+
+export class ControlApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly detail: string = `Request failed (${status})`,
+  ) {
+    super(detail);
+    this.name = "ControlApiError";
+  }
+}
+
+export interface ControlRequestInit extends Omit<RequestInit, "body"> {
+  token?: string;
+  idempotencyKey?: string;
+  body?: BodyInit | Record<string, unknown> | unknown[] | null;
+}
+
+export interface OpenClassControlClientOptions {
+  baseUrl?: string;
+  baseURL?: string;
+  token?: string;
+  fetcher?: typeof fetch;
+}
+
+export interface ControlProject {
+  id: string;
+  workspace_id: string;
+  engine_project_id: string;
+  slug: string;
+  name: string;
+  created_at: string;
+  redaction_enabled?: boolean;
+  retention_days?: number;
+}
+
+export interface ControlApiKey {
+  id: string;
+  prefix: string;
+  scopes: string[];
+  created_at: string;
+  revoked_at: string | null;
+}
+
+export class OpenClassControlClient {
+  private readonly baseUrl: string;
+  private readonly defaultToken?: string;
+  private readonly fetcher: typeof fetch;
+
+  constructor(
+    optionsOrBaseUrl: OpenClassControlClientOptions | string = "/control",
+    fetcher?: typeof fetch,
+  ) {
+    if (typeof optionsOrBaseUrl === "string") {
+      this.baseUrl = optionsOrBaseUrl.replace(/\/$/, "") || "/control";
+      this.fetcher = fetcher ?? ((...args) => globalThis.fetch(...args));
+    } else {
+      const rawBase = optionsOrBaseUrl.baseUrl ?? optionsOrBaseUrl.baseURL ?? "/control";
+      this.baseUrl = rawBase.replace(/\/$/, "") || "/control";
+      this.defaultToken = optionsOrBaseUrl.token;
+      this.fetcher =
+        optionsOrBaseUrl.fetcher ?? fetcher ?? ((...args) => globalThis.fetch(...args));
+    }
+  }
+
+  private resolveUrl(path: string): string {
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    if (this.baseUrl.endsWith("/control") && normalizedPath.startsWith("/control/")) {
+      return `${this.baseUrl}${normalizedPath.slice("/control".length)}`;
+    }
+    if (this.baseUrl.endsWith("/control") && normalizedPath === "/control") {
+      return this.baseUrl;
+    }
+    return `${this.baseUrl}${normalizedPath}`;
+  }
+
+  private projectPrefix(projectId: string, workspaceId?: string): string {
+    if (workspaceId) {
+      return `/workspaces/${encodeURIComponent(workspaceId)}/projects/${encodeURIComponent(projectId)}`;
+    }
+    return `/projects/${encodeURIComponent(projectId)}`;
+  }
+
+  async request<T = unknown>(path: string, init?: ControlRequestInit): Promise<T> {
+    const {
+      token: initToken,
+      idempotencyKey,
+      body,
+      headers: initHeaders,
+      ...restInit
+    } = init ?? {};
+    const resolvedToken = initToken ?? this.defaultToken;
+    const hasBody = body !== undefined && body !== null;
+    const serializedBody = !hasBody
+      ? undefined
+      : typeof body === "string" ||
+          body instanceof ArrayBuffer ||
+          body instanceof Uint8Array ||
+          (typeof FormData !== "undefined" && body instanceof FormData) ||
+          (typeof URLSearchParams !== "undefined" && body instanceof URLSearchParams) ||
+          (typeof Blob !== "undefined" && body instanceof Blob)
+        ? (body as BodyInit)
+        : JSON.stringify(body);
+
+    const headers: Record<string, string> = {
+      ...(hasBody ? { "content-type": "application/json" } : {}),
+      ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {}),
+      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+    };
+    if (initHeaders) {
+      if (initHeaders instanceof Headers) {
+        initHeaders.forEach((value, key) => {
+          headers[key] = value;
+        });
+      } else if (Array.isArray(initHeaders)) {
+        for (const [key, value] of initHeaders) {
+          headers[key] = value;
+        }
+      } else {
+        Object.assign(headers, initHeaders);
+      }
+    }
+
+    const fetchInit: RequestInit = {
+      ...restInit,
+      ...(serializedBody !== undefined ? { body: serializedBody } : {}),
+      headers,
+    };
+
+    const response = await this.fetcher(this.resolveUrl(path), fetchInit);
+    if (response.status === 204) return undefined as T;
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as {
+        detail?: unknown;
+        message?: unknown;
+        error?: unknown;
+      };
+      const detail =
+        typeof payload.detail === "string" && payload.detail.trim()
+          ? payload.detail
+          : typeof payload.message === "string" && payload.message.trim()
+            ? payload.message
+            : typeof payload.error === "string" && payload.error.trim()
+              ? payload.error
+              : response.status === 401
+                ? "Session expired"
+                : `Request failed (${response.status})`;
+      throw new ControlApiError(response.status, detail);
+    }
+    return (await response.json()) as T;
+  }
+
+  listProjects(
+    workspaceOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<ControlProject[]> {
+    if (typeof workspaceOrInit === "string") {
+      return this.request<ControlProject[]>(
+        `/workspaces/${encodeURIComponent(workspaceOrInit)}/projects`,
+        init,
+      );
+    }
+    return this.request<ControlProject[]>("/projects", workspaceOrInit);
+  }
+
+  createProject(
+    workspaceOrInput: string | { name: string; description?: string; workspaceId?: string },
+    inputOrInit?: { name: string; description?: string } | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<ControlProject> {
+    if (typeof workspaceOrInput === "string") {
+      const payload = (inputOrInit ?? { name: "" }) as { name: string; description?: string };
+      return this.request<ControlProject>(
+        `/workspaces/${encodeURIComponent(workspaceOrInput)}/projects`,
+        {
+          ...init,
+          method: "POST",
+          body: { name: payload.name, description: payload.description ?? "" },
+        },
+      );
+    }
+    const reqInit = inputOrInit as ControlRequestInit | undefined;
+    const path = workspaceOrInput.workspaceId
+      ? `/workspaces/${encodeURIComponent(workspaceOrInput.workspaceId)}/projects`
+      : "/projects";
+    return this.request<ControlProject>(path, {
+      ...reqInit,
+      method: "POST",
+      body: { name: workspaceOrInput.name, description: workspaceOrInput.description ?? "" },
+    });
+  }
+
+  getProject(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<ControlProject> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<ControlProject>(
+        this.projectPrefix(projectIdOrInit, projectOrWorkspaceId),
+        init,
+      );
+    }
+    return this.request<ControlProject>(this.projectPrefix(projectOrWorkspaceId), projectIdOrInit);
+  }
+
+  getProjectSummary(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<ProjectSummary> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<ProjectSummary>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/summary`,
+        init,
+      );
+    }
+    return this.request<ProjectSummary>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/summary`,
+      projectIdOrInit,
+    );
+  }
+
+  listEvents(
+    projectOrWorkspaceId: string,
+    optionsOrProjectId?:
+      | string
+      | { limit?: number; offset?: number; cursor?: string; q?: string; source_type?: string },
+    optionsOrInit?:
+      | { limit?: number; offset?: number; cursor?: string; q?: string; source_type?: string }
+      | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<unknown> {
+    const isWorkspaceScoped = typeof optionsOrProjectId === "string";
+    const prefix = isWorkspaceScoped
+      ? this.projectPrefix(optionsOrProjectId, projectOrWorkspaceId)
+      : this.projectPrefix(projectOrWorkspaceId);
+    const options = (isWorkspaceScoped ? optionsOrInit : optionsOrProjectId) as
+      | { limit?: number; offset?: number; cursor?: string; q?: string; source_type?: string }
+      | undefined;
+    const reqInit = (isWorkspaceScoped ? init : optionsOrInit) as ControlRequestInit | undefined;
+    const params = new URLSearchParams();
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    if (options?.offset !== undefined) params.set("offset", String(options.offset));
+    if (options?.cursor !== undefined) params.set("cursor", options.cursor);
+    if (options?.q !== undefined) params.set("q", options.q);
+    if (options?.source_type !== undefined) params.set("source_type", options.source_type);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request(`${prefix}/events${query}`, reqInit);
+  }
+
+  ingestEvent(
+    projectOrWorkspaceId: string,
+    bodyOrProjectId:
+      string | { content: string; source_type?: string; metadata?: Record<string, unknown> },
+    bodyOrInit?:
+      | { content: string; source_type?: string; metadata?: Record<string, unknown> }
+      | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<unknown> {
+    const isWorkspaceScoped = typeof bodyOrProjectId === "string";
+    const prefix = isWorkspaceScoped
+      ? this.projectPrefix(bodyOrProjectId, projectOrWorkspaceId)
+      : this.projectPrefix(projectOrWorkspaceId);
+    const payload = (isWorkspaceScoped ? bodyOrInit : bodyOrProjectId) as {
+      content: string;
+      source_type?: string;
+      metadata?: Record<string, unknown>;
+    };
+    const reqInit = (isWorkspaceScoped ? init : bodyOrInit) as ControlRequestInit | undefined;
+    return this.request(`${prefix}/events`, {
+      ...reqInit,
+      method: "POST",
+      body: {
+        content: payload.content,
+        source_type: payload.source_type ?? "text",
+        ...(payload.metadata ? { metadata: payload.metadata } : {}),
+      },
+    });
+  }
+
+  listDecisionServices(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<DecisionService[]> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<DecisionService[]>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/decision-services`,
+        init,
+      );
+    }
+    return this.request<DecisionService[]>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/decision-services`,
+      projectIdOrInit,
+    );
+  }
+
+  getDecisionRun(
+    projectOrWorkspaceId: string,
+    runIdOrProjectId: string,
+    runIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<DecisionRun> {
+    if (typeof runIdOrInit === "string") {
+      return this.request<DecisionRun>(
+        `${this.projectPrefix(runIdOrProjectId, projectOrWorkspaceId)}/runs/${encodeURIComponent(runIdOrInit)}`,
+        init,
+      );
+    }
+    return this.request<DecisionRun>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/runs/${encodeURIComponent(runIdOrProjectId)}`,
+      runIdOrInit,
+    );
+  }
+
+  resumeDecisionRun(
+    projectOrWorkspaceId: string,
+    runIdOrProjectId: string,
+    bodyOrRunId?: ResumeDecisionRunInput | string,
+    bodyOrInit?: ResumeDecisionRunInput | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Record<string, unknown>> {
+    if (typeof bodyOrRunId === "string") {
+      return this.request<Record<string, unknown>>(
+        `${this.projectPrefix(runIdOrProjectId, projectOrWorkspaceId)}/runs/${encodeURIComponent(bodyOrRunId)}/resume`,
+        {
+          ...init,
+          method: "POST",
+          body: serializeResumeBody(bodyOrInit as ResumeDecisionRunInput | undefined),
+        },
+      );
+    }
+    return this.request<Record<string, unknown>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/runs/${encodeURIComponent(runIdOrProjectId)}/resume`,
+      {
+        ...(bodyOrInit as ControlRequestInit | undefined),
+        method: "POST",
+        body: serializeResumeBody(bodyOrRunId),
+      },
+    );
+  }
+
+  cancelDecisionRun(
+    projectOrWorkspaceId: string,
+    runIdOrProjectId: string,
+    bodyOrRunId: CancelDecisionRunInput | string,
+    bodyOrInit?: CancelDecisionRunInput | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Record<string, unknown>> {
+    if (typeof bodyOrRunId === "string") {
+      return this.request<Record<string, unknown>>(
+        `${this.projectPrefix(runIdOrProjectId, projectOrWorkspaceId)}/runs/${encodeURIComponent(bodyOrRunId)}/cancel`,
+        {
+          ...init,
+          method: "POST",
+          body: serializeCancelBody((bodyOrInit as CancelDecisionRunInput) ?? { reason: "" }),
+        },
+      );
+    }
+    return this.request<Record<string, unknown>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/runs/${encodeURIComponent(runIdOrProjectId)}/cancel`,
+      {
+        ...(bodyOrInit as ControlRequestInit | undefined),
+        method: "POST",
+        body: serializeCancelBody(bodyOrRunId),
+      },
+    );
+  }
+
+  listUnknowns(
+    projectOrWorkspaceId: string,
+    optionsOrProjectId?:
+      | string
+      | {
+          state?: string;
+          category?: string;
+          q?: string;
+          query?: string;
+          limit?: number;
+          offset?: number;
+        },
+    optionsOrInit?:
+      | {
+          state?: string;
+          category?: string;
+          q?: string;
+          query?: string;
+          limit?: number;
+          offset?: number;
+        }
+      | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Record<string, unknown>> {
+    const isWorkspaceScoped = typeof optionsOrProjectId === "string";
+    const prefix = isWorkspaceScoped
+      ? this.projectPrefix(optionsOrProjectId, projectOrWorkspaceId)
+      : this.projectPrefix(projectOrWorkspaceId);
+    const options = (isWorkspaceScoped ? optionsOrInit : optionsOrProjectId) as
+      | {
+          state?: string;
+          category?: string;
+          q?: string;
+          query?: string;
+          limit?: number;
+          offset?: number;
+        }
+      | undefined;
+    const reqInit = (isWorkspaceScoped ? init : optionsOrInit) as ControlRequestInit | undefined;
+    const params = new URLSearchParams();
+    if (options?.state !== undefined) params.set("state", options.state);
+    if (options?.category !== undefined) params.set("category", options.category);
+    if (options?.q !== undefined) params.set("q", options.q);
+    if (options?.query !== undefined) params.set("query", options.query);
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    if (options?.offset !== undefined) params.set("offset", String(options.offset));
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request<Record<string, unknown>>(`${prefix}/unknowns${query}`, reqInit);
+  }
+
+  clusterUnknowns(
+    projectOrWorkspaceId: string,
+    bodyOrProjectId?: string | { threshold?: number; limit?: number },
+    bodyOrInit?: { threshold?: number; limit?: number } | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Record<string, unknown>> {
+    const isWorkspaceScoped = typeof bodyOrProjectId === "string";
+    const prefix = isWorkspaceScoped
+      ? this.projectPrefix(bodyOrProjectId, projectOrWorkspaceId)
+      : this.projectPrefix(projectOrWorkspaceId);
+    const body = (isWorkspaceScoped ? bodyOrInit : bodyOrProjectId) as
+      { threshold?: number; limit?: number } | undefined;
+    const reqInit = (isWorkspaceScoped ? init : bodyOrInit) as ControlRequestInit | undefined;
+    const payload: Record<string, unknown> = {};
+    if (body?.threshold !== undefined) payload.threshold = body.threshold;
+    if (body?.limit !== undefined) payload.limit = body.limit;
+    return this.request<Record<string, unknown>>(`${prefix}/unknowns/cluster`, {
+      ...reqInit,
+      method: "POST",
+      body: payload,
+    });
+  }
+
+  listClusters(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Array<Record<string, unknown>>> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<Array<Record<string, unknown>>>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/unknowns/clusters`,
+        init,
+      );
+    }
+    return this.request<Array<Record<string, unknown>>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/unknowns/clusters`,
+      projectIdOrInit,
+    );
+  }
+
+  listDiscoveryCandidates(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Array<Record<string, unknown>>> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<Array<Record<string, unknown>>>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/unknowns/candidates`,
+        init,
+      );
+    }
+    return this.request<Array<Record<string, unknown>>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/discovery-candidates`,
+      projectIdOrInit,
+    );
+  }
+
+  listEvaluationDatasets(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Array<Record<string, unknown>>> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<Array<Record<string, unknown>>>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/eval-datasets`,
+        init,
+      );
+    }
+    return this.request<Array<Record<string, unknown>>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/eval-datasets`,
+      projectIdOrInit,
+    );
+  }
+
+  listEvaluations(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Array<Record<string, unknown>>> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<Array<Record<string, unknown>>>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/evaluations`,
+        init,
+      );
+    }
+    return this.request<Array<Record<string, unknown>>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/evaluations`,
+      projectIdOrInit,
+    );
+  }
+
+  listServiceVersions(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Record<string, unknown>> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<Record<string, unknown>>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/unknowns/ontology`,
+        init,
+      );
+    }
+    return this.request<Record<string, unknown>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/ontology`,
+      projectIdOrInit,
+    );
+  }
+
+  getAnalyticsSummary(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Record<string, unknown>> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<Record<string, unknown>>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/analytics/summary`,
+        init,
+      );
+    }
+    return this.request<Record<string, unknown>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/analytics/summary`,
+      projectIdOrInit,
+    );
+  }
+
+  listIntegrations(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<Array<Record<string, unknown>>> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<Array<Record<string, unknown>>>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/integrations`,
+        init,
+      );
+    }
+    return this.request<Array<Record<string, unknown>>>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/integrations`,
+      projectIdOrInit,
+    );
+  }
+
+  listApiKeys(
+    projectOrWorkspaceId: string,
+    projectIdOrInit?: string | ControlRequestInit,
+    init?: ControlRequestInit,
+  ): Promise<ControlApiKey[]> {
+    if (typeof projectIdOrInit === "string") {
+      return this.request<ControlApiKey[]>(
+        `${this.projectPrefix(projectIdOrInit, projectOrWorkspaceId)}/keys`,
+        init,
+      );
+    }
+    return this.request<ControlApiKey[]>(
+      `${this.projectPrefix(projectOrWorkspaceId)}/keys`,
+      projectIdOrInit,
+    );
+  }
 }

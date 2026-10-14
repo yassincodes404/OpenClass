@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { OpenClass, OpenClassError } from "./index.ts";
+import {
+  ControlApiError,
+  OpenClass,
+  OpenClassClient,
+  OpenClassControlClient,
+  OpenClassError,
+} from "./index.ts";
 
 test("webhook retries retain external event identity and send credentials only in headers", async () => {
   const fetcher: typeof fetch = async (url, init) => {
@@ -695,4 +701,255 @@ test("phase 05-16 unknown clustering, discovery, evaluation, ontology, and ops e
 
   const ops = await client.operationsSummary("p1");
   assert.equal(ops.total_runs, 42);
+});
+
+test("OpenClassClient resumeDecisionRun and cancelDecisionRun post checkpoint governance payloads", async () => {
+  const seen: Array<{ url: string; method: string; body: unknown }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    seen.push({ url: String(url), method, body });
+    if (String(url).endsWith("/runs/run-42/resume")) {
+      return Response.json({
+        run_id: "run-42",
+        status: "completed",
+        selected_choice: "BILLING",
+        resumed_by: "ops-lead",
+      });
+    }
+    if (String(url).endsWith("/runs/run-42/cancel")) {
+      return Response.json({
+        run_id: "run-42",
+        status: "cancelled",
+        cancelled_by: "ops-lead",
+        reason: "Duplicate ticket",
+      });
+    }
+    return new Response("Not found", { status: 404 });
+  };
+
+  const client = new OpenClassClient("http://example.internal", fetcher);
+  const resumed = await client.resumeDecisionRun({
+    project: "acme-support",
+    runId: "run-42",
+    approvedChoice: "BILLING",
+    operator: "ops-lead",
+    rationale: "Confirmed billing escalation",
+    strictVersionCheck: true,
+    usePinnedVersion: true,
+  });
+  assert.equal(resumed.status, "completed");
+  assert.equal(resumed.selected_choice, "BILLING");
+
+  const cancelled = await client.cancelDecisionRun("acme-support", "run-42", {
+    operator: "ops-lead",
+    reason: "Duplicate ticket",
+  });
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.reason, "Duplicate ticket");
+
+  assert.deepEqual(seen, [
+    {
+      url: "http://example.internal/api/v1/projects/acme-support/runs/run-42/resume",
+      method: "POST",
+      body: {
+        approved_choice: "BILLING",
+        operator: "ops-lead",
+        rationale: "Confirmed billing escalation",
+        strict_version_check: true,
+        use_pinned_version: true,
+      },
+    },
+    {
+      url: "http://example.internal/api/v1/projects/acme-support/runs/run-42/cancel",
+      method: "POST",
+      body: {
+        operator: "ops-lead",
+        reason: "Duplicate ticket",
+      },
+    },
+  ]);
+});
+
+test("OpenClassControlClient attaches Bearer token, Idempotency-Key, handles 204, and throws ControlApiError on 4xx/5xx", async () => {
+  const requests: Array<{
+    url: string;
+    method?: string;
+    headers: Record<string, string>;
+    body?: string;
+  }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const headers: Record<string, string> = {};
+    new Headers(init?.headers).forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
+    });
+    requests.push({
+      url: String(url),
+      method: init?.method,
+      headers,
+      body: init?.body as string | undefined,
+    });
+
+    const urlStr = String(url);
+    if (urlStr.endsWith("/control/projects") && init?.method === "POST") {
+      return Response.json(
+        {
+          id: "cp-1",
+          workspace_id: "ws-1",
+          engine_project_id: "ep-1",
+          slug: "acme",
+          name: "Acme",
+          created_at: "2026-10-14T00:00:00Z",
+        },
+        { status: 201 },
+      );
+    }
+    if (urlStr.endsWith("/control/no-content")) {
+      return new Response(null, { status: 204 });
+    }
+    if (urlStr.endsWith("/control/conflict")) {
+      return new Response(JSON.stringify({ detail: "Decision run has already been resumed" }), {
+        status: 409,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    if (urlStr.endsWith("/control/gateway-error")) {
+      return new Response(JSON.stringify({ message: "Engine is temporarily unavailable" }), {
+        status: 502,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return Response.json([]);
+  };
+
+  const control = new OpenClassControlClient({ baseUrl: "/control", fetcher });
+
+  const created = await control.createProject(
+    { name: "Acme", description: "Support workspace" },
+    { token: "jwt-token-123", idempotencyKey: "idem-abc-1" },
+  );
+  assert.equal(created.id, "cp-1");
+  assert.equal(requests[0]?.url, "/control/projects");
+  assert.equal(requests[0]?.headers.authorization, "Bearer jwt-token-123");
+  assert.equal(requests[0]?.headers["idempotency-key"], "idem-abc-1");
+  assert.equal(requests[0]?.headers["content-type"], "application/json");
+  assert.deepEqual(JSON.parse(requests[0]?.body ?? "{}"), {
+    name: "Acme",
+    description: "Support workspace",
+  });
+
+  const empty = await control.request<void>("/no-content", {
+    method: "DELETE",
+    token: "jwt-token-123",
+  });
+  assert.equal(empty, undefined);
+
+  await assert.rejects(
+    control.request("/conflict", { token: "jwt-token-123" }),
+    (err: unknown) =>
+      err instanceof ControlApiError &&
+      err.status === 409 &&
+      err.detail === "Decision run has already been resumed",
+  );
+
+  await assert.rejects(
+    control.request("/gateway-error", { token: "jwt-token-123" }),
+    (err: unknown) =>
+      err instanceof ControlApiError &&
+      err.status === 502 &&
+      err.detail === "Engine is temporarily unavailable",
+  );
+});
+
+test("OpenClassControlClient typed project, decision, unknown, evaluation, and ops convenience methods", async () => {
+  const seen: string[] = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    seen.push(`${method} ${url}`);
+    const urlStr = String(url);
+    if (urlStr.endsWith("/summary") && !urlStr.includes("/analytics/summary")) {
+      return Response.json({
+        events: 10,
+        decision_runs: 8,
+        unknowns: 2,
+        pending_evidence: 2,
+        active_policy: "default",
+        pending_candidates: 1,
+        audit_events: 12,
+      });
+    }
+    if (urlStr.endsWith("/runs/r-1/resume")) {
+      return Response.json({ run_id: "r-1", status: "completed" });
+    }
+    if (urlStr.endsWith("/runs/r-1/cancel")) {
+      return Response.json({ run_id: "r-1", status: "cancelled" });
+    }
+    if (urlStr.endsWith("/runs/r-1")) {
+      return Response.json({ id: "r-1", selected_choice: "BILLING" });
+    }
+    if (urlStr.includes("/unknowns?")) {
+      return Response.json({ items: [], total: 0 });
+    }
+    if (urlStr.endsWith("/unknowns/cluster")) {
+      return Response.json({ cluster_count: 1 });
+    }
+    if (urlStr.endsWith("/ontology")) {
+      return Response.json({ versions: [] });
+    }
+    if (urlStr.endsWith("/analytics/summary")) {
+      return Response.json({ window_days: 7, unknown_rate: 0.1 });
+    }
+    if (urlStr.endsWith("/projects/p-1")) {
+      return Response.json({
+        id: "p-1",
+        workspace_id: "ws-1",
+        engine_project_id: "ep-1",
+        slug: "acme",
+        name: "Acme",
+        created_at: "2026-10-14T00:00:00Z",
+      });
+    }
+    return Response.json([]);
+  };
+
+  const control = new OpenClassControlClient({
+    baseUrl: "/control",
+    token: "session-jwt",
+    fetcher,
+  });
+
+  await control.listProjects("ws-1");
+  await control.getProject("p-1");
+  const summary = await control.getProjectSummary("ws-1", "p-1");
+  assert.equal(summary.events, 10);
+  await control.listEvents("ws-1", "p-1", { limit: 10 });
+  await control.ingestEvent("ws-1", "p-1", { content: "Charge twice" }, { idempotencyKey: "k-1" });
+  await control.listDecisionServices("ws-1", "p-1");
+  const run = await control.getDecisionRun("ws-1", "p-1", "r-1");
+  assert.equal(run.id, "r-1");
+  const resumed = await control.resumeDecisionRun("ws-1", "p-1", "r-1", {
+    approved_choice: "BILLING",
+    operator: "alice",
+  });
+  assert.equal(resumed.status, "completed");
+  const cancelled = await control.cancelDecisionRun("ws-1", "p-1", "r-1", {
+    operator: "alice",
+    reason: "Aborted",
+  });
+  assert.equal(cancelled.status, "cancelled");
+  await control.listUnknowns("ws-1", "p-1", { state: "needs_evidence" });
+  await control.clusterUnknowns("ws-1", "p-1", { threshold: 0.6 });
+  await control.listClusters("ws-1", "p-1");
+  await control.listDiscoveryCandidates("ws-1", "p-1");
+  await control.listEvaluationDatasets("ws-1", "p-1");
+  await control.listEvaluations("ws-1", "p-1");
+  await control.listServiceVersions("ws-1", "p-1");
+  await control.getAnalyticsSummary("ws-1", "p-1");
+  await control.listIntegrations("ws-1", "p-1");
+  await control.listApiKeys("ws-1", "p-1");
+
+  assert.ok(seen.includes("GET /control/workspaces/ws-1/projects"));
+  assert.ok(seen.includes("GET /control/projects/p-1"));
+  assert.ok(seen.includes("POST /control/workspaces/ws-1/projects/p-1/runs/r-1/resume"));
+  assert.ok(seen.includes("POST /control/workspaces/ws-1/projects/p-1/runs/r-1/cancel"));
 });

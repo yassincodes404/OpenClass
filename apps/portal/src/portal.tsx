@@ -1,17 +1,64 @@
+import { Suspense, lazy } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import { ClassifierDetailPage, ClassifiersPage, ProjectOverview, Projects } from "./projects";
-import { ProjectAuditPage, ProjectProvidersPage, ProjectSettingsPage } from "./security-pages";
-import { DataIngestPage, ObservationsPage } from "./ingestion-pages";
-import { DecisionServicePage, DecisionsPage, RunsPage } from "./decision-pages";
-import { UnknownsPage } from "./unknowns-page";
-import { ClustersPage } from "./clusters-page";
-import { OntologyPage } from "./ontology-page";
-import { AnalyticsPage } from "./analytics";
-import { IntegrationsPage } from "./integrations-page";
-import { CandidateReviewPage, DiscoveriesPage } from "./discoveries-page";
-import { DatasetPage, EvaluationDetailPage, EvaluationsPage } from "./evaluations-pages";
 import { ObservatoryArchitectureSections, OpenWorldLoopStage } from "./open-world-stage";
+
+const ProjectSettingsPage = lazy(() =>
+  import("./security-pages").then((m) => ({ default: m.ProjectSettingsPage })),
+);
+const ProjectProvidersPage = lazy(() =>
+  import("./security-pages").then((m) => ({ default: m.ProjectProvidersPage })),
+);
+const ProjectAuditPage = lazy(() =>
+  import("./security-pages").then((m) => ({ default: m.ProjectAuditPage })),
+);
+
+const DataIngestPage = lazy(() =>
+  import("./ingestion-pages").then((m) => ({ default: m.DataIngestPage })),
+);
+const ObservationsPage = lazy(() =>
+  import("./ingestion-pages").then((m) => ({ default: m.ObservationsPage })),
+);
+
+const DecisionsPage = lazy(() =>
+  import("./decision-pages").then((m) => ({ default: m.DecisionsPage })),
+);
+const DecisionServicePage = lazy(() =>
+  import("./decision-pages").then((m) => ({ default: m.DecisionServicePage })),
+);
+const RunsPage = lazy(() => import("./decision-pages").then((m) => ({ default: m.RunsPage })));
+
+const UnknownsPage = lazy(() =>
+  import("./unknowns-page").then((m) => ({ default: m.UnknownsPage })),
+);
+const ClustersPage = lazy(() =>
+  import("./clusters-page").then((m) => ({ default: m.ClustersPage })),
+);
+const OntologyPage = lazy(() =>
+  import("./ontology-page").then((m) => ({ default: m.OntologyPage })),
+);
+const AnalyticsPage = lazy(() => import("./analytics").then((m) => ({ default: m.AnalyticsPage })));
+const IntegrationsPage = lazy(() =>
+  import("./integrations-page").then((m) => ({ default: m.IntegrationsPage })),
+);
+
+const DiscoveriesPage = lazy(() =>
+  import("./discoveries-page").then((m) => ({ default: m.DiscoveriesPage })),
+);
+const CandidateReviewPage = lazy(() =>
+  import("./discoveries-page").then((m) => ({ default: m.CandidateReviewPage })),
+);
+
+const EvaluationsPage = lazy(() =>
+  import("./evaluations-pages").then((m) => ({ default: m.EvaluationsPage })),
+);
+const DatasetPage = lazy(() =>
+  import("./evaluations-pages").then((m) => ({ default: m.DatasetPage })),
+);
+const EvaluationDetailPage = lazy(() =>
+  import("./evaluations-pages").then((m) => ({ default: m.EvaluationDetailPage })),
+);
 
 /**
  * OpenClass Portal Landing Experience (`<Home />`)
@@ -197,43 +244,48 @@ export function Portal() {
   return (
     <>
       <Header />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/projects" element={<Projects />} />
-        <Route path="/projects/:projectId" element={<ProjectOverview />} />
-        <Route path="/projects/:projectId/classifiers" element={<ClassifiersPage />} />
-        <Route
-          path="/projects/:projectId/classifiers/:classifierId"
-          element={<ClassifierDetailPage />}
-        />
-        <Route path="/projects/:projectId/data" element={<DataIngestPage />} />
-        <Route path="/projects/:projectId/observations" element={<ObservationsPage />} />
-        <Route path="/projects/:projectId/evaluations" element={<EvaluationsPage />} />
-        <Route
-          path="/projects/:projectId/evaluations/datasets/:datasetId"
-          element={<DatasetPage />}
-        />
-        <Route
-          path="/projects/:projectId/evaluations/runs/:evaluationId"
-          element={<EvaluationDetailPage />}
-        />
-        <Route path="/projects/:projectId/decisions" element={<DecisionsPage />} />
-        <Route path="/projects/:projectId/decisions/:serviceId" element={<DecisionServicePage />} />
-        <Route path="/projects/:projectId/runs" element={<RunsPage />} />
-        <Route path="/projects/:projectId/unknowns" element={<UnknownsPage />} />
-        <Route path="/projects/:projectId/unknowns/clusters" element={<ClustersPage />} />
-        <Route path="/projects/:projectId/analytics" element={<AnalyticsPage />} />
-        <Route path="/projects/:projectId/ontology" element={<OntologyPage />} />
-        <Route path="/projects/:projectId/discoveries" element={<DiscoveriesPage />} />
-        <Route
-          path="/projects/:projectId/discoveries/:candidateId"
-          element={<CandidateReviewPage />}
-        />
-        <Route path="/projects/:projectId/integrations" element={<IntegrationsPage />} />
-        <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
-        <Route path="/projects/:projectId/providers" element={<ProjectProvidersPage />} />
-        <Route path="/projects/:projectId/audit" element={<ProjectAuditPage />} />
-      </Routes>
+      <Suspense fallback={<div className="panel">Loading workspace module…</div>}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects/:projectId" element={<ProjectOverview />} />
+          <Route path="/projects/:projectId/classifiers" element={<ClassifiersPage />} />
+          <Route
+            path="/projects/:projectId/classifiers/:classifierId"
+            element={<ClassifierDetailPage />}
+          />
+          <Route path="/projects/:projectId/data" element={<DataIngestPage />} />
+          <Route path="/projects/:projectId/observations" element={<ObservationsPage />} />
+          <Route path="/projects/:projectId/evaluations" element={<EvaluationsPage />} />
+          <Route
+            path="/projects/:projectId/evaluations/datasets/:datasetId"
+            element={<DatasetPage />}
+          />
+          <Route
+            path="/projects/:projectId/evaluations/runs/:evaluationId"
+            element={<EvaluationDetailPage />}
+          />
+          <Route path="/projects/:projectId/decisions" element={<DecisionsPage />} />
+          <Route
+            path="/projects/:projectId/decisions/:serviceId"
+            element={<DecisionServicePage />}
+          />
+          <Route path="/projects/:projectId/runs" element={<RunsPage />} />
+          <Route path="/projects/:projectId/unknowns" element={<UnknownsPage />} />
+          <Route path="/projects/:projectId/unknowns/clusters" element={<ClustersPage />} />
+          <Route path="/projects/:projectId/analytics" element={<AnalyticsPage />} />
+          <Route path="/projects/:projectId/ontology" element={<OntologyPage />} />
+          <Route path="/projects/:projectId/discoveries" element={<DiscoveriesPage />} />
+          <Route
+            path="/projects/:projectId/discoveries/:candidateId"
+            element={<CandidateReviewPage />}
+          />
+          <Route path="/projects/:projectId/integrations" element={<IntegrationsPage />} />
+          <Route path="/projects/:projectId/settings" element={<ProjectSettingsPage />} />
+          <Route path="/projects/:projectId/providers" element={<ProjectProvidersPage />} />
+          <Route path="/projects/:projectId/audit" element={<ProjectAuditPage />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }

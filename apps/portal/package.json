@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@openclass/sdk": "workspace:*",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-router": "^1.157.12",
     "@tanstack/router-plugin": "^1.157.12",

@@ -68,6 +68,11 @@ export type EngineDecisionRun = {
   created_at: string;
 };
 
+export type EngineRequestOptions = {
+  workspaceId?: string;
+  actor?: string;
+};
+
 /**
  * HTTP-only client for the FastAPI engine. The engine stays the sole owner of
  * decision/ontology logic; the control plane only proxies and maps ids.
@@ -99,12 +104,32 @@ export class EngineClient {
     return headers;
   }
 
-  async createProject(name: string, description: string): Promise<EngineProject> {
-    return this.request<EngineProject>("POST", "/api/v1/projects", { name, description }, 201);
+  async createProject(
+    name: string,
+    description: string,
+    options?: EngineRequestOptions,
+  ): Promise<EngineProject> {
+    return this.request<EngineProject>(
+      "POST",
+      "/api/v1/projects",
+      { name, description },
+      201,
+      options,
+    );
   }
 
-  async getProject(identifier: string): Promise<EngineProject> {
-    return this.request<EngineProject>("GET", `/api/v1/projects/${encodeURIComponent(identifier)}`);
+  async listProjects(options?: EngineRequestOptions): Promise<EngineProject[]> {
+    return this.request<EngineProject[]>("GET", "/api/v1/projects", undefined, 200, options);
+  }
+
+  async getProject(identifier: string, options?: EngineRequestOptions): Promise<EngineProject> {
+    return this.request<EngineProject>(
+      "GET",
+      `/api/v1/projects/${encodeURIComponent(identifier)}`,
+      undefined,
+      200,
+      options,
+    );
   }
 
   async createClassifier(body: {
