@@ -21,8 +21,10 @@ from openclass_core.evidence import (
 )
 from openclass_core.project_evolution import ChoiceCandidate, service_hash
 from openclass_core.projects import (
+    UNKNOWN_CHOICE,
     DecisionRun,
     DecisionService,
+    DecisionServiceChoice,
     Project,
     ProjectAuditEvent,
     RawEvent,
@@ -35,6 +37,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from openclass_server.persistence.mappers import audit_event_row, raw_event_row
 from openclass_server.persistence.tables import (
     AuditEventRow,
+    DecisionRunCheckpointRow,
     DecisionRunRow,
     DecisionServiceRow,
     EvidenceCaseRow,
@@ -362,10 +365,391 @@ class SQLProjectRepository:
                         payload=run.model_dump(mode="json"),
                     )
                 )
+                await session.flush()
+                pinned_vid = run.pinned_version_id or run.decision_service_version_id
+                session.add(
+                    DecisionRunCheckpointRow(
+                        run_id=str(run.id),
+                        project_id=str(run.project_id),
+                        decision_service_id=str(run.decision_service_id),
+                        run_status=run.run_status,
+                        current_node_key=run.current_node_key,
+                        next_node_key=run.next_node_key,
+                        selected_choice=run.selected_choice,
+                        supervision_outcome=run.supervision_outcome,
+                        supervision_reason=run.supervision_reason,
+                        completed_steps=list(run.completed_steps or run.steps),
+                        state_snapshot=dict(run.state_snapshot),
+                        pinned_version_id=str(pinned_vid) if pinned_vid is not None else None,
+                        pinned_version_number=run.pinned_version_number,
+                        pinned_service_hash=run.pinned_service_hash or run.service_hash,
+                        pending_operation=run.pending_operation,
+                        latency_ms=run.latency_ms,
+                        resumed_by=run.resumed_by,
+                        resumed_at=run.resumed_at,
+                        resume_rationale=run.resume_rationale,
+                        cancelled_by=run.cancelled_by,
+                        cancelled_at=run.cancelled_at,
+                        cancel_reason=run.cancel_reason,
+                        failure_reason=run.failure_reason,
+                        updated_at=run.created_at,
+                    )
+                )
+                if run.run_status == "paused":
+                    paused_audit = ProjectAuditEvent(
+                        project_id=run.project_id,
+                        event_type="decision_run_paused",
+                        actor="system",
+                        payload={
+                            "run_id": str(run.id),
+                            "decision_service_id": str(run.decision_service_id),
+                            "current_node_key": run.current_node_key,
+                            "next_node_key": run.next_node_key,
+                            "selected_choice": run.selected_choice,
+                            "supervision_outcome": run.supervision_outcome,
+                            "pinned_version_number": run.pinned_version_number,
+                            "pinned_service_hash": run.pinned_service_hash or run.service_hash,
+                        },
+                        created_at=run.created_at,
+                    )
+                    session.add(self._event(paused_audit))
                 await self._roll_up_usage(session, run, error=False)
         except IntegrityError as exc:
             msg = "Decision run already exists or referenced entities missing"
             raise ConflictError(msg) from exc
+
+    @staticmethod
+    def _apply_checkpoint(run: DecisionRun, cp: DecisionRunCheckpointRow | None) -> DecisionRun:
+        if cp is None:
+            return run
+        completed_steps = list(cp.completed_steps or run.steps)
+        last_step = completed_steps[-1] if completed_steps else {}
+        node_id = run.decision_node_id
+        if last_step.get("node_id"):
+            try:
+                node_id = UUID(str(last_step["node_id"]))
+            except ValueError:
+                node_id = run.decision_node_id
+        probs = (
+            dict(last_step["probabilities"])
+            if isinstance(last_step.get("probabilities"), dict)
+            else run.probabilities
+        )
+        top_p = (
+            float(last_step["top_probability"])
+            if last_step.get("top_probability") is not None
+            else run.top_probability
+        )
+        second_p = (
+            float(last_step["second_probability"])
+            if last_step.get("second_probability") is not None
+            else run.second_probability
+        )
+        margin_val = (
+            float(last_step["margin"]) if last_step.get("margin") is not None else run.margin
+        )
+        unk_p = (
+            float(last_step["unknown_probability"])
+            if last_step.get("unknown_probability") is not None
+            else run.unknown_probability
+        )
+        pinned_vid = UUID(cp.pinned_version_id) if cp.pinned_version_id else run.pinned_version_id
+        return run.model_copy(
+            update={
+                "decision_node_id": node_id,
+                "selected_choice": cp.selected_choice,
+                "probabilities": probs,
+                "top_probability": top_p,
+                "second_probability": second_p,
+                "margin": margin_val,
+                "unknown_probability": unk_p,
+                "supervision_outcome": cp.supervision_outcome,
+                "supervision_reason": cp.supervision_reason,
+                "latency_ms": float(cp.latency_ms),
+                "steps": completed_steps,
+                "completed_steps": completed_steps,
+                "state_snapshot": dict(cp.state_snapshot or {}),
+                "run_status": cp.run_status,
+                "current_node_key": cp.current_node_key,
+                "next_node_key": cp.next_node_key,
+                "pinned_version_id": pinned_vid,
+                "pinned_version_number": int(cp.pinned_version_number),
+                "pinned_service_hash": cp.pinned_service_hash,
+                "pending_operation": cp.pending_operation,
+                "resumed_by": cp.resumed_by,
+                "resumed_at": cp.resumed_at,
+                "resume_rationale": cp.resume_rationale,
+                "cancelled_by": cp.cancelled_by,
+                "cancelled_at": cp.cancelled_at,
+                "cancel_reason": cp.cancel_reason,
+                "failure_reason": cp.failure_reason,
+            }
+        )
+
+    async def _overlay_checkpoints(
+        self, session: AsyncSession, runs: list[DecisionRun]
+    ) -> list[DecisionRun]:
+        if not runs:
+            return []
+        run_ids = [str(r.id) for r in runs]
+        cp_rows = await session.scalars(
+            select(DecisionRunCheckpointRow).where(DecisionRunCheckpointRow.run_id.in_(run_ids))
+        )
+        by_id = {cp.run_id: cp for cp in cp_rows}
+        return [self._apply_checkpoint(r, by_id.get(str(r.id))) for r in runs]
+
+    async def reconstruct_service_from_version(
+        self,
+        service: DecisionService,
+        version_id: UUID | str | None,
+        version_number: int | None,
+        pending_operation: dict[str, Any] | None = None,
+    ) -> DecisionService | None:
+        if isinstance(pending_operation, dict) and isinstance(
+            pending_operation.get("service_snapshot"), dict
+        ):
+            try:
+                return DecisionService.model_validate(pending_operation["service_snapshot"])
+            except Exception:
+                pass
+        async with self.sessions() as session:
+            row = None
+            if version_id is not None:
+                res = await session.execute(
+                    sa.text(
+                        "SELECT id, version_number, choices FROM service_versions WHERE id = :vid"
+                    ),
+                    {"vid": str(version_id)},
+                )
+                row = res.first()
+            if row is None and version_number is not None:
+                res = await session.execute(
+                    sa.text(
+                        "SELECT id, version_number, choices FROM service_versions"
+                        " WHERE service_id = :sid AND version_number = :vnum"
+                    ),
+                    {"sid": str(service.id), "vnum": int(version_number)},
+                )
+                row = res.first()
+            if row is None:
+                return None
+            raw_choices = json.loads(row.choices) if isinstance(row.choices, str) else row.choices
+            if not isinstance(raw_choices, list) or not raw_choices:
+                return None
+            choice_objs: list[DecisionServiceChoice] = []
+            for c in raw_choices:
+                if isinstance(c, dict) and c.get("key"):
+                    choice_objs.append(
+                        DecisionServiceChoice(
+                            key=str(c["key"]).upper(),
+                            label=str(c.get("label") or c["key"]),
+                            description=str(c.get("description") or ""),
+                            aliases=tuple(str(a) for a in (c.get("aliases") or [])),
+                        )
+                    )
+            if not any(c.key == "UNKNOWN" for c in choice_objs):
+                choice_objs.append(UNKNOWN_CHOICE)
+            updated_first_node = service.nodes[0].model_copy(update={"choices": tuple(choice_objs)})
+            updated_nodes = (updated_first_node, *service.nodes[1:])
+            return service.model_copy(
+                update={
+                    "nodes": updated_nodes,
+                    "version_number": int(row.version_number),
+                    "active_version_id": UUID(str(row.id)),
+                }
+            )
+
+    async def save_resumed_decision_run(
+        self,
+        run: DecisionRun,
+        *,
+        operator: str,
+        rationale: str,
+    ) -> DecisionRun:
+        now_ts = run.resumed_at or datetime.now(UTC)
+        async with self.sessions.begin() as session:
+            cp = await session.scalar(
+                select(DecisionRunCheckpointRow)
+                .where(
+                    DecisionRunCheckpointRow.run_id == str(run.id),
+                    DecisionRunCheckpointRow.project_id == str(run.project_id),
+                )
+                .with_for_update()
+            )
+            if cp is not None:
+                if cp.run_status == "cancelled":
+                    raise ConflictError("Decision run is already cancelled")
+                if cp.resumed_at is not None and cp.run_status == "completed":
+                    raise ConflictError("Decision run has already been resumed")
+                cp.run_status = run.run_status
+                cp.current_node_key = run.current_node_key
+                cp.next_node_key = run.next_node_key
+                cp.selected_choice = run.selected_choice
+                cp.supervision_outcome = run.supervision_outcome
+                cp.supervision_reason = run.supervision_reason
+                cp.completed_steps = list(run.completed_steps or run.steps)
+                cp.state_snapshot = dict(run.state_snapshot)
+                cp.pending_operation = run.pending_operation
+                cp.latency_ms = float(run.latency_ms)
+                cp.resumed_by = operator
+                cp.resumed_at = now_ts
+                cp.resume_rationale = rationale
+                cp.updated_at = now_ts
+            else:
+                pinned_vid = run.pinned_version_id or run.decision_service_version_id
+                session.add(
+                    DecisionRunCheckpointRow(
+                        run_id=str(run.id),
+                        project_id=str(run.project_id),
+                        decision_service_id=str(run.decision_service_id),
+                        run_status=run.run_status,
+                        current_node_key=run.current_node_key,
+                        next_node_key=run.next_node_key,
+                        selected_choice=run.selected_choice,
+                        supervision_outcome=run.supervision_outcome,
+                        supervision_reason=run.supervision_reason,
+                        completed_steps=list(run.completed_steps or run.steps),
+                        state_snapshot=dict(run.state_snapshot),
+                        pinned_version_id=str(pinned_vid) if pinned_vid is not None else None,
+                        pinned_version_number=run.pinned_version_number,
+                        pinned_service_hash=run.pinned_service_hash or run.service_hash,
+                        pending_operation=run.pending_operation,
+                        latency_ms=float(run.latency_ms),
+                        resumed_by=operator,
+                        resumed_at=now_ts,
+                        resume_rationale=rationale,
+                        updated_at=now_ts,
+                    )
+                )
+
+            resumed_audit = ProjectAuditEvent(
+                project_id=run.project_id,
+                event_type="decision_run_resumed",
+                actor=operator,
+                payload={
+                    "run_id": str(run.id),
+                    "decision_service_id": str(run.decision_service_id),
+                    "selected_choice": run.selected_choice,
+                    "supervision_outcome": run.supervision_outcome,
+                    "run_status": run.run_status,
+                    "current_node_key": run.current_node_key,
+                    "next_node_key": run.next_node_key,
+                    "steps_count": len(run.steps),
+                    "rationale": rationale,
+                },
+                created_at=now_ts,
+            )
+            session.add(self._event(resumed_audit))
+
+            if run.run_status == "paused":
+                paused_audit = ProjectAuditEvent(
+                    project_id=run.project_id,
+                    event_type="decision_run_paused",
+                    actor="system",
+                    payload={
+                        "run_id": str(run.id),
+                        "decision_service_id": str(run.decision_service_id),
+                        "current_node_key": run.current_node_key,
+                        "next_node_key": run.next_node_key,
+                        "selected_choice": run.selected_choice,
+                        "supervision_outcome": run.supervision_outcome,
+                    },
+                    created_at=now_ts,
+                )
+                session.add(self._event(paused_audit))
+
+        return run
+
+    async def mark_decision_run_failed(
+        self,
+        project_id: UUID,
+        run_id: UUID,
+        *,
+        operator: str,
+        failure_reason: str,
+    ) -> None:
+        now_ts = datetime.now(UTC)
+        async with self.sessions.begin() as session:
+            cp = await session.scalar(
+                select(DecisionRunCheckpointRow)
+                .where(
+                    DecisionRunCheckpointRow.run_id == str(run_id),
+                    DecisionRunCheckpointRow.project_id == str(project_id),
+                )
+                .with_for_update()
+            )
+            if cp is not None:
+                cp.run_status = "failed"
+                cp.failure_reason = failure_reason
+                cp.updated_at = now_ts
+            failed_audit = ProjectAuditEvent(
+                project_id=project_id,
+                event_type="decision_run_failed",
+                actor=operator,
+                payload={
+                    "run_id": str(run_id),
+                    "failure_reason": failure_reason,
+                },
+                created_at=now_ts,
+            )
+            session.add(self._event(failed_audit))
+
+    async def cancel_decision_run_checkpoint(
+        self,
+        project_id: UUID,
+        run_id: UUID,
+        *,
+        operator: str,
+        reason: str,
+    ) -> DecisionRun:
+        now_ts = datetime.now(UTC)
+        async with self.sessions.begin() as session:
+            run_row = await session.scalar(
+                select(DecisionRunRow).where(
+                    DecisionRunRow.project_id == str(project_id),
+                    DecisionRunRow.id == str(run_id),
+                )
+            )
+            if run_row is None:
+                raise NotFoundError("Decision run not found")
+            cp = await session.scalar(
+                select(DecisionRunCheckpointRow)
+                .where(
+                    DecisionRunCheckpointRow.run_id == str(run_id),
+                    DecisionRunCheckpointRow.project_id == str(project_id),
+                )
+                .with_for_update()
+            )
+            if cp is not None:
+                if cp.run_status == "cancelled":
+                    raise ConflictError("Decision run is already cancelled")
+                if cp.resumed_at is not None or (
+                    cp.run_status == "completed" and cp.supervision_outcome == "TRUSTED"
+                ):
+                    raise ConflictError("Cannot cancel a completed decision run")
+                cp.run_status = "cancelled"
+                cp.cancelled_by = operator
+                cp.cancelled_at = now_ts
+                cp.cancel_reason = reason
+                cp.pending_operation = None
+                cp.next_node_key = None
+                cp.state_snapshot = {**dict(cp.state_snapshot or {}), "status": "cancelled"}
+                cp.updated_at = now_ts
+
+            cancelled_audit = ProjectAuditEvent(
+                project_id=project_id,
+                event_type="decision_run_cancelled",
+                actor=operator,
+                payload={
+                    "run_id": str(run_id),
+                    "cancelled_by": operator,
+                    "reason": reason,
+                },
+                created_at=now_ts,
+            )
+            session.add(self._event(cancelled_audit))
+            base_run = DecisionRun.model_validate(run_row.payload)
+            return self._apply_checkpoint(base_run, cp)
 
     async def _roll_up_usage(self, session: AsyncSession, run: DecisionRun, *, error: bool) -> None:
         usage_date = (
@@ -466,7 +850,8 @@ class SQLProjectRepository:
                 .limit(limit)
                 .offset(offset)
             )
-            return [DecisionRun.model_validate(row.payload) for row in rows]
+            runs = [DecisionRun.model_validate(row.payload) for row in rows]
+            return await self._overlay_checkpoints(session, runs)
 
     async def get_decision_run(self, project_id: UUID, run_id: UUID) -> DecisionRun:
         async with self.sessions() as session:
@@ -478,7 +863,9 @@ class SQLProjectRepository:
             )
             if row is None:
                 raise NotFoundError("Decision run not found")
-            return DecisionRun.model_validate(row.payload)
+            run = DecisionRun.model_validate(row.payload)
+            overlaid = await self._overlay_checkpoints(session, [run])
+            return overlaid[0]
 
     async def list_runs_for_service(
         self, project_id: UUID, service_id: UUID, limit: int = 50
@@ -493,7 +880,8 @@ class SQLProjectRepository:
                 .order_by(DecisionRunRow.created_at.desc(), DecisionRunRow.id.desc())
                 .limit(limit)
             )
-            return [DecisionRun.model_validate(row.payload) for row in rows]
+            runs = [DecisionRun.model_validate(row.payload) for row in rows]
+            return await self._overlay_checkpoints(session, runs)
 
     async def count_decision_runs(self, project_id: UUID) -> int:
         async with self.sessions() as session:
@@ -511,7 +899,8 @@ class SQLProjectRepository:
             rows = await session.scalars(
                 select(DecisionRunRow).where(DecisionRunRow.project_id == str(project_id))
             )
-            return [DecisionRun.model_validate(row.payload) for row in rows]
+            runs = [DecisionRun.model_validate(row.payload) for row in rows]
+            return await self._overlay_checkpoints(session, runs)
 
     async def save_choice_candidate(
         self, candidate: ChoiceCandidate, event: ProjectAuditEvent

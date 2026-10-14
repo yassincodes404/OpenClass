@@ -71,48 +71,68 @@ class RawEvent(Model):
         return self
 
 
+AuditEventType = Literal[
+    "project.created",
+    "project.updated",
+    "evidence.created",
+    "evidence.triaged",
+    "evidence.resolved",
+    "evidence.dismissed",
+    "evidence.ready_for_evolution",
+    "evidence.grouped",
+    "evidence.ungrouped",
+    "feedback.submitted",
+    "evidence_case.created",
+    "evidence_case.updated",
+    "choice_candidate.created",
+    "choice_candidate.rejected",
+    "choice_candidate.promoted",
+    "decision_service.created",
+    "decision_service.updated",
+    "decision_run_paused",
+    "decision_run_resumed",
+    "decision_run_cancelled",
+    "decision_run_failed",
+    "decision_run.paused",
+    "decision_run.resumed",
+    "decision_run.cancelled",
+    "decision_run.failed",
+    "integration.created",
+    "integration.updated",
+    "integration.tested",
+    "integration.deleted",
+    "integration.webhook_ingested",
+    "unknown.triaged",
+    "unknown.transitioned",
+    "cluster.updated",
+    "candidate.created",
+    "candidate.updated",
+    "candidate.rejected",
+    "evaluation.dataset_created",
+    "evaluation.dataset_sealed",
+    "evaluation.completed",
+    "quality.alert",
+]
+
+DecisionRunStatus = Literal["completed", "paused", "resumed", "cancelled", "failed"]
+
+
 class ProjectAuditEvent(Model):
     """Append-only record of a human-visible project change."""
 
     id: UUID = Field(default_factory=uuid4)
     project_id: UUID
-    event_type: Literal[
-        "project.created",
-        "project.updated",
-        "evidence.created",
-        "evidence.triaged",
-        "evidence.resolved",
-        "evidence.dismissed",
-        "evidence.ready_for_evolution",
-        "evidence.grouped",
-        "evidence.ungrouped",
-        "feedback.submitted",
-        "evidence_case.created",
-        "evidence_case.updated",
-        "choice_candidate.created",
-        "choice_candidate.rejected",
-        "choice_candidate.promoted",
-        "decision_service.created",
-        "decision_service.updated",
-        "integration.created",
-        "integration.updated",
-        "integration.tested",
-        "integration.deleted",
-        "integration.webhook_ingested",
-        "unknown.triaged",
-        "unknown.transitioned",
-        "cluster.updated",
-        "candidate.created",
-        "candidate.updated",
-        "candidate.rejected",
-        "evaluation.dataset_created",
-        "evaluation.dataset_sealed",
-        "evaluation.completed",
-        "quality.alert",
-    ]
+    event_type: AuditEventType
     actor: str = Field(min_length=1, max_length=80)
     payload: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now)
+
+
+class DecisionServiceTransition(Model):
+    from_node_key: str = Field(min_length=1, max_length=200)
+    choice_key: str = Field(min_length=1, max_length=120)
+    to_node_key: str = Field(min_length=1, max_length=200)
+    require_approval: bool = False
 
 
 class DecisionServiceChoice(Model):
@@ -154,6 +174,7 @@ class DecisionServiceNode(Model):
     risk_level: Literal["ordinary", "high"] = "ordinary"
     min_margin: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
     max_unknown_probability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    pause_on_review: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -191,6 +212,7 @@ class DecisionService(Model):
     description: str = Field(default="", max_length=2000)
     instructions: str = Field(min_length=1, max_length=4000)
     nodes: tuple[DecisionServiceNode, ...] = Field(min_length=1)
+    transitions: tuple[DecisionServiceTransition, ...] = ()
     status: DecisionServiceStatus = DecisionServiceStatus.ACTIVE
     provider_override: str | None = None
     version_number: int = Field(default=1, ge=1)
@@ -211,6 +233,8 @@ class DecisionServiceUpdate(Model):
     instructions: str | None = Field(default=None, max_length=4000)
     status: DecisionServiceStatus | None = None
     provider_override: str | None = None
+    nodes: tuple[DecisionServiceNode, ...] | None = None
+    transitions: tuple[DecisionServiceTransition, ...] | None = None
 
     @model_validator(mode="after")
     def has_changes(self) -> "DecisionServiceUpdate":
@@ -220,9 +244,38 @@ class DecisionServiceUpdate(Model):
             and self.instructions is None
             and self.status is None
             and self.provider_override is None
+            and self.nodes is None
+            and self.transitions is None
         ):
             raise ValueError("update must change at least one field")
         return self
+
+
+class DecisionRunCheckpoint(Model):
+    run_id: UUID
+    project_id: UUID
+    decision_service_id: UUID
+    run_status: DecisionRunStatus = "completed"
+    current_node_key: str | None = None
+    next_node_key: str | None = None
+    selected_choice: str
+    supervision_outcome: Literal["TRUSTED", "REVIEW", "UNKNOWN"]
+    supervision_reason: str = ""
+    completed_steps: list[dict[str, Any]] = Field(default_factory=list)
+    state_snapshot: dict[str, Any] = Field(default_factory=dict)
+    pinned_version_id: UUID | None = None
+    pinned_version_number: int = 1
+    pinned_service_hash: str | None = None
+    pending_operation: dict[str, Any] | None = None
+    latency_ms: float = 0.0
+    resumed_by: str | None = None
+    resumed_at: datetime | None = None
+    resume_rationale: str | None = None
+    cancelled_by: str | None = None
+    cancelled_at: datetime | None = None
+    cancel_reason: str | None = None
+    failure_reason: str | None = None
+    updated_at: datetime = Field(default_factory=now)
 
 
 class DecisionRun(Model):
@@ -257,6 +310,22 @@ class DecisionRun(Model):
     choices_snapshot: list[dict[str, Any]]
     steps: list[dict[str, Any]] = Field(default_factory=list)
     state_snapshot: dict[str, Any] = Field(default_factory=dict)
+
+    run_status: DecisionRunStatus = "completed"
+    current_node_key: str | None = None
+    next_node_key: str | None = None
+    completed_steps: list[dict[str, Any]] = Field(default_factory=list)
+    pinned_version_id: UUID | None = None
+    pinned_version_number: int = 1
+    pinned_service_hash: str | None = None
+    pending_operation: dict[str, Any] | None = None
+    resumed_by: str | None = None
+    resumed_at: datetime | None = None
+    resume_rationale: str | None = None
+    cancelled_by: str | None = None
+    cancelled_at: datetime | None = None
+    cancel_reason: str | None = None
+    failure_reason: str | None = None
 
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now)
@@ -638,51 +707,111 @@ class ProjectService:
         project = await self.repository.get_project(identifier)
         return await self.repository.get_raw_event(project.id, event_id)
 
+    @staticmethod
+    def _build_choice(c: DecisionServiceChoice | dict[str, Any]) -> DecisionServiceChoice:
+        if isinstance(c, DecisionServiceChoice):
+            return c
+        key = str(c.get("key", "")).strip().upper()
+        if not key:
+            raise ValueError("choice key is required")
+        raw_aliases = c.get("aliases") or ()
+        aliases = tuple(
+            str(a).strip()
+            for a in raw_aliases
+            if isinstance(a, (str, int, float)) and str(a).strip()
+        )
+        raw_target_id = c.get("target_node_id")
+        target_node_id = (
+            raw_target_id
+            if isinstance(raw_target_id, UUID)
+            else UUID(str(raw_target_id))
+            if raw_target_id
+            else None
+        )
+        raw_target_name = c.get("target_node_name")
+        target_node_name = str(raw_target_name).strip() if raw_target_name else None
+        return DecisionServiceChoice(
+            key=key,
+            label=str(c.get("label") or key).strip(),
+            description=str(c.get("description") or "").strip(),
+            aliases=aliases,
+            target_node_id=target_node_id,
+            target_node_name=target_node_name,
+        )
+
+    @classmethod
+    def _build_node(
+        cls, n: DecisionServiceNode | dict[str, Any], default_instructions: str
+    ) -> DecisionServiceNode:
+        if isinstance(n, DecisionServiceNode):
+            return n
+        raw_choices = n.get("choices") or []
+        if not raw_choices:
+            raise ValueError("at least one choice must be defined in node")
+        choice_objs = [cls._build_choice(c) for c in raw_choices]
+        if not any(c.key == "UNKNOWN" for c in choice_objs):
+            choice_objs.append(UNKNOWN_CHOICE)
+        node_kwargs: dict[str, Any] = {
+            "name": str(n.get("name") or "default").strip(),
+            "instructions": str(n.get("instructions") or default_instructions).strip(),
+            "choices": tuple(choice_objs),
+            "risk_level": n.get("risk_level") or "ordinary",
+            "min_margin": n.get("min_margin"),
+            "max_unknown_probability": n.get("max_unknown_probability"),
+            "pause_on_review": bool(n.get("pause_on_review", False)),
+        }
+        if n.get("id") is not None:
+            node_kwargs["id"] = n["id"] if isinstance(n["id"], UUID) else UUID(str(n["id"]))
+        return DecisionServiceNode(**node_kwargs)
+
+    @staticmethod
+    def _build_transition(
+        t: DecisionServiceTransition | dict[str, Any],
+    ) -> DecisionServiceTransition:
+        if isinstance(t, DecisionServiceTransition):
+            return t
+        return DecisionServiceTransition(
+            from_node_key=str(t.get("from_node_key") or "").strip(),
+            choice_key=str(t.get("choice_key") or "").strip().upper(),
+            to_node_key=str(t.get("to_node_key") or "").strip(),
+            require_approval=bool(t.get("require_approval", False)),
+        )
+
     async def create_decision_service(
         self,
         identifier: str,
         name: str,
         instructions: str,
-        choices: list[dict[str, Any]],
+        choices: list[dict[str, Any]] | None = None,
         description: str = "",
         provider_override: str | None = None,
+        *,
+        nodes: list[dict[str, Any]] | tuple[DecisionServiceNode, ...] | None = None,
+        transitions: list[dict[str, Any]] | tuple[DecisionServiceTransition, ...] = (),
     ) -> DecisionService:
         project = await self.repository.get_project(identifier)
         if not name.strip():
             raise ValueError("decision service name is required")
         if not instructions.strip():
             raise ValueError("decision service instructions are required")
-        if not choices:
-            raise ValueError("at least one choice must be defined")
 
-        choice_objs: list[DecisionServiceChoice] = []
-        for c in choices:
-            if isinstance(c, DecisionServiceChoice):
-                choice_objs.append(c)
-            else:
-                key = str(c.get("key", "")).strip().upper()
-                if not key:
-                    raise ValueError("choice key is required")
-                raw_aliases = c.get("aliases") or ()
-                aliases = tuple(
-                    str(a).strip()
-                    for a in raw_aliases
-                    if isinstance(a, (str, int, float)) and str(a).strip()
-                )
-                choice_objs.append(
-                    DecisionServiceChoice(
-                        key=key,
-                        label=str(c.get("label") or key).strip(),
-                        description=str(c.get("description") or "").strip(),
-                        aliases=aliases,
-                    )
-                )
+        if nodes:
+            node_objs = tuple(self._build_node(n, instructions.strip()) for n in nodes)
+        else:
+            if not choices:
+                raise ValueError("at least one choice must be defined")
+            choice_objs = [self._build_choice(c) for c in choices]
+            if not any(c.key == "UNKNOWN" for c in choice_objs):
+                choice_objs.append(UNKNOWN_CHOICE)
+            node_objs = (
+                DecisionServiceNode(
+                    name="default",
+                    instructions=instructions.strip(),
+                    choices=tuple(choice_objs),
+                ),
+            )
 
-        node = DecisionServiceNode(
-            name="default",
-            instructions=instructions.strip(),
-            choices=tuple(choice_objs),
-        )
+        transition_objs = tuple(self._build_transition(t) for t in (transitions or ()))
 
         slug_candidate = slugify(name)
         service = DecisionService(
@@ -691,7 +820,8 @@ class ProjectService:
             name=name.strip(),
             description=description.strip(),
             instructions=instructions.strip(),
-            nodes=(node,),
+            nodes=node_objs,
+            transitions=transition_objs,
             provider_override=provider_override,
             version_number=1,
             active_version_id=uuid4(),
@@ -726,10 +856,16 @@ class ProjectService:
             if update.instructions != service.instructions:
                 version_bump = True
             updates["instructions"] = update.instructions
-            if len(service.nodes) == 1:
+            if len(service.nodes) == 1 and update.nodes is None:
                 updates["nodes"] = (
                     service.nodes[0].model_copy(update={"instructions": update.instructions}),
                 )
+        if update.nodes is not None:
+            updates["nodes"] = update.nodes
+            version_bump = True
+        if update.transitions is not None:
+            updates["transitions"] = update.transitions
+            version_bump = True
         if update.status is not None:
             updates["status"] = update.status
         if update.provider_override is not None:

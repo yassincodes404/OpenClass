@@ -124,6 +124,8 @@ class DecisionChoiceCreate(Model):
     label: str = Field(min_length=1, max_length=200)
     description: str = Field(default="", max_length=1000)
     aliases: list[str] = Field(default_factory=list)
+    target_node_id: UUID | None = None
+    target_node_name: str | None = None
 
     @model_validator(mode="after")
     def clean_choice(self) -> "DecisionChoiceCreate":
@@ -137,10 +139,33 @@ class DecisionChoiceCreate(Model):
         return self
 
 
+DecisionChoiceSpec = DecisionChoiceCreate
+
+
+class DecisionServiceNodeCreate(Model):
+    id: UUID | None = None
+    name: str = Field(min_length=1, max_length=100)
+    instructions: str = Field(min_length=1, max_length=2000)
+    choices: list[DecisionChoiceCreate] = Field(min_length=1, max_length=50)
+    risk_level: Literal["ordinary", "high"] = "ordinary"
+    min_margin: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    max_unknown_probability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
+    pause_on_review: bool = False
+
+
+class DecisionServiceTransitionCreate(Model):
+    from_node_key: str = Field(min_length=1, max_length=200)
+    choice_key: str = Field(min_length=1, max_length=120)
+    to_node_key: str = Field(min_length=1, max_length=200)
+    require_approval: bool = False
+
+
 class DecisionServiceCreate(Model):
     name: str = Field(min_length=1, max_length=200)
     instructions: str = Field(min_length=1, max_length=4000)
-    choices: list[DecisionChoiceCreate] = Field(min_length=1)
+    choices: list[DecisionChoiceCreate] = Field(default_factory=list)
+    nodes: list[DecisionServiceNodeCreate] | None = None
+    transitions: list[DecisionServiceTransitionCreate] = Field(default_factory=list)
     description: str = Field(default="", max_length=2000)
     provider_override: str | None = None
 
@@ -150,6 +175,8 @@ class DecisionServiceCreate(Model):
             raise ValueError("service name is required")
         if not self.instructions.strip():
             raise ValueError("instructions are required")
+        if not self.choices and not self.nodes:
+            raise ValueError("choices or nodes are required")
         object.__setattr__(self, "name", self.name.strip())
         object.__setattr__(self, "instructions", self.instructions.strip())
         object.__setattr__(self, "description", self.description.strip())
@@ -162,6 +189,8 @@ class DecisionServiceUpdateSchema(Model):
     instructions: str | None = Field(default=None, max_length=4000)
     status: Literal["active", "draft", "archived"] | None = None
     provider_override: str | None = None
+    nodes: list[DecisionServiceNodeCreate] | None = None
+    transitions: list[DecisionServiceTransitionCreate] | None = None
 
     @model_validator(mode="after")
     def has_changes(self) -> "DecisionServiceUpdateSchema":
@@ -171,6 +200,8 @@ class DecisionServiceUpdateSchema(Model):
             and self.instructions is None
             and self.status is None
             and self.provider_override is None
+            and self.nodes is None
+            and self.transitions is None
         ):
             raise ValueError("update must change at least one field")
         return self
