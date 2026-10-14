@@ -649,3 +649,297 @@ class OpenClass:
 
     def system_health(self) -> dict[str, Any]:
         return dict(self._request("GET", "/api/v1/system/health"))
+
+    # ── Phase 05–16: Unknowns, Clustering, Discovery, Evaluation, Ontology & Ops ──
+
+    def project_unknowns(
+        self,
+        project: str,
+        *,
+        state: str | None = None,
+        category: str | None = None,
+        query: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if state is not None:
+            params["state"] = state
+        if category is not None:
+            params["category"] = category
+        if query is not None:
+            params["query"] = query
+        return dict(self._request("GET", f"/api/v1/projects/{p}/unknowns", params=params))
+
+    def project_unknown_stats(self, project: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/unknowns/stats"))
+
+    def project_unknown(self, project: str, run_id: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        rid = quote(run_id, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/unknowns/{rid}"))
+
+    def triage_project_unknown(
+        self,
+        project: str,
+        run_id: str,
+        *,
+        category: str,
+        assignee: str | None = None,
+        note: str | None = None,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        rid = quote(run_id, safe="")
+        body: dict[str, Any] = {"category": category}
+        if assignee is not None:
+            body["assignee"] = assignee
+        if note is not None:
+            body["note"] = note
+        return dict(self._request("POST", f"/api/v1/projects/{p}/unknowns/{rid}/triage", body))
+
+    def transition_project_unknown(
+        self, project: str, run_id: str, *, to: str
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        rid = quote(run_id, safe="")
+        return dict(
+            self._request("POST", f"/api/v1/projects/{p}/unknowns/{rid}/transition", {"to": to})
+        )
+
+    def cluster_unknowns(
+        self,
+        project: str,
+        *,
+        threshold: float | None = None,
+        limit: int | None = None,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        body: dict[str, Any] = {}
+        if threshold is not None:
+            body["threshold"] = threshold
+        if limit is not None:
+            body["limit"] = limit
+        return dict(self._request("POST", f"/api/v1/projects/{p}/unknowns/cluster", body))
+
+    def clusters(self, project: str) -> list[dict[str, Any]]:
+        p = quote(project, safe="")
+        return list(self._request("GET", f"/api/v1/projects/{p}/unknowns/clusters"))
+
+    def cluster(self, project: str, cluster_id: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        cid = quote(cluster_id, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/unknowns/clusters/{cid}"))
+
+    def discover_cluster(self, project: str, cluster_id: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        cid = quote(cluster_id, safe="")
+        return dict(self._request("POST", f"/api/v1/projects/{p}/clusters/{cid}/discover", {}))
+
+    def discovery_candidates(self, project: str) -> list[dict[str, Any]]:
+        p = quote(project, safe="")
+        return list(self._request("GET", f"/api/v1/projects/{p}/discovery-candidates"))
+
+    def discovery_candidate(self, project: str, candidate_id: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        cid = quote(candidate_id, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/discovery-candidates/{cid}"))
+
+    def discovery_candidate_action(
+        self,
+        project: str,
+        candidate_id: str,
+        action: str,
+        *,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        cid = quote(candidate_id, safe="")
+        act = quote(action, safe="")
+        return dict(
+            self._request(
+                "POST",
+                f"/api/v1/projects/{p}/discovery-candidates/{cid}/{act}",
+                body or {},
+            )
+        )
+
+    def discovery_candidate_history(
+        self, project: str, candidate_id: str
+    ) -> list[dict[str, Any]]:
+        p = quote(project, safe="")
+        cid = quote(candidate_id, safe="")
+        return list(
+            self._request("GET", f"/api/v1/projects/{p}/discovery-candidates/{cid}/history")
+        )
+
+    def eval_datasets(self, project: str) -> list[dict[str, Any]]:
+        p = quote(project, safe="")
+        return list(self._request("GET", f"/api/v1/projects/{p}/eval-datasets"))
+
+    def create_eval_dataset(
+        self, project: str, *, name: str, description: str = ""
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(
+            self._request(
+                "POST",
+                f"/api/v1/projects/{p}/eval-datasets",
+                {"name": name, "description": description},
+            )
+        )
+
+    def eval_dataset(self, project: str, dataset_id: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        did = quote(dataset_id, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/eval-datasets/{did}"))
+
+    def add_eval_example(
+        self,
+        project: str,
+        dataset_id: str,
+        *,
+        content: str,
+        expected_choice: str,
+        split: str = "dev",
+        source_type: str = "verified_manual",
+        verified_by: str = "operator",
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        did = quote(dataset_id, safe="")
+        body: dict[str, Any] = {
+            "content": content,
+            "expected_choice": expected_choice,
+            "split": split,
+            "source_type": source_type,
+            "verified_by": verified_by,
+        }
+        if run_id is not None:
+            body["run_id"] = run_id
+        return dict(
+            self._request("POST", f"/api/v1/projects/{p}/eval-datasets/{did}/examples", body)
+        )
+
+    def seal_eval_dataset(self, project: str, dataset_id: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        did = quote(dataset_id, safe="")
+        return dict(
+            self._request("POST", f"/api/v1/projects/{p}/eval-datasets/{did}/seal", {})
+        )
+
+    def run_evaluation(
+        self,
+        project: str,
+        *,
+        dataset_id: str,
+        candidate_id: str,
+        service_id: str | None = None,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        body: dict[str, Any] = {"dataset_id": dataset_id, "candidate_id": candidate_id}
+        if service_id is not None:
+            body["service_id"] = service_id
+        return dict(self._request("POST", f"/api/v1/projects/{p}/evaluations", body))
+
+    def evaluations(self, project: str) -> list[dict[str, Any]]:
+        p = quote(project, safe="")
+        return list(self._request("GET", f"/api/v1/projects/{p}/evaluations"))
+
+    def evaluation(self, project: str, evaluation_id: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        eid = quote(evaluation_id, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/evaluations/{eid}"))
+
+    def promote_discovery_candidate(
+        self,
+        project: str,
+        candidate_id: str,
+        *,
+        evaluation_id: str,
+        reviewer: str,
+        rationale: str,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        cid = quote(candidate_id, safe="")
+        return dict(
+            self._request(
+                "POST",
+                f"/api/v1/projects/{p}/discovery-candidates/{cid}/promote",
+                {
+                    "evaluation_id": evaluation_id,
+                    "reviewer": reviewer,
+                    "rationale": rationale,
+                },
+            )
+        )
+
+    def project_ontology(self, project: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/ontology"))
+
+    def project_ontology_diff(
+        self, project: str, *, from_version: int, to_version: int
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(
+            self._request(
+                "GET",
+                f"/api/v1/projects/{p}/ontology/diff",
+                params={"from_version": from_version, "to_version": to_version},
+            )
+        )
+
+    def rollback_project_ontology(
+        self, project: str, *, from_version: int, rationale: str
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(
+            self._request(
+                "POST",
+                f"/api/v1/projects/{p}/ontology/rollback",
+                {"from_version": from_version, "rationale": rationale},
+            )
+        )
+
+    def operations_summary(self, project: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(self._request("GET", f"/api/v1/projects/{p}/analytics/summary"))
+
+    def alert_rules(self, project: str) -> list[dict[str, Any]]:
+        p = quote(project, safe="")
+        return list(self._request("GET", f"/api/v1/projects/{p}/alerts/rules"))
+
+    def create_alert_rule(
+        self,
+        project: str,
+        *,
+        name: str,
+        metric: str,
+        operator: str,
+        threshold: float,
+    ) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(
+            self._request(
+                "POST",
+                f"/api/v1/projects/{p}/alerts/rules",
+                {
+                    "name": name,
+                    "metric": metric,
+                    "operator": operator,
+                    "threshold": threshold,
+                },
+            )
+        )
+
+    def evaluate_alerts(self, project: str) -> dict[str, Any]:
+        p = quote(project, safe="")
+        return dict(self._request("POST", f"/api/v1/projects/{p}/alerts/evaluate", {}))
+
+    def ops_events(self, project: str, *, after: str | None = None) -> list[dict[str, Any]]:
+        p = quote(project, safe="")
+        params = {"after": after} if after is not None else None
+        return list(self._request("GET", f"/api/v1/projects/{p}/ops/events", params=params))
+
