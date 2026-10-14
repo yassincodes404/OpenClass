@@ -16,6 +16,7 @@ from .gateway import (
     GatewayEmbedder,
 )
 from .project_teacher import OpenAICompatibleChoiceTeacher
+from .supervisor import OpenAICompatibleSupervisorProvider
 
 __all__ = [
     "GLMDiscoveryProvider",
@@ -25,6 +26,7 @@ __all__ = [
     "GatewayEmbedder",
     "OpenAICompatibleChoiceTeacher",
     "OpenAICompatibleDiagnosisProvider",
+    "OpenAICompatibleSupervisorProvider",
 ]
 
 

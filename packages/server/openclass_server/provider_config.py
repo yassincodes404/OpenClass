@@ -16,6 +16,7 @@ from openclass_provider_glm import (
     GLMDiscoveryProvider,
     OpenAICompatibleChoiceTeacher,
     OpenAICompatibleDiagnosisProvider,
+    OpenAICompatibleSupervisorProvider,
 )
 from openclass_provider_jev import JevDecisionProvider
 from openclass_provider_laya import LayaDecisionProvider
@@ -117,8 +118,25 @@ def cluster_discovery_provider(
 
 
 def supervisor_provider(settings: Settings) -> SupervisorProvider:
-    # Settings rejects unsupported supervisor providers, including GLM for this stage.
-    return MockSupervisorProvider()
+    if settings.supervisor_provider == "mock":
+        return MockSupervisorProvider()
+    default_url = (
+        "https://ai-gateway.vercel.sh/v1"
+        if settings.supervisor_provider == "openai-compatible"
+        else "https://api.z.ai/api/paas/v4"
+    )
+    default_model = (
+        "alibaba/qwen-3-32b"
+        if settings.supervisor_provider == "openai-compatible"
+        else "glm-5.3-flash"
+    )
+    return OpenAICompatibleSupervisorProvider(
+        api_key=gateway_key(settings),
+        base_url=settings.discovery_base_url or settings.glm_base_url or default_url,
+        model=settings.discovery_model or settings.glm_model or default_model,
+        provider_name=settings.supervisor_provider,
+        timeout=settings.discovery_timeout_seconds,
+    )
 
 
 def discovery_provider(settings: Settings) -> DiscoveryProvider:

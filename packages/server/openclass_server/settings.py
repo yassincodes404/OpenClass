@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 30)
     novelty: NoveltyPolicy = NoveltyPolicy()
     decision_provider: Literal["mock", "jev", "laya", "openai-compatible"] = "laya"
-    supervisor_provider: Literal["mock"] = "mock"
+    supervisor_provider: Literal["mock", "glm", "openai-compatible"] = "mock"
     discovery_provider: Literal["mock", "glm", "openai-compatible"] = "mock"
     embedding_provider: Literal["hash-lexical", "openai-compatible"] = "hash-lexical"
     embedding_model: Literal["openai/text-embedding-3-small", "cohere/embed-v4.0"] = (
@@ -61,6 +61,7 @@ class Settings(BaseSettings):
             raise ValueError("Jev requires OPENCLASS_JEV_API_KEY")
         if (
             self.discovery_provider in {"glm", "openai-compatible"}
+            or self.supervisor_provider in {"glm", "openai-compatible"}
             or self.decision_provider == "openai-compatible"
             or self.embedding_provider == "openai-compatible"
         ):
@@ -72,6 +73,7 @@ class Settings(BaseSettings):
                     if "openai-compatible"
                     in {
                         self.discovery_provider,
+                        self.supervisor_provider,
                         self.decision_provider,
                         self.embedding_provider,
                     }
@@ -79,5 +81,5 @@ class Settings(BaseSettings):
                 )
             )
             if not key:
-                raise ValueError("Discovery requires an API key")
+                raise ValueError("Configured LLM provider requires an API key")
         return self

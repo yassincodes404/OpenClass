@@ -17,9 +17,13 @@ from pydantic import Field, model_validator
 from .decision import (
     Capability,
     Choice,
+    DecisionNode,
+    Macro,
+    PolicyGraph,
     Predicate,
     SourceAvailability,
     StateFeature,
+    StateSchema,
     StateSource,
     Step,
     content_digest,
@@ -245,3 +249,110 @@ def derive_state_feature(
 
 def candidate_content_hash(envelope: CandidateEnvelope) -> str:
     return content_digest(envelope.model_dump(mode="json"))
+
+
+def apply_candidate(
+    graph: PolicyGraph,
+    envelope: CandidateEnvelope,
+    *,
+    layer: FailureLayer | None = None,
+    capabilities: tuple[Capability, ...] = (),
+    state_sources: tuple[StateSource, ...] = (),
+) -> PolicyGraph:
+    """Create an inactive evaluation copy of a PolicyGraph from a CandidateEnvelope."""
+    if envelope.base_policy_hash != graph.content_hash:
+        raise ValueError("stale candidate base")
+    proposal = envelope.proposal
+    if layer is not None and not proposal.permitted_for(layer):
+        raise ValueError("candidate changes the wrong diagnosed layer")
+
+    if proposal.operator in {
+        EvolutionOperator.NO_CHANGE,
+        EvolutionOperator.MISSING_CAPABILITY,
+        EvolutionOperator.INSUFFICIENT_EVIDENCE,
+    }:
+        return graph
+
+    nodes = list(graph.nodes)
+    macros = list(graph.macros)
+    schema = graph.state_schema
+
+    if proposal.operator in {
+        EvolutionOperator.ADD_CHOICE,
+        EvolutionOperator.GENERALIZE_CHOICE,
+    }:
+        node_index = next(
+            (i for i, n in enumerate(nodes) if n.id == proposal.target_id), None
+        )
+        if node_index is None or proposal.choice is None:
+            raise ValueError("missing target node")
+        node = nodes[node_index]
+        choices = list(node.choices)
+        existing = next(
+            (i for i, c in enumerate(choices) if c.id == proposal.choice.id), None
+        )
+        if proposal.operator == EvolutionOperator.ADD_CHOICE:
+            if existing is not None:
+                raise ValueError("choice already exists")
+            choices.append(proposal.choice)
+        else:
+            if existing is None:
+                raise ValueError("missing choice to generalize")
+            old = choices[existing]
+            if (old.target_id, old.target_kind) != (
+                proposal.choice.target_id,
+                proposal.choice.target_kind,
+            ):
+                raise ValueError(
+                    "semantic repair cannot change a working procedure target"
+                )
+            choices[existing] = proposal.choice
+        nodes[node_index] = DecisionNode.model_validate(
+            {**node.model_dump(), "choices": choices}
+        )
+    elif proposal.operator == EvolutionOperator.ADD_STATE_FEATURE:
+        if proposal.target_id != schema.id or proposal.feature is None:
+            raise ValueError("missing target schema")
+        derived = derive_state_feature(proposal.feature, state_sources)
+        schema = StateSchema(
+            id=schema.id,
+            version=schema.version + 1,
+            features=(*schema.features, derived),
+        )
+    else:
+        macro_index = next(
+            (i for i, m in enumerate(macros) if m.id == proposal.target_id), None
+        )
+        if macro_index is None:
+            raise ValueError("missing target macro")
+        macro = macros[macro_index]
+        field = {
+            EvolutionOperator.REPLACE_PROCEDURE: "steps",
+            EvolutionOperator.CHANGE_PRECONDITION: "preconditions",
+            EvolutionOperator.CHANGE_POSTCONDITION: "postconditions",
+            EvolutionOperator.CHANGE_SAFETY_GUARD: "safety_guards",
+        }[proposal.operator]
+        value = proposal.steps if field == "steps" else proposal.predicates
+        if field == "steps":
+            catalog = {c.id: c for c in capabilities}
+            for step in proposal.steps or ():
+                if step.capability not in catalog:
+                    raise ValueError("MISSING_CAPABILITY")
+                catalog[step.capability].validate_step(step)
+        if field == "safety_guards" and not all(
+            p in (value or ()) for p in macro.safety_guards
+        ):
+            raise ValueError("Teacher may not remove existing safety guards")
+        macros[macro_index] = Macro.model_validate({**macro.model_dump(), field: value})
+
+    return PolicyGraph(
+        id=graph.id,
+        version=graph.version + 1,
+        parent_hash=graph.content_hash,
+        state_schema=schema,
+        entry_node=graph.entry_node,
+        nodes=tuple(nodes),
+        macros=tuple(macros),
+        goal=graph.goal,
+    )
+
