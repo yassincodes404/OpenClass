@@ -84,3 +84,32 @@ def test_openai_compatible_discovery_and_teacher_defaults(monkeypatch) -> None:
     assert isinstance(teacher, OpenAICompatibleChoiceTeacher)
     assert isinstance(diag, OpenAICompatibleDiagnosisProvider)
     assert teacher.url.startswith("https://ai-gateway.vercel.sh/v1")
+
+
+def test_auth_required_and_internal_token_verification() -> None:
+    from openclass_server.security import is_public_engine_path, verify_internal_token
+
+    with pytest.raises(ValidationError):
+        Settings(auth_required=True)
+
+    config = Settings(auth_required=True, internal_token=SecretStr("internal-secret-token"))
+    assert "internal-secret-token" not in repr(config) + config.model_dump_json()
+    assert verify_internal_token("internal-secret-token", "internal-secret-token") is True
+    assert verify_internal_token("Bearer internal-secret-token", "internal-secret-token") is True
+    assert verify_internal_token("wrong-token", "internal-secret-token") is False
+    assert verify_internal_token(None, "internal-secret-token") is False
+    assert verify_internal_token("internal-secret-token", "") is False
+    assert is_public_engine_path("/health", "GET") is True
+    assert is_public_engine_path("/health/ready", "GET") is True
+    assert (
+        is_public_engine_path(
+            "/api/v1/projects/demo/integrations/int-1/webhook", "POST"
+        )
+        is True
+    )
+    assert (
+        is_public_engine_path("/api/v1/projects/demo/webhooks/github", "POST")
+        is True
+    )
+    assert is_public_engine_path("/api/v1/projects", "GET") is False
+

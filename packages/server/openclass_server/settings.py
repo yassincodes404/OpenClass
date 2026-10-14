@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     database_connect_timeout: float = Field(default=5, gt=0, le=60)
     redaction_enabled: bool = True
     redaction_blocklist: str = ""
+    auth_required: bool = False
+    internal_token: SecretStr = Field(default=SecretStr(""), repr=False, exclude=True)
     rate_limits_enabled: bool = True
     rate_limit_ingest_per_minute: int = Field(default=60, ge=1)
     rate_limit_classify_per_minute: int = Field(default=300, ge=1)
@@ -52,6 +54,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def configured_provider(self) -> "Settings":
+        if self.auth_required and not self.internal_token.get_secret_value().strip():
+            raise ValueError("OPENCLASS_AUTH_REQUIRED requires OPENCLASS_INTERNAL_TOKEN")
         if self.jev_base_url not in {
             "https://api.typesafe.ai",
             "https://ai-gateway.vercel.sh/typesafe",

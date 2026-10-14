@@ -72,3 +72,50 @@ def test_provider_errors_are_safe_and_do_not_persist_runs(
             ]
             assert "sensitive" not in str(events)
             assert client.get(f"/api/v1/classifiers/test-{index}/runs").json() == []
+
+
+def test_internal_token_authentication_and_workspace_headers(database_url: str) -> None:
+    from pydantic import SecretStr
+
+    config = Settings(
+        database_url=database_url,
+        decision_provider="mock",
+        auth_required=True,
+        internal_token=SecretStr("engine-shared-secret"),
+    )
+    with TestClient(create_app(config)) as authed_client:
+        # Public probes remain accessible without internal token
+        assert authed_client.get("/health").status_code == 200
+        assert authed_client.get("/health/ready").status_code == 200
+
+        # Unauthenticated API calls are rejected with 401
+        unauth = authed_client.get("/api/v1/projects")
+        assert unauth.status_code == 401
+        assert "Valid internal authentication token" in unauth.json()["detail"]
+
+        # Wrong token is rejected with 401
+        wrong = authed_client.get(
+            "/api/v1/projects",
+            headers={"X-OpenClass-Internal-Token": "wrong-secret"},
+        )
+        assert wrong.status_code == 401
+
+        # Valid X-OpenClass-Internal-Token succeeds and echoes X-OpenClass-Workspace-Id
+        ok = authed_client.get(
+            "/api/v1/projects",
+            headers={
+                "X-OpenClass-Internal-Token": "engine-shared-secret",
+                "X-OpenClass-Workspace-Id": "ws-tenant-alpha",
+                "X-OpenClass-Actor": "operator@example.com",
+            },
+        )
+        assert ok.status_code == 200
+        assert ok.headers.get("X-OpenClass-Workspace-Id") == "ws-tenant-alpha"
+
+        # Valid Bearer token also succeeds
+        bearer_ok = authed_client.get(
+            "/api/v1/projects",
+            headers={"Authorization": "Bearer engine-shared-secret"},
+        )
+        assert bearer_ok.status_code == 200
+

@@ -223,7 +223,12 @@ def project_diagnosis_provider(settings: Settings) -> DiagnosisProvider:
 
 
 def reject_credentials(value: Any, settings: Settings) -> None:
-    for secret in (settings.jev_api_key, settings.glm_api_key, settings.discovery_api_key):
+    for secret in (
+        settings.jev_api_key,
+        settings.glm_api_key,
+        settings.discovery_api_key,
+        settings.internal_token,
+    ):
         key = secret.get_secret_value()
         if contains_secret(value, key):
             raise HTTPException(status_code=422, detail="Input contains a configured credential")
