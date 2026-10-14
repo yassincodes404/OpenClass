@@ -203,7 +203,7 @@ class DecisionExecutor:
                 )
                 context_lines.append(f"Prior resolved decisions: {prior_summary}")
             effective_instructions = "\n".join(context_lines).strip()
-            last_instructions = effective_instructions
+            last_instructions = base_instructions
 
             request = ChoiceRequest(
                 observation=observation,
