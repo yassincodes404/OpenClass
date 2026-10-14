@@ -154,6 +154,7 @@ def unknowns_router(
             "items": [
                 {
                     **item.model_dump(mode="json"),
+                    "status": item.triage.status,
                     "content": redact_text(
                         item.content, blocklist, enabled=config.redaction_enabled
                     )[:160],
@@ -177,7 +178,7 @@ def unknowns_router(
     @router.get("/api/v1/projects/{identifier}/unknowns/{run_id}")
     async def unknown_detail(identifier: str, run_id: str) -> dict[str, Any]:
         item = await _resolve_unknown_item(identifier, run_id)
-        return item.model_dump(mode="json")
+        return {**item.model_dump(mode="json"), "status": item.triage.status}
 
     @router.post("/api/v1/projects/{identifier}/unknowns/{run_id}/triage")
     async def triage(identifier: str, run_id: str, body: TriageRequest) -> dict[str, Any]:

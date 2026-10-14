@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .models import Model
 
@@ -23,6 +23,9 @@ LABEL_UNKNOWN = "UNKNOWN"
 VALID_SOURCES: tuple[str, ...] = ("human", "verified_external")
 VALID_SLICES: tuple[str, ...] = ("historical", "recent", "rare", "hard", "unknown", "adversarial")
 VALID_SPLITS: tuple[str, ...] = ("calibration", "regression", "holdout")
+FORBIDDEN_LABEL_SOURCES: frozenset[str] = frozenset(
+    {"prediction", "model_prediction", "unverified_prediction"}
+)
 
 
 class EvaluationSet(Model):
@@ -48,6 +51,14 @@ class EvaluationExample(Model):
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    @model_validator(mode="after")
+    def _reject_prediction_ground_truth(self) -> EvaluationExample:
+        label_source = str(self.metadata.get("label_source", "")).strip().lower()
+        source_type = str(self.metadata.get("source_type", "")).strip().lower()
+        if label_source in FORBIDDEN_LABEL_SOURCES or source_type in FORBIDDEN_LABEL_SOURCES:
+            raise ValueError("Predictions cannot be used as evaluation ground truth")
+        return self
+
 
 class ExampleDraft(Model):
     """Validation boundary for incoming examples."""
@@ -64,6 +75,10 @@ class ExampleDraft(Model):
     def to_example(self, allowed_labels: tuple[str, ...]) -> EvaluationExample:
         if self.source == "prediction":
             raise ValueError("predictions cannot be ground truth")
+        label_source = str(self.metadata.get("label_source", "")).strip().lower()
+        source_type = str(self.metadata.get("source_type", "")).strip().lower()
+        if label_source in FORBIDDEN_LABEL_SOURCES or source_type in FORBIDDEN_LABEL_SOURCES:
+            raise ValueError("Predictions cannot be used as evaluation ground truth")
         if self.source not in VALID_SOURCES:
             raise ValueError(f"source must be one of {VALID_SOURCES}")
         if self.slice_tag not in VALID_SLICES:

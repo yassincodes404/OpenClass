@@ -20,12 +20,13 @@ from .projects import DecisionRun
 UnknownCategory = Literal[
     "truly_novel", "ambiguous", "out_of_scope", "missing_info", "schema_problem"
 ]
-UnknownStatus = Literal["needs_evidence", "triaged", "dismissed"]
+UnknownStatus = Literal["needs_evidence", "triaged", "dismissed", "resolved"]
 
 VALID_TRANSITIONS: dict[str, tuple[str, ...]] = {
-    "needs_evidence": ("triaged", "dismissed"),
-    "triaged": ("dismissed",),
+    "needs_evidence": ("triaged", "dismissed", "resolved"),
+    "triaged": ("dismissed", "resolved"),
     "dismissed": (),
+    "resolved": (),
 }
 
 STOPWORDS = {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -50,7 +51,8 @@ def promotions_router(
         async with sessions() as session:
             row = await session.execute(
                 sa.text(
-                    "SELECT id, canonical_name, aliases, status FROM cluster_candidates"
+                    "SELECT id, cluster_id, canonical_name, definition, aliases, status"
+                    " FROM cluster_candidates"
                     " WHERE id = :id AND project_id = :pid"
                 ),
                 {"id": candidate_id, "pid": str(project_id)},
@@ -63,7 +65,9 @@ def promotions_router(
             aliases = json.loads(aliases)
         return {
             "id": record.id,
+            "cluster_id": record.cluster_id,
             "canonical_name": record.canonical_name,
+            "definition": record.definition,
             "aliases": aliases or [],
             "status": record.status,
         }
@@ -72,7 +76,7 @@ def promotions_router(
         async with sessions() as session:
             row = await session.execute(
                 sa.text(
-                    "SELECT id, overall_passed FROM evaluation_runs"
+                    "SELECT id, overall_passed, metrics FROM evaluation_runs"
                     " WHERE project_id = :pid AND candidate_id = :cid"
                     " ORDER BY created_at DESC LIMIT 1"
                 ),
@@ -81,7 +85,16 @@ def promotions_router(
             record = row.first()
         if record is None:
             return None
-        return {"id": record.id, "overall_passed": bool(record.overall_passed)}
+        metrics = (
+            json.loads(record.metrics)
+            if isinstance(record.metrics, str)
+            else (record.metrics or {})
+        )
+        return {
+            "id": record.id,
+            "overall_passed": bool(record.overall_passed),
+            "metrics": metrics if isinstance(metrics, dict) else {},
+        }
 
     async def _evidence_count(candidate_id: str) -> int:
         async with sessions() as session:
@@ -98,6 +111,39 @@ def promotions_router(
                 {"status": status, "id": candidate_id},
             )
 
+    async def _resolve_linked_unknowns(candidate_id: str, cluster_id: str | None) -> None:
+        run_ids: set[str] = set()
+        async with sessions() as session:
+            ev_rows = await session.execute(
+                sa.text("SELECT run_id FROM candidate_evidence WHERE candidate_id = :cid"),
+                {"cid": candidate_id},
+            )
+            for row in ev_rows:
+                if row.run_id:
+                    run_ids.add(str(row.run_id))
+            if cluster_id:
+                cl_rows = await session.execute(
+                    sa.text("SELECT run_id FROM cluster_members WHERE cluster_id = :clid"),
+                    {"clid": str(cluster_id)},
+                )
+                for row in cl_rows:
+                    if row.run_id:
+                        run_ids.add(str(row.run_id))
+        if not run_ids:
+            return
+        now_ts = datetime.now(UTC)
+        async with sessions.begin() as session:
+            for run_id in sorted(run_ids):
+                await session.execute(
+                    sa.text(
+                        "INSERT INTO unknown_triage (run_id, status, updated_at)"
+                        " VALUES (:run_id, 'resolved', :updated_at)"
+                        " ON CONFLICT (run_id) DO UPDATE SET"
+                        " status = 'resolved', updated_at = excluded.updated_at"
+                    ),
+                    {"run_id": run_id, "updated_at": now_ts},
+                )
+
     @router.post("/api/v1/projects/{identifier}/discovery-candidates/{candidate_id}/promote")
     async def promote(identifier: str, candidate_id: str, body: PromoteRequest) -> dict[str, Any]:
         project = await projects.get(identifier)
@@ -106,22 +152,31 @@ def promotions_router(
             raise HTTPException(status_code=409, detail="candidate has no class to promote")
         if candidate["status"] == "active":
             raise HTTPException(status_code=409, detail="candidate is already active")
+        if candidate["status"] != "approved":
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"candidate status is '{candidate['status']}';"
+                    " only human-approved candidates can promote"
+                ),
+            )
         evaluation = await _latest_evaluation(project.id, candidate_id)
         if evaluation is not None and evaluation["id"] != body.evaluation_id:
             # The referenced evaluation must be the current one for this candidate.
             raise HTTPException(
                 status_code=409, detail="referenced evaluation is not the latest for this candidate"
             )
-        try:
-            ensure_promotion_guards(
-                candidate_status=candidate["status"],
-                evidence_count=await _evidence_count(candidate_id),
-                evaluation_passed=None if evaluation is None else evaluation["overall_passed"],
-                rationale=body.rationale,
-                reviewer=body.reviewer,
+        if evaluation is not None:
+            eval_metrics = evaluation.get("metrics") or {}
+            reg_metrics = eval_metrics.get("regression_metrics") or {}
+            regressions = int(
+                reg_metrics.get("regressions", eval_metrics.get("regressions", 0)) or 0
             )
-        except PromotionBlocked as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
+            if regressions > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Candidate evaluation recorded regressions on existing classes",
+                )
 
         service_payload, service = await _service(identifier)
         current_choices = [
@@ -134,11 +189,46 @@ def promotions_router(
             for choice in service.nodes[0].choices
             if choice.key != "UNKNOWN"
         ]
+        existing_terms: set[str] = set()
+        for choice in current_choices:
+            key_term = str(choice.get("key", "")).strip().casefold()
+            if key_term:
+                existing_terms.add(key_term)
+                existing_terms.add(key_term.replace("_", " "))
+            for alias in choice.get("aliases") or []:
+                alias_term = str(alias).strip().casefold()
+                if alias_term:
+                    existing_terms.add(alias_term)
+
+        proposed_key = str(candidate["canonical_name"]).strip().casefold()
+        candidate_terms = {proposed_key, proposed_key.replace("_", " ")}
+        for alias in candidate["aliases"]:
+            alias_term = str(alias).strip().casefold()
+            if alias_term:
+                candidate_terms.add(alias_term)
+
+        if existing_terms & candidate_terms:
+            raise HTTPException(
+                status_code=409,
+                detail="Candidate key or alias collides with an existing active choice",
+            )
+
+        try:
+            ensure_promotion_guards(
+                candidate_status=candidate["status"],
+                evidence_count=await _evidence_count(candidate_id),
+                evaluation_passed=None if evaluation is None else evaluation["overall_passed"],
+                rationale=body.rationale,
+                reviewer=body.reviewer,
+            )
+        except PromotionBlocked as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
         await promotions.ensure_initial_version(service.id, current_choices)
         new_class = {
             "key": candidate["canonical_name"].upper(),
             "label": candidate["canonical_name"].replace("_", " ").title(),
-            "description": f"Promoted from candidate {candidate_id}",
+            "description": candidate.get("definition") or f"Promoted from candidate {candidate_id}",
             "aliases": [str(alias) for alias in candidate["aliases"]][:10],
         }
         next_choices = current_choices + [new_class]
@@ -166,6 +256,7 @@ def promotions_router(
             from_version=version["parent"],
         )
         await _set_candidate_status(candidate_id, "active")
+        await _resolve_linked_unknowns(candidate_id, candidate.get("cluster_id"))
         return {
             "candidate_id": candidate_id,
             "status": "active",

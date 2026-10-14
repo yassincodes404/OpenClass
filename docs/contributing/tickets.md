@@ -39,7 +39,7 @@ release notes separating shipped behavior and planned work.
 
 ## OC-003 — Provider protocol, configuration and privacy (RFC-0001)
 
-**Depends on:** OC-001. **Priority:** P0 for real providers.
+**Depends on:** OC-001. **Priority:** P0 for real providers. **Status:** Implemented (PRs #32, #36, #39, #40, #50); prompt-injection guards live in `openclass_server/redaction.py`, `providers/glm`, and `providers/jev` (`OC-BG-023` `PARTIAL`).
 Define capabilities, structured safe errors, normalization, timeouts, bounded
 retries, tokens/cost/latency, provider registry and environment-secret references.
 Specify redaction and disabled-by-default request-content logging. Extend ports
@@ -50,7 +50,7 @@ suite; no provider imports or required vendor fields in core/storage.
 
 ## OC-004 — TypeSafe Jev adapter
 
-**Depends on:** OC-003. **Priority:** P0.
+**Depends on:** OC-003. **Priority:** P0. **Status:** Implemented (PRs #33, #36, #45); `GatewayDecisionProvider` probability distributions (`temperature >= 0.5`) verified (`OC-BG-016` `PARTIAL`: no holdout ECE temperature-fitting pipeline).
 Implement isolated `providers/jev`, verified against official API docs and credentials
 supplied by operator. Map ontology plus UNKNOWN into choice; normalize output and
 capture usage. No live key in repository or mandatory online CI.
@@ -59,7 +59,7 @@ passes with user credentials; unsupported shapes/rate limits/timeouts are explic
 
 ## OC-005 — Unknown embeddings and similarity grouping
 
-**Depends on:** OC-001, OC-003. **Priority:** P0.
+**Depends on:** OC-001, OC-003. **Priority:** P0. **Status:** Partially implemented (`OC-BG-017` `PARTIAL`, PRs #36, #45): `GatewayEmbedder` (`text-embedding-3-small`), `SentenceTransformerEmbedder`, `ClusterStore` (`content_hash`) embedding cache, greedy cosine clustering, and non-destructive re-clustering (`0023`) are shipped; HDBSCAN and Silhouette/Davies-Bouldin cluster metrics remain unimplemented.
 Introduce EmbeddingProvider and optional local sentence-transformers adapter; migrate
 embedding/cluster state using pgvector. Group recurring unknowns using configurable
 similarity, retain evidence references and algorithm/model versions.
@@ -68,7 +68,7 @@ retries do not duplicate evidence; cluster.updated event; restart-safe persisted
 
 ## OC-006 — Discovery providers and canonicalization
 
-**Depends on:** OC-003, OC-005. **Priority:** P0.
+**Depends on:** OC-003, OC-005. **Priority:** P0. **Status:** Implemented (PRs #40, #45, #50, #54) across `mock`, `glm`, `openai-compatible`, `ollama`, and `gateway` (`GatewayClusterDiscovery`, `OpenAICompatibleChoiceTeacher`).
 Typed DiscoveryRequest/Result, mock, OpenAI-compatible and Ollama adapters. Cluster
 summaries with minimal external content. Handle all six initial proposal types;
 compare aliases/existing concepts before recommending new classes.
@@ -77,7 +77,7 @@ out-of-domain and schema issues stay inactive; validated structured output; cont
 
 ## OC-007 — Candidate evidence and lifecycle
 
-**Depends on:** OC-006. **Priority:** P0.
+**Depends on:** OC-006. **Priority:** P0. **Status:** Partially implemented (`OC-BG-009` `PARTIAL`, PRs #35, #36, #45, #54): Track 2 (`ChoiceCandidate`) and Track 3 (`DiscoveryCandidate`) lifecycles and `unknown_triage` ↔ `evidence_items` sync are active; legacy Track 1 (`POST /api/v1/classifiers/{slug}/candidates`) remains fail-closed (`409`).
 Migrate candidate/evidence tables, review state and explicit state machine. Implement
 candidate inspect/list/reject; minimum distinct evidence policy and provenance.
 **Acceptance:** illegal transitions and duplicate evidence rejected; rejection audited;
@@ -85,7 +85,7 @@ no provider can activate state; all candidates reference supporting observations
 
 ## OC-008 — Verified datasets and replay evaluation
 
-**Depends on:** OC-003, OC-007. **Priority:** P0.
+**Depends on:** OC-003, OC-007. **Priority:** P0. **Status:** Partially implemented (`OC-BG-011` `PARTIAL`, `OC-BG-012` `VERIFIED`, PRs #38, #54): `EvaluationExample` enforces `source_type` (`verified_holdout`, `regression_baseline`, `calibration_dev`), rejects `label_source="prediction"` (`422`), blocks discovery-to-holdout leakage (`409`), and replays through `DecisionExecutor` with Teacher disabled (`0019`/`0025`); examples are stored in the `evaluation_examples` SQL table (`0018_evaluation_sets.py`) with provenance fields stored inside the `evaluation_examples.example_metadata` JSON column (`0025_evaluation_holdouts_and_provenance.py`), rather than a separate normalized per-example `evaluation_predictions` SQL table.
 Evaluation sets/examples/runs/results, human/verified label provenance, baseline and
 candidate replay against the same immutable dataset, metrics and regression limits.
 **Acceptance:** never infer ground truth from predictions; historical cases retained;
@@ -94,7 +94,7 @@ fixtures; empty/undefined metrics explicit; failure never marks evaluation passe
 
 ## OC-009 — Semantic event log and safe ontology evolution (RFC-0002)
 
-**Depends on:** OC-007, OC-008. **Priority:** P0.
+**Depends on:** OC-007, OC-008. **Priority:** P0. **Status:** Partially implemented (`OC-BG-013` `PARTIAL`, `OC-BG-014` `PARTIAL`, PRs #37, #38, #54): `promotions.py` and `project_evolution.py` enforce `overall_passed is True`, `zero_regressions`, `holdout_examples >= 1`, `409` alias/key collision rejection, immutable `service_versions` (`0020`/`0024`) `vN -> vN+1` promotion, rollback, and linked cluster `UnknownEventRow` auto-resolution; legacy `Classifier` ontology snapshots (`0001_genesis`) remain read-only after creation and historical raw events are not batch re-ingested automatically.
 Normalize ontology classes and version-scoped aliases as needed. ADD/ALIAS/REJECT,
 version diff and rollback-as-new-version. Guard activation with canonicalization,
 distinct evidence, current successful evaluation and explicit human review.
@@ -104,7 +104,7 @@ snapshots; rollback leaves historical runs reproducible; failed evaluation block
 
 ## OC-010 — Public protocol, SDK models, SSE and ingest
 
-**Depends on:** OC-007–009. **Priority:** P1.
+**Depends on:** OC-007–009. **Priority:** P1. **Status:** Implemented (PRs #35, #44, #48, #53) across `openclass-sdk` (Python), `@openclass/sdk` (TypeScript `OpenClassClient` + `OpenClassControlClient`), and `openclass-cli`.
 Complete target REST routes, observations/batch ingest, pagination, idempotency,
 generated or contract-verified typed SDK models, resumable SSE and safe provider telemetry.
 **Acceptance:** contract suite compares clients against OpenAPI; SSE resumes by cursor;
@@ -112,7 +112,7 @@ UI consumes no private repositories; disconnect/retry/backpressure behavior docu
 
 ## OC-011 — First-run CLI and TUI
 
-**Depends on:** OC-010. **Priority:** P1.
+**Depends on:** OC-010. **Priority:** P1. **Status:** Implemented (PRs #48, #49) in `packages/cli` and `packages/tui` (`openclass-tui`).
 Textual/Rich client, default `openclass` entry, create/connect/demo onboarding, tabs
 Overview/Observe/Discoveries/Ontology/Evaluations/Providers. Extend doctor and configuration.
 **Acceptance:** no-key onboarding works; reconnect/loading/error/empty states; keyboard
@@ -120,7 +120,7 @@ navigation; promotion displays actual evidence and evaluation; tests use public 
 
 ## OC-012 — Web discovery workspace
 
-**Depends on:** OC-010. **Priority:** P1.
+**Depends on:** OC-010. **Priority:** P1. **Status:** Partially implemented (`OC-BG-027` `VERIFIED`, `OC-BG-033` `PARTIAL`, PRs #28, #49, #50, #53): `apps/portal` is wired 100% through `@openclass/sdk` (`OpenClassControlClient`) with `reconcileEngineProjects` in `services/control-plane`, while both `apps/web` and `apps/portal` remain active rather than retiring `apps/web`.
 Extend current observation page into dashboard, discovery inbox, ontology explorer,
 evaluation comparison and provider settings; web lifecycle command/container.
 **Acceptance:** accessible responsive views; live events; real measured values;
@@ -128,7 +128,7 @@ no hidden learning policy in UI; guarded human promotion and error recovery test
 
 ## OC-013 — Full no-key demo and hidden-intents benchmark
 
-**Depends on:** OC-004–012. **Priority:** Release blocker.
+**Depends on:** OC-004–012. **Priority:** Release blocker. **Status:** Implemented (PRs #41, #54): `openclass demo`, self-contained `python -m scripts.jev_contract.audit`, and end-to-end closed-loop evolution proof (`tests/e2e/test_closed_loop_evolution.py`).
 Implement `openclass demo` and benchmark command, reviewed labels and documented
 provenance, withheld-class split, deterministic seed, costs/calls/runtime reporting.
 **Acceptance:** central E2E known → unknowns → cluster → candidate → evaluation →
@@ -171,7 +171,7 @@ advisory evidence, never ground truth. No remote LLM, no automatic action.
 
 ## OC-017 — Versioned DecisionSpec
 
-**Depends on:** OC-016. **Status:** Planned.
+**Depends on:** OC-016. **Status:** Implemented on `DecisionService` (`0020_service_versions`, `0024_decision_run_version_lineage`, PRs #33, #37).
 Version the instructions controlling classification (task description, instruction,
 UNKNOWN guidance) as immutable `DecisionSpecVersion` snapshots. Extend `Classifier`
 with an active spec pointer, `ClassificationResult` with the spec version used,
@@ -185,7 +185,7 @@ migration preserves Genesis data without recreation.
 
 ## OC-018 — Supervisor reasoning providers
 
-**Depends on:** OC-003, OC-016, OC-017. **Status:** Planned.
+**Depends on:** OC-003, OC-016, OC-017. **Status:** Implemented (PRs #46, #50) via `OpenAICompatibleSupervisorProvider` supporting `ollama`, `openai-compatible`, `glm`, and `gateway`.
 Ollama first (local-first), then an OpenAI-compatible adapter. Structured
 `ReviewResult` responses only (never prose parsing), timeouts, secret-safe
 failures, redaction, disabled-by-default request-content logging, and
@@ -207,7 +207,7 @@ direct ontology writes — and ungated activation is structurally impossible.
 
 ## OC-020 — Continuous audit policy
 
-**Depends on:** OC-018, OC-019. **Status:** Planned.
+**Depends on:** OC-018, OC-019. **Status:** Implemented (PRs #42, #46) via node-level `SupervisionPolicy` (`min_top_probability`, `min_margin`, `max_unknown_probability`, `risk_level`) and `SupervisorService`.
 Policy-driven review triggers: unknown/uncertain review, suspicious known results,
 configurable random sampling of confident known results, statistical anomaly
 review, summarized batch review, budgets and drift-triggered audits. No per-request
@@ -219,7 +219,7 @@ review volume and cost are observable.
 ## OC-033 — Foundation structure and authenticated ingestion
 
 **Authorization:** founder's 2026-09-30 request to clean up structure and build real
-core/integration behavior. **Status:** implemented locally; unreleased.
+core/integration behavior. **Status:** Implemented (PRs #31, #32, #38, #44, #47, #54).
 **Scope:** typed API route modules, separate integration adapters/repository,
 environment-backed webhook authentication, scoped event identity, atomic observation/
 audit/receipt persistence, migration `0010_webhook_receipts`, accurate health reports,
@@ -235,8 +235,7 @@ blocked activation leaves service/candidate/evidence/run/audit snapshots unchang
 
 ## OC-034 — Restore the target-branch CI baseline
 
-**Priority:** P0. **Status:** CI green on reviewed PR #20 head `c6545bf` (all four
-jobs, run `37051177668`); ticket closes when PR #20 merges to main.
+**Priority:** P0. **Status:** Implemented and verified across PR #20 (`c6545bf`), PR #29 (`9e776bf`), and PR #51 (`5a5542f`).
 Evidence: [phase-0 evidence record](../implementation-phases/evidence/phase-0-baseline-and-oc-034.md).
 Original failure at remote main `469482350102bddb00c55d773256cf10f60f997b`, CI run
 `37004638713`: npm installation (`workspace:*` unsupported), Python formatting
@@ -244,7 +243,7 @@ Original failure at remote main `469482350102bddb00c55d773256cf10f60f997b`, CI r
 classification (provider HTTP 502). Repairs: pnpm web job with pinned
 `packageManager`, mock provider for the python and Compose jobs, Makefile pnpm
 alignment, glm provider LICENSE, plus environment-honest test repairs recorded in
-the evidence file. Local passing checks alone do not close this ticket.
+the evidence file and offline `.env` test isolation in PR #51 (`5a5542f`).
 **Acceptance:** clean locked installs; all CI jobs pass on the reviewed target
 commit, including disposable migrated PostgreSQL and Compose; no live credentials
 or publication used to validate. Local passing checks alone do not close this ticket.
@@ -252,7 +251,7 @@ or publication used to validate. Local passing checks alone do not close this ti
 ## OC-035 — Versioned transition, execution and verification vertical
 
 **Depends on:** OC-034; OC-017 for immutable decision configuration references.
-**Priority:** P0. **Status:** planned; contract review precedes implementation.
+**Priority:** P0. **Status:** Partially implemented (`OC-BG-015` `VERIFIED`, `OC-BG-035` `VERIFIED`, `OC-BG-029` `PARTIAL`, `OC-BG-030` `PARTIAL`, PRs #42, #43, #49, #52): multi-node `DecisionService` graph execution, `compile_event_state` (`snapshot_hash`), durable `decision_run_checkpoints` (`0026`, `/pause`, `/approve`, `/resume`, `/cancel`), and `AutomationLoop` / `SafeSandboxExecutor` in `openclass_core` are implemented; no separate `0027_state_schemas.py` SQL table or dedicated `AutomationLoop` FastAPI routes exist.
 Review typed state provenance/freshness, semantic Choice → Transition binding,
 scoped capability registry, execution intent/outcome and independent verification.
 Implement one bounded HTTP capability plus termination in customer operations.
@@ -266,7 +265,7 @@ grant execution authority. No arbitrary shell or generated code in this slice.
 
 ## OC-036 — Shared integration manifests and generic adapters
 
-**Depends on:** OC-033, OC-035. **Priority:** P0. **Status:** planned.
+**Depends on:** OC-033, OC-035. **Priority:** P0. **Status:** Partially implemented (`OC-BG-024` `VERIFIED`, `OC-BG-032` `PARTIAL`, PRs #32, #44, #49): `HTTPIntegrationProbe` actively probes REST, Webhook, MCP (JSON-RPC `tools/list`), Database, and Provider endpoints with SSRF protection, and `support.py` enforces idempotent `RouteOutcome` evaluation (`delivery_mode="simulated"`), without a background webhook delivery worker or retry queue.
 Introduce manifests and project bindings for implemented SOURCE/QUERY/CAPABILITY/
 TRIGGER/SINK roles, typed schemas and verifier/version identities. Reuse webhook
 receipts and environment secret references. Ship HTTP and CSV/JSON first, then
@@ -279,7 +278,7 @@ No speculative queues, marketplace or writable ontology access for adapters.
 ## OC-037 — Persisted application proof reports
 
 **Depends on:** OC-035/036; learning metrics additionally depend on OC-008/009/017.
-**Priority:** P1. **Status:** planned.
+**Priority:** P1. **Status:** Implemented (PRs #39, #48, #54) across `/analytics/trends`, `/alerts`, `/ops/summary` (disjoint 7-day window comparison), and `provider_usage` error/cost telemetry.
 Implement typed report queries, HTTP SDKs and a minimal evidence/report view using
 persisted decisions, executions, verifications, usage, reviews and version history.
 Follow the program's metric definitions, provenance and denominators. Partial
@@ -292,7 +291,7 @@ safe errors and report-generation events. Preserve success and failure evidence.
 ## OC-038 — Customer and developer operations proofs
 
 **Depends on:** OC-035–037; reviewed learning depends on OC-008/009/017.
-**Priority:** P1. **Status:** planned. **Related:** OC-028/029/030.
+**Priority:** P1. **Status:** Implemented for customer/issue triage & closed-loop evolution proof (PRs #41, #50, #54: 60-issue `scikit-learn` proof, live Vercel AI Gateway proof `tests/contract/test_gemini_live.py`, and end-to-end closed-loop evolution proof `tests/e2e/test_closed_loop_evolution.py`). **Related:** OC-028/029/030.
 First run authorized customer data through one externally verified routing action.
 Then run a bounded developer recovery against a disposable OpenClass environment.
 Declare hypotheses, labels, retained cases and postconditions before execution.
@@ -305,7 +304,7 @@ filesystem state. Research artifacts remain frozen and separate from production.
 ## OC-039 — Smart-home and robot simulator proofs; cross-domain comparison
 
 **Depends on:** OC-038 and fixes justified by its evidence.
-**Priority:** P2. **Status:** planned.
+**Priority:** P2. **Status:** Planned (simulator fixtures and cross-domain benchmark harness in `scripts/automation_*.py` and `benchmarks/jev-contract/v1` remain research-scoped).
 Use MQTT/simulator state for smart-home behavior and structured perception plus
 deterministic controls for a robot simulator. Record seeds, state freshness,
 missing-input failures, outcomes and retention. Real devices require later scoped
