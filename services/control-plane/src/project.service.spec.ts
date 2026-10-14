@@ -32,6 +32,13 @@ function fakeEngine(overrides: Partial<EngineClient> = {}): EngineClient {
       name: "Acme",
       description: "",
     })),
+    listProjects: vi.fn(async () => []),
+    getProject: vi.fn(async () => ({
+      id: "engine-p1",
+      slug: "acme",
+      name: "Acme",
+      description: "",
+    })),
     createClassifier: vi.fn(async () => ({
       id: "engine-c1",
       slug: "support-intent",
@@ -302,5 +309,111 @@ describe("ProjectService", () => {
         unknownFallback: true,
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it("reconciles missing engine projects into control_projects on listProjects", async () => {
+    const insertedParams: unknown[][] = [];
+    const storedRows: Row[] = [];
+    const pool = fakePool(async (text, params) => {
+      if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
+      if (text.includes("SELECT id, engine_project_id, slug FROM control_projects")) {
+        return { rows: [...storedRows], rowCount: storedRows.length };
+      }
+      if (text.startsWith("INSERT INTO control_projects")) {
+        insertedParams.push(params ?? []);
+        const row = {
+          id: "cp-reconciled",
+          workspace_id: params?.[0],
+          engine_project_id: params?.[1],
+          slug: params?.[2],
+          name: params?.[3],
+          created_at: new Date(),
+        };
+        storedRows.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      if (text.includes("FROM control_projects WHERE workspace_id = $1")) {
+        return { rows: [...storedRows], rowCount: storedRows.length };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const engine = fakeEngine({
+      listProjects: vi.fn(async () => [
+        {
+          id: "eng-seed-1",
+          slug: "support-triage",
+          name: "Support Triage",
+          description: "Seeded in engine",
+        },
+      ]),
+    });
+
+    const projects = await serviceWith(pool, engine).service.listProjects("w1", owner);
+    expect(engine.listProjects).toHaveBeenCalledWith({
+      workspaceId: "w1",
+      actor: "owner-sub",
+    });
+    expect(insertedParams).toHaveLength(1);
+    expect(insertedParams[0]).toEqual(["w1", "eng-seed-1", "support-triage", "Support Triage"]);
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      id: "cp-reconciled",
+      workspace_id: "w1",
+      engine_project_id: "eng-seed-1",
+      slug: "support-triage",
+      name: "Support Triage",
+    });
+  });
+
+  it("looks up a project by control id, engine_project_id, or slug and lazily syncs null engine_project_id", async () => {
+    const updatedParams: unknown[][] = [];
+    const pool = fakePool(async (text, params) => {
+      if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
+      if (
+        text.includes("FROM control_projects") &&
+        text.includes("(id::text = $1 OR engine_project_id = $1 OR slug = $1)")
+      ) {
+        return {
+          rows: [
+            {
+              id: "cp-1",
+              workspace_id: "w1",
+              engine_project_id: null,
+              slug: "support-triage",
+              name: "Support Triage",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      if (text.startsWith("UPDATE control_projects SET engine_project_id =")) {
+        updatedParams.push(params ?? []);
+        return { rows: [], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const engine = fakeEngine({
+      getProject: vi.fn(async () => ({
+        id: "eng-lazy-1",
+        slug: "support-triage",
+        name: "Support Triage",
+        description: "",
+      })),
+    });
+
+    const found = await serviceWith(pool, engine).service.getProjectForWorkspace(
+      "w1",
+      "support-triage",
+      owner,
+    );
+    expect(engine.getProject).toHaveBeenCalledWith("support-triage", {
+      workspaceId: "w1",
+      actor: "owner-sub",
+    });
+    expect(updatedParams).toEqual([["cp-1", "w1", "eng-lazy-1"]]);
+    expect(found.engine_project_id).toBe("eng-lazy-1");
   });
 });

@@ -1,6 +1,7 @@
 """Prevent private cross-layer imports as the workspace grows."""
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -68,3 +69,17 @@ def test_dependency_direction(directory: str, forbidden: set[str]) -> None:
                 else []
             )
             assert not {module.split(".")[0] for module in modules} & forbidden, str(path)
+
+
+def test_portal_uses_sdk_without_raw_fetch() -> None:
+    portal_api = Path("apps/portal/src/api.ts").read_text(encoding="utf-8")
+    assert "@openclass/sdk" in portal_api
+
+    raw_fetch_pattern = re.compile(r"(?<![A-Za-z0-9_$.])fetch\s*\(")
+    for path in Path("apps/portal/src").rglob("*"):
+        if path.suffix not in {".ts", ".tsx"}:
+            continue
+        if path.name.endswith((".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx")):
+            continue
+        content = path.read_text(encoding="utf-8")
+        assert not raw_fetch_pattern.search(content), f"Raw fetch() call found in {path}"

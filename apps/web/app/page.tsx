@@ -41,8 +41,8 @@ const LIFECYCLE_STAGES: readonly LifecycleStageSpec[] = [
       "A fast bounded DecisionProvider scores the active closed class set plus explicit UNKNOWN mass under a strict grammar contract—with zero writable access to the ontology.",
     contract: "packages/core/openclass_core/providers.py :: DecisionProvider",
     code: `{
-  "probabilities": {"billing": 0.017, "technical": 0.017, "sales": 0.017},
-  "unknown_probability": 0.95
+  "probabilities": {"billing": 0.017, "technical": 0.017, "sales": 0.016},
+  "unknown_probability": 0.950
 }`,
   },
   {
@@ -55,7 +55,7 @@ const LIFECYCLE_STAGES: readonly LifecycleStageSpec[] = [
     contract: "packages/core/openclass_core/novelty.py :: NoveltyDetector",
     code: `{
   "selected_class": null,
-  "novelty": {"state": "likely_novel", "score": 0.95}
+  "novelty": {"state": "likely_novel", "score": 0.950}
 }`,
   },
   {
@@ -98,19 +98,19 @@ classes: ["billing", "technical", "sales", "cancellation"]`,
 
 const SAMPLE_OBSERVATIONS = [
   {
-    label: "Known: Double charge",
+    label: "Known: Double charge (0.900)",
     value: "I was charged twice",
     tag: "FAST PATH",
   },
   {
-    label: "Novel: Cancel plan",
+    label: "Novel: Cancel plan (0.950)",
     value: "Cancel my plan",
     tag: "UNKNOWN POOL",
   },
   {
-    label: "Novel: EU audit export",
-    value: "Export our SOC2 and GDPR compliance packet for the Q4 audit",
-    tag: "DISCOVERY",
+    label: "Review: EU audit export (0.410)",
+    value: "Export compliance packet for EU invoice audit",
+    tag: "SUPERVISION",
   },
 ] as const;
 

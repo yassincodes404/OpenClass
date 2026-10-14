@@ -3,6 +3,11 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "./auth";
+import {
+  OpenWorldLoopStage,
+  PREDEFINED_SCENARIOS,
+  deriveScenarioDistribution,
+} from "./open-world-stage";
 import { Portal } from "./portal";
 
 const { keycloak } = vi.hoisted(() => ({
@@ -287,5 +292,67 @@ describe("portal landing page (Precision Observatory)", () => {
     // Switch quickstart tab to TypeScript SDK
     fireEvent.click(screen.getByRole("tab", { name: /TypeScript SDK/i }));
     expect(screen.getByText(/Trigger an advisory Supervisor review/i)).toBeTruthy();
+  });
+
+  it("enforces probability bar, telemetry readout, and top-2 margin consistency across all 4 scenarios and all 5 steps", () => {
+    const knownDist = deriveScenarioDistribution({
+      billing: 0.9,
+      technical: 0.033,
+      sales: 0.017,
+      UNKNOWN: 0.05,
+    });
+    expect(knownDist.topLabel).toBe("billing");
+    expect(knownDist.topProbability).toBe(0.9);
+    expect(knownDist.topDisplay).toBe("0.900");
+    expect(knownDist.unknownProbability).toBe(0.05);
+    expect(knownDist.unknownDisplay).toBe("0.050");
+    expect(knownDist.topMargin).toBe(0.85);
+    expect(knownDist.topMarginDisplay).toBe("0.850");
+
+    expect(PREDEFINED_SCENARIOS.length).toBe(4);
+    for (const scenario of PREDEFINED_SCENARIOS) {
+      expect(scenario.steps.length).toBe(5);
+      for (const step of scenario.steps) {
+        const sortedProbs = [...step.probabilities].sort((a, b) => b.value - a.value);
+        const topBar = sortedProbs[0]!;
+        const secondBar = sortedProbs[1]!;
+        const unknownBar = step.probabilities.find((p) => p.isUnknown || p.label === "UNKNOWN")!;
+
+        if (step.telemetry.topProbability !== null) {
+          expect(topBar.value.toFixed(3)).toBe(step.telemetry.topProbability.toFixed(3));
+          expect(topBar.display).toBe(step.telemetry.topProbability.toFixed(3));
+        }
+
+        expect(unknownBar.value.toFixed(3)).toBe(step.telemetry.unknownProbability.toFixed(3));
+        if (scenario.id !== "error_timeout") {
+          expect(unknownBar.display).toBe(step.telemetry.unknownProbability.toFixed(3));
+        }
+
+        const expectedMargin = Number((topBar.value - secondBar.value).toFixed(3));
+        expect(step.telemetry.topMargin).toBe(expectedMargin);
+      }
+    }
+
+    render(<OpenWorldLoopStage />);
+
+    // Verify "I was charged twice" displays 0.900 in both probability bar and telemetry readout across all 5 steps
+    fireEvent.click(screen.getByRole("tab", { name: /I was charged twice/i }));
+    for (let idx = 0; idx < 5; idx += 1) {
+      const stepBtns = screen.getAllByRole("button", { name: /^0[1-5] \//i });
+      fireEvent.click(stepBtns[idx]!);
+      const matches0900 = screen.getAllByText(/0\.900/);
+      expect(matches0900.length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByText(/0\.850/).length).toBeGreaterThanOrEqual(1);
+    }
+
+    // Verify "Export compliance packet for EU audit" displays 0.410 and 0.140 margin consistently across all 5 steps
+    fireEvent.click(screen.getByRole("tab", { name: /Export compliance packet for EU.*audit/i }));
+    for (let idx = 0; idx < 5; idx += 1) {
+      const stepBtns = screen.getAllByRole("button", { name: /^0[1-5] \//i });
+      fireEvent.click(stepBtns[idx]!);
+      const matches0410 = screen.getAllByText(/0\.410/);
+      expect(matches0410.length).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByText(/0\.140/).length).toBeGreaterThanOrEqual(1);
+    }
   });
 });

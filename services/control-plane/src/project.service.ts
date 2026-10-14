@@ -94,30 +94,124 @@ export class ProjectService {
     }
   }
 
-  async list(principal: Principal, workspaceId: string): Promise<ControlProject[]> {
-    await this.requireRole(principal, workspaceId, "viewer");
+  async list(
+    principal: Principal | { sub: string; email?: string },
+    workspaceId: string,
+  ): Promise<ControlProject[]> {
+    const normalized = this.normalizePrincipal(principal);
+    await this.requireRole(normalized, workspaceId, "viewer");
     const result = await this.db.query(
       "SELECT id, workspace_id, engine_project_id, slug, name, created_at FROM control_projects WHERE workspace_id = $1 ORDER BY created_at",
       [workspaceId],
     );
-    return result.rows as ControlProject[];
+    const rows = [...(result.rows as ControlProject[])];
+
+    if (typeof this.engine?.listProjects === "function") {
+      try {
+        const engineProjects = await this.engine.listProjects({
+          workspaceId,
+          actor: normalized.subject,
+        });
+        if (Array.isArray(engineProjects)) {
+          for (const ep of engineProjects) {
+            if (!ep?.id || !ep?.slug) continue;
+            const existing = rows.find(
+              (row) => row.engine_project_id === ep.id || row.slug === ep.slug,
+            );
+            if (!existing) {
+              const base = this.slugify(ep.slug || ep.name);
+              const slug = await this.uniqueSlug(workspaceId, base);
+              const inserted = await this.db.query(
+                "INSERT INTO control_projects (workspace_id, engine_project_id, slug, name)" +
+                  " VALUES ($1, $2, $3, $4)" +
+                  " ON CONFLICT (workspace_id, slug) DO UPDATE SET engine_project_id = EXCLUDED.engine_project_id" +
+                  " RETURNING id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days",
+                [workspaceId, ep.id, slug, (ep.name || ep.slug).trim()],
+              );
+              if (inserted.rows?.[0]) {
+                rows.push(inserted.rows[0] as ControlProject);
+              }
+            } else if (!existing.engine_project_id) {
+              const updated = await this.db.query(
+                "UPDATE control_projects SET engine_project_id = $3 WHERE id = $1 AND workspace_id = $2" +
+                  " RETURNING id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days",
+                [existing.id, workspaceId, ep.id],
+              );
+              if (updated.rows?.[0]) {
+                Object.assign(existing, updated.rows[0]);
+              } else {
+                existing.engine_project_id = ep.id;
+              }
+            }
+          }
+        }
+      } catch {
+        // Best-effort reconciliation: keep control_projects rows if engine is offline or unmocked.
+      }
+    }
+
+    return rows;
   }
 
-  async get(principal: Principal, workspaceId: string, projectId: string): Promise<ControlProject> {
-    await this.requireRole(principal, workspaceId, "viewer");
-    return this.byId(workspaceId, projectId);
+  async listProjects(
+    first: Principal | { sub: string; email?: string } | string,
+    second: Principal | { sub: string; email?: string } | string,
+  ): Promise<ControlProject[]> {
+    if (typeof first === "string") {
+      return this.list(second as Principal | { sub: string; email?: string }, first);
+    }
+    return this.list(first, second as string);
+  }
+
+  async get(
+    principal: Principal | { sub: string; email?: string },
+    workspaceId: string,
+    projectId: string,
+  ): Promise<ControlProject> {
+    const normalized = this.normalizePrincipal(principal);
+    await this.requireRole(normalized, workspaceId, "viewer");
+    return this.byId(workspaceId, projectId, normalized);
+  }
+
+  async getProjectForWorkspace(
+    first: Principal | { sub: string; email?: string } | string,
+    second: string,
+    third: Principal | { sub: string; email?: string } | string,
+  ): Promise<ControlProject> {
+    if (typeof first === "string") {
+      const workspaceId = first;
+      const projectId = second;
+      const normalized = this.normalizePrincipal(
+        third as Principal | { sub: string; email?: string },
+      );
+      await this.requireRole(normalized, workspaceId, "viewer");
+      return this.byId(workspaceId, projectId, normalized);
+    }
+    const normalized = this.normalizePrincipal(first);
+    const workspaceId = second;
+    const projectId = third as string;
+    await this.requireRole(normalized, workspaceId, "viewer");
+    return this.byId(workspaceId, projectId, normalized);
   }
 
   /** Resolve a project for portal deep links: membership is checked via join, non-members get 404. */
-  async resolve(principal: Principal, projectId: string): Promise<ControlProject> {
+  async resolve(
+    principal: Principal | { sub: string; email?: string },
+    projectId: string,
+  ): Promise<ControlProject> {
+    const normalized = this.normalizePrincipal(principal);
     const result = await this.db.query(
       "SELECT p.id, p.workspace_id, p.engine_project_id, p.slug, p.name, p.created_at, p.redaction_enabled, p.retention_days" +
         " FROM control_projects p JOIN control_workspace_memberships m ON m.workspace_id = p.workspace_id AND m.subject = $2" +
-        " WHERE p.id = $1",
-      [projectId, principal.subject],
+        " WHERE (p.id::text = $1 OR p.engine_project_id = $1 OR p.slug = $1)",
+      [projectId, normalized.subject],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");
-    return result.rows[0] as ControlProject;
+    const row = result.rows[0] as ControlProject;
+    if (!row.engine_project_id) {
+      return this.syncMissingEngineProject(row, row.workspace_id, normalized.subject);
+    }
+    return row;
   }
 
   async settings(
@@ -126,7 +220,7 @@ export class ProjectService {
     projectId: string,
   ): Promise<ProjectSettings> {
     await this.requireRole(principal, workspaceId, "viewer");
-    const project = await this.byId(workspaceId, projectId);
+    const project = await this.byId(workspaceId, projectId, principal);
     return {
       redaction_enabled: Boolean(project.redaction_enabled),
       retention_days: project.retention_days ?? 90,
@@ -140,18 +234,18 @@ export class ProjectService {
     patch: Partial<ProjectSettings>,
   ): Promise<ProjectSettings> {
     await this.requireRole(principal, workspaceId, "admin");
-    const current = await this.byId(workspaceId, projectId);
+    const current = await this.byId(workspaceId, projectId, principal);
     const redaction = patch.redaction_enabled ?? Boolean(current.redaction_enabled);
     const retention = patch.retention_days ?? current.retention_days ?? 90;
     const result = await this.db.query(
       "UPDATE control_projects SET redaction_enabled = $3, retention_days = $4 WHERE id = $1 AND workspace_id = $2" +
         " RETURNING redaction_enabled, retention_days",
-      [projectId, workspaceId, redaction, retention],
+      [current.id, workspaceId, redaction, retention],
     );
     const settings = result.rows[0] as ProjectSettings;
     await this.audit.record({
       workspaceId,
-      projectId,
+      projectId: current.id,
       actor: principal.subject,
       action: "project.settings_updated",
       target: `settings:redaction=${settings.redaction_enabled},retention=${settings.retention_days}d`,
@@ -172,7 +266,7 @@ export class ProjectService {
     },
   ): Promise<ClassifierDetail> {
     await this.requireRole(principal, workspaceId, "admin");
-    const project = await this.byId(workspaceId, projectId);
+    const project = await this.byId(workspaceId, projectId, principal);
     if (!input.unknownFallback)
       throw new BadRequestException("UNKNOWN fallback is required and permanent");
     if (input.classes.length === 0) throw new BadRequestException("At least one class is required");
@@ -188,7 +282,7 @@ export class ProjectService {
       throw new BadRequestException("Classifier slug must be lowercase kebab-case");
     const taken = await this.db.query(
       "SELECT 1 FROM control_classifiers WHERE project_id = $1 AND slug = $2",
-      [projectId, slug],
+      [project.id, slug],
     );
     if (taken.rowCount)
       throw new BadRequestException("Classifier slug already exists in this project");
@@ -206,7 +300,7 @@ export class ProjectService {
     );
     await this.audit.record({
       workspaceId,
-      projectId,
+      projectId: project.id,
       actor: principal.subject,
       action: "classifier.created",
       target: `classifier:${slug}`,
@@ -224,7 +318,7 @@ export class ProjectService {
     projectId: string,
   ): Promise<ClassifierDetail[]> {
     await this.requireRole(principal, workspaceId, "viewer");
-    const project = await this.byId(workspaceId, projectId);
+    const project = await this.byId(workspaceId, projectId, principal);
     const mappings = await this.db.query(
       "SELECT id, project_id, engine_classifier_id, slug, name, created_at FROM control_classifiers WHERE project_id = $1 ORDER BY created_at",
       [project.id],
@@ -248,7 +342,7 @@ export class ProjectService {
     classifierId: string,
   ): Promise<ClassifierDetail> {
     await this.requireRole(principal, workspaceId, "viewer");
-    const project = await this.byId(workspaceId, projectId);
+    const project = await this.byId(workspaceId, projectId, principal);
     const mapping = await this.db.query(
       "SELECT id, project_id, engine_classifier_id, slug, name, created_at FROM control_classifiers WHERE id = $1 AND project_id = $2",
       [classifierId, project.id],
@@ -262,7 +356,7 @@ export class ProjectService {
   /** Public role gate for adjacent controllers (providers, etc.). */
   async assertManager(principal: Principal, workspaceId: string, projectId: string): Promise<void> {
     await this.requireRole(principal, workspaceId, "admin");
-    await this.byId(workspaceId, projectId);
+    await this.byId(workspaceId, projectId, principal);
   }
 
   async createKey(
@@ -272,11 +366,11 @@ export class ProjectService {
     scopes: ApiKeyScope[],
   ) {
     await this.requireRole(principal, workspaceId, "admin");
-    await this.byId(workspaceId, projectId);
-    const created = await this.apiKeys.create(workspaceId, projectId, scopes);
+    const project = await this.byId(workspaceId, projectId, principal);
+    const created = await this.apiKeys.create(workspaceId, project.id, scopes);
     await this.audit.record({
       workspaceId,
-      projectId,
+      projectId: project.id,
       actor: principal.subject,
       action: "api_key.created",
       target: `key:${created.row.prefix}…`,
@@ -286,17 +380,17 @@ export class ProjectService {
 
   async listKeys(principal: Principal, workspaceId: string, projectId: string) {
     await this.requireRole(principal, workspaceId, "viewer");
-    await this.byId(workspaceId, projectId);
-    return this.apiKeys.list(projectId);
+    const project = await this.byId(workspaceId, projectId, principal);
+    return this.apiKeys.list(project.id);
   }
 
   async revokeKey(principal: Principal, workspaceId: string, projectId: string, keyId: string) {
     await this.requireRole(principal, workspaceId, "admin");
-    await this.byId(workspaceId, projectId);
-    const revoked = await this.apiKeys.revoke(projectId, keyId);
+    const project = await this.byId(workspaceId, projectId, principal);
+    const revoked = await this.apiKeys.revoke(project.id, keyId);
     await this.audit.record({
       workspaceId,
-      projectId,
+      projectId: project.id,
       actor: principal.subject,
       action: "api_key.revoked",
       target: `key:${revoked.prefix}…`,
@@ -304,13 +398,64 @@ export class ProjectService {
     return revoked;
   }
 
-  private async byId(workspaceId: string, projectId: string): Promise<ControlProject> {
+  private async byId(
+    workspaceId: string,
+    projectId: string,
+    principal?: Principal,
+  ): Promise<ControlProject> {
     const result = await this.db.query(
-      "SELECT id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days FROM control_projects WHERE id = $1 AND workspace_id = $2",
+      "SELECT id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days FROM control_projects WHERE (id::text = $1 OR engine_project_id = $1 OR slug = $1) AND workspace_id = $2",
       [projectId, workspaceId],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");
-    return result.rows[0] as ControlProject;
+    const row = result.rows[0] as ControlProject;
+    if (!row.engine_project_id) {
+      return this.syncMissingEngineProject(row, workspaceId, principal?.subject);
+    }
+    return row;
+  }
+
+  private async syncMissingEngineProject(
+    row: ControlProject,
+    workspaceId: string,
+    actor?: string,
+  ): Promise<ControlProject> {
+    let synced: { id: string } | undefined;
+    if (typeof this.engine?.getProject === "function") {
+      synced = await this.engine
+        .getProject(row.slug || row.id, { workspaceId, actor })
+        .catch(() => undefined);
+    }
+    if (!synced && typeof this.engine?.createProject === "function") {
+      synced = await this.engine
+        .createProject(row.name || row.slug, "", { workspaceId, actor })
+        .catch(() => undefined);
+    }
+    if (synced?.id) {
+      const updated = await this.db.query(
+        "UPDATE control_projects SET engine_project_id = $3 WHERE id = $1 AND workspace_id = $2" +
+          " RETURNING id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days",
+        [row.id, workspaceId, synced.id],
+      );
+      if (updated.rowCount && updated.rows[0]) {
+        return updated.rows[0] as ControlProject;
+      }
+      row.engine_project_id = synced.id;
+    }
+    return row;
+  }
+
+  private normalizePrincipal(
+    principal: Principal | { sub?: string; subject?: string; email?: string },
+  ): Principal {
+    const candidate = principal as { subject?: unknown; sub?: unknown; email?: string };
+    const subject =
+      typeof candidate.subject === "string"
+        ? candidate.subject
+        : typeof candidate.sub === "string"
+          ? candidate.sub
+          : "";
+    return { subject, email: candidate.email };
   }
 
   private async requireRole(
