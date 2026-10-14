@@ -57,7 +57,7 @@ def test_integrations_survive_restart_postgres(postgres_url: str) -> None:
         test_resp = client.post(f"/api/v1/projects/{project_id}/integrations/{integration_id}/test")
         assert test_resp.status_code == 200
         test_data = test_resp.json()
-        assert test_data["status"] == "pending"
+        assert test_data["status"] == "disconnected"
         recorded_status = test_data["status"]
         assert test_data["latency_ms"] is not None
 

@@ -214,9 +214,7 @@ def test_adapter_listing(mock_client: TestClient):
     assert by_name["slack"]["implemented"] is False
 
 
-def test_repeated_route_evaluation_for_same_run_is_idempotent(
-    mock_client: TestClient, monkeypatch
-):
+def test_repeated_route_evaluation_for_same_run_is_idempotent(mock_client: TestClient, monkeypatch):
     monkeypatch.setenv("OPENCLASS_WEBHOOK_TOKEN_ZENDESK", "zk-secret-idem")
     slug, integration_id, service_id = _setup(mock_client)
     route_resp = mock_client.post(
@@ -376,4 +374,3 @@ async def test_mcp_and_provider_probes_enforce_ssrf_protection(
         )
     )
     assert report.status == IntegrationStatus.DISCONNECTED
-

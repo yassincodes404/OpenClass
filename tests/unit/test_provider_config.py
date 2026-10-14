@@ -101,15 +101,6 @@ def test_auth_required_and_internal_token_verification() -> None:
     assert verify_internal_token("internal-secret-token", "") is False
     assert is_public_engine_path("/health", "GET") is True
     assert is_public_engine_path("/health/ready", "GET") is True
-    assert (
-        is_public_engine_path(
-            "/api/v1/projects/demo/integrations/int-1/webhook", "POST"
-        )
-        is True
-    )
-    assert (
-        is_public_engine_path("/api/v1/projects/demo/webhooks/github", "POST")
-        is True
-    )
+    assert is_public_engine_path("/api/v1/projects/demo/integrations/int-1/webhook", "POST") is True
+    assert is_public_engine_path("/api/v1/projects/demo/webhooks/github", "POST") is True
     assert is_public_engine_path("/api/v1/projects", "GET") is False
-

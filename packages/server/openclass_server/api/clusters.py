@@ -36,9 +36,7 @@ def clusters_router(
     embedder = embedding_provider(config)
 
     async def _unknown_runs(identifier: str, scan_limit: int = 1000) -> list[Any]:
-        runs = await projects.list_decision_runs(
-            identifier=identifier, limit=scan_limit, offset=0
-        )
+        runs = await projects.list_decision_runs(identifier=identifier, limit=scan_limit, offset=0)
         return [run for run in runs if run_is_unknown(run)]
 
     @router.post("/api/v1/projects/{identifier}/unknowns/cluster")

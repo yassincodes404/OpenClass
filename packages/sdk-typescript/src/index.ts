@@ -591,7 +591,9 @@ export class OpenClass {
             ? item.event
             : (item as RawEvent),
         )
-        .filter((event): event is RawEvent => Boolean(event && typeof event === "object" && "id" in event));
+        .filter((event): event is RawEvent =>
+          Boolean(event && typeof event === "object" && "id" in event),
+        );
     }
     return [];
   }
@@ -1161,10 +1163,7 @@ export class OpenClass {
     );
   }
 
-  sealEvalDataset(input: {
-    project: string;
-    datasetId: string;
-  }): Promise<Record<string, unknown>> {
+  sealEvalDataset(input: { project: string; datasetId: string }): Promise<Record<string, unknown>> {
     return this.request(
       `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets/${encodeURIComponent(input.datasetId)}/seal`,
       {},
@@ -1284,4 +1283,3 @@ export class OpenClass {
     return this.request(`/api/v1/projects/${encodeURIComponent(project)}/ops/events${query}`);
   }
 }
-

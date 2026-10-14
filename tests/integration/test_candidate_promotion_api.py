@@ -233,7 +233,5 @@ async def test_track2_candidate_evaluates_and_promotes_with_sealed_dataset(
         promo_body = promo_resp.json()
         assert promo_body["candidate"]["status"] == "promoted"
         assert promo_body["decision_service"]["version_number"] == 2
-        choice_keys = [
-            c["key"] for c in promo_body["decision_service"]["nodes"][0]["choices"]
-        ]
+        choice_keys = [c["key"] for c in promo_body["decision_service"]["nodes"][0]["choices"]]
         assert "SUBSCRIPTION_PAUSE" in choice_keys

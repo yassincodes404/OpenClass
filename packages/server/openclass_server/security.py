@@ -113,13 +113,7 @@ def _check_ip_allowed(
         if not allow_loopback:
             raise ValueError("Outbound URL targets a loopback address")
         return
-    if (
-        ip.is_private
-        or ip.is_link_local
-        or ip.is_multicast
-        or ip.is_unspecified
-        or ip.is_reserved
-    ):
+    if ip.is_private or ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved:
         raise ValueError("Outbound URL targets a restricted private or link-local IP address")
 
 
@@ -174,4 +168,3 @@ def validate_outbound_url(
             _check_ip_allowed(resolved_ip, allow_loopback=allow_loopback)
 
     return url.strip()
-

@@ -153,9 +153,7 @@ class DecisionServiceNode(Model):
     choices: tuple[DecisionServiceChoice, ...] = Field(min_length=1, max_length=50)
     risk_level: Literal["ordinary", "high"] = "ordinary"
     min_margin: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
-    max_unknown_probability: float | None = Field(
-        default=None, ge=0.0, le=1.0, allow_inf_nan=False
-    )
+    max_unknown_probability: float | None = Field(default=None, ge=0.0, le=1.0, allow_inf_nan=False)
 
     @model_validator(mode="before")
     @classmethod

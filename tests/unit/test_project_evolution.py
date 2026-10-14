@@ -333,4 +333,3 @@ async def test_propose_from_evidence_accepts_low_trust_and_human_correction_runs
     )
     assert candidate.status == "candidate"
     assert candidate.proposal.key == "ENTERPRISE"
-

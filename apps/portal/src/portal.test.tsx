@@ -289,4 +289,3 @@ describe("portal landing page (Precision Observatory)", () => {
     expect(screen.getByText(/Trigger an advisory Supervisor review/i)).toBeTruthy();
   });
 });
-

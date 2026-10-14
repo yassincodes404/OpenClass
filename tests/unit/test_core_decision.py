@@ -248,4 +248,3 @@ def test_predicate_evaluation_is_exact() -> None:
     assert not evaluate_predicates((Predicate(field="a", equals=1),), {"a": True})
     assert not evaluate_predicates((Predicate(field="a", equals=True),), {"a": 1})
     assert not evaluate_predicates((Predicate(field="a", equals=0),), {"a": False})
-

@@ -13,6 +13,10 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute(
+            sa.text("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(128)")
+        )
     inspector = sa.inspect(bind)
     run_cols = {c["name"] for c in inspector.get_columns("decision_runs")}
     if "decision_service_version_id" not in run_cols:

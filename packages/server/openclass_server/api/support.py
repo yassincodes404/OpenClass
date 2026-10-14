@@ -219,8 +219,7 @@ def support_router(
                 int_row = (
                     await session.execute(
                         sa.text(
-                            "SELECT id FROM project_integrations"
-                            " WHERE project_id = :pid LIMIT 1"
+                            "SELECT id FROM project_integrations WHERE project_id = :pid LIMIT 1"
                         ),
                         {"pid": str(project.id)},
                     )
@@ -393,9 +392,7 @@ def support_router(
                             else "simulated"
                         ),
                         "idempotency_key": (
-                            detail.get("idempotency_key", "")
-                            if isinstance(detail, dict)
-                            else ""
+                            detail.get("idempotency_key", "") if isinstance(detail, dict) else ""
                         ),
                         "created_at": row.created_at,
                     }

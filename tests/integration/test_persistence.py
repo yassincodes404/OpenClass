@@ -48,7 +48,9 @@ def test_migration_round_trip_and_metadata_match(database_url: str) -> None:
 @pytest.mark.postgres
 def test_postgres_api_and_vector(postgres_url: str, classifier_body: dict) -> None:
     classifier_body["slug"] = f"pg-{uuid4().hex}"
-    with TestClient(create_app(Settings(database_url=postgres_url))) as client:
+    with TestClient(
+        create_app(Settings(database_url=postgres_url, decision_provider="mock"))
+    ) as client:
         assert client.get("/health/ready").status_code == 200
         client.post("/api/v1/classifiers", json=classifier_body).raise_for_status()
         result = client.post(

@@ -200,7 +200,11 @@ export class UnknownController {
   }
 
   @Get("ontology")
-  async ontology(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async ontology(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
     return this.engine.ontology(project.engine_project_id);
   }
@@ -228,7 +232,11 @@ export class UnknownController {
   ) {
     const input = parseBody(rollbackSchema, body);
     const project = await this.gate(request.principal, workspaceId, projectId, "admin");
-    const result = await this.engine.rollbackOntology(project.engine_project_id, input.from_version, input.rationale);
+    const result = await this.engine.rollbackOntology(
+      project.engine_project_id,
+      input.from_version,
+      input.rationale,
+    );
     await this.audit.record({
       workspaceId,
       projectId,
@@ -275,7 +283,12 @@ export class UnknownController {
   ) {
     const input = parseBody(reviewSchema, body);
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
-    const result = await this.engine.candidateAction(project.engine_project_id, candidateId, "review", input);
+    const result = await this.engine.candidateAction(
+      project.engine_project_id,
+      candidateId,
+      "review",
+      input,
+    );
     await this.audit.record({
       workspaceId,
       projectId,
@@ -296,7 +309,12 @@ export class UnknownController {
   ) {
     const input = parseBody(rejectSchema, body);
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
-    const result = await this.engine.candidateAction(project.engine_project_id, candidateId, "reject", input);
+    const result = await this.engine.candidateAction(
+      project.engine_project_id,
+      candidateId,
+      "reject",
+      input,
+    );
     await this.audit.record({
       workspaceId,
       projectId,

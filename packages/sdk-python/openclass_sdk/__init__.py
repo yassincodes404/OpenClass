@@ -699,9 +699,7 @@ class OpenClass:
             body["note"] = note
         return dict(self._request("POST", f"/api/v1/projects/{p}/unknowns/{rid}/triage", body))
 
-    def transition_project_unknown(
-        self, project: str, run_id: str, *, to: str
-    ) -> dict[str, Any]:
+    def transition_project_unknown(self, project: str, run_id: str, *, to: str) -> dict[str, Any]:
         p = quote(project, safe="")
         rid = quote(run_id, safe="")
         return dict(
@@ -765,9 +763,7 @@ class OpenClass:
             )
         )
 
-    def discovery_candidate_history(
-        self, project: str, candidate_id: str
-    ) -> list[dict[str, Any]]:
+    def discovery_candidate_history(self, project: str, candidate_id: str) -> list[dict[str, Any]]:
         p = quote(project, safe="")
         cid = quote(candidate_id, safe="")
         return list(
@@ -825,9 +821,7 @@ class OpenClass:
     def seal_eval_dataset(self, project: str, dataset_id: str) -> dict[str, Any]:
         p = quote(project, safe="")
         did = quote(dataset_id, safe="")
-        return dict(
-            self._request("POST", f"/api/v1/projects/{p}/eval-datasets/{did}/seal", {})
-        )
+        return dict(self._request("POST", f"/api/v1/projects/{p}/eval-datasets/{did}/seal", {}))
 
     def run_evaluation(
         self,
@@ -942,4 +936,3 @@ class OpenClass:
         p = quote(project, safe="")
         params = {"after": after} if after is not None else None
         return list(self._request("GET", f"/api/v1/projects/{p}/ops/events", params=params))
-

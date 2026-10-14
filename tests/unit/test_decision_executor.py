@@ -170,8 +170,7 @@ async def test_decision_executor_propagates_instructions_to_jev_and_laya_payload
     run = await DecisionExecutor(jev).execute(event, sample_service)
     assert captured_jev_instructions
     assert (
-        "Service instructions: Classify sentiment of user comment"
-        in captured_jev_instructions[0]
+        "Service instructions: Classify sentiment of user comment" in captured_jev_instructions[0]
     )
     assert run.instructions_snapshot == "Classify sentiment of user comment"
 
@@ -304,21 +303,13 @@ async def test_decision_executor_cycle_detection_and_node_supervision_policy() -
         id=node_a_id,
         name="node-a",
         instructions="Step A",
-        choices=(
-            DecisionServiceChoice(
-                key="TO_B", label="To B", target_node_id=node_b_id
-            ),
-        ),
+        choices=(DecisionServiceChoice(key="TO_B", label="To B", target_node_id=node_b_id),),
     )
     node_b = DecisionServiceNode(
         id=node_b_id,
         name="node-b",
         instructions="Step B",
-        choices=(
-            DecisionServiceChoice(
-                key="TO_A", label="To A", target_node_id=node_a_id
-            ),
-        ),
+        choices=(DecisionServiceChoice(key="TO_A", label="To A", target_node_id=node_a_id),),
     )
     cyclic_service = DecisionService(
         project_id=uuid4(),
@@ -363,6 +354,3 @@ async def test_decision_executor_cycle_detection_and_node_supervision_policy() -
     assert hr_run.selected_choice == "APPROVE"
     assert hr_run.supervision_outcome == "REVIEW"
     assert "High-risk" in hr_run.supervision_reason
-
-
-

@@ -34,12 +34,14 @@ function useProjectQuery(projectId: string) {
   const token = useToken();
   return useQuery({
     queryKey: ["project", projectId],
-    queryFn: async (): Promise<Project> => (await controlFetch(`/projects/${projectId}`, token)) as Project,
+    queryFn: async (): Promise<Project> =>
+      (await controlFetch(`/projects/${projectId}`, token)) as Project,
   });
 }
 
 function TypeChip({ type }: { type: string }) {
-  const cls = type === "NEW_CLASS" ? "chip locked" : type === "INSUFFICIENT_EVIDENCE" ? "chip" : "chip";
+  const cls =
+    type === "NEW_CLASS" ? "chip locked" : type === "INSUFFICIENT_EVIDENCE" ? "chip" : "chip";
   return <span className={cls}>{type.replaceAll("_", " ")}</span>;
 }
 
@@ -52,66 +54,107 @@ export function DiscoveriesPage() {
     queryKey: ["candidates", projectId],
     enabled: project.isSuccess,
     queryFn: async (): Promise<Candidate[]> =>
-      (await controlFetch(`/workspaces/${project.data!.workspace_id}/projects/${projectId}/unknowns/candidates`, token)) as Candidate[],
+      (await controlFetch(
+        `/workspaces/${project.data!.workspace_id}/projects/${projectId}/unknowns/candidates`,
+        token,
+      )) as Candidate[],
   });
   const detail = useQuery({
     queryKey: ["candidate", projectId, open],
     enabled: open !== null,
     queryFn: async (): Promise<CandidateDetail> =>
-      (await controlFetch(`/workspaces/${project.data!.workspace_id}/projects/${projectId}/unknowns/candidates/${open}`, token)) as CandidateDetail,
+      (await controlFetch(
+        `/workspaces/${project.data!.workspace_id}/projects/${projectId}/unknowns/candidates/${open}`,
+        token,
+      )) as CandidateDetail,
   });
-  if (project.isPending) return <main><p className="lede">Loading discoveries…</p></main>;
-  if (!project.data) return <main><p className="lede">Project unavailable.</p></main>;
+  if (project.isPending)
+    return (
+      <main>
+        <p className="lede">Loading discoveries…</p>
+      </main>
+    );
+  if (!project.data)
+    return (
+      <main>
+        <p className="lede">Project unavailable.</p>
+      </main>
+    );
   return (
     <main>
       <ProjectShell project={project.data} active="/discoveries">
         <section className="signal">
           <p className="eyebrow">DISCOVERIES / INACTIVE CANDIDATES</p>
           <h2>Evidence-backed proposals — never active behavior.</h2>
-          <p className="muted">Candidates are read-only here; review and promotion arrive in later phases. No ontology write happens on this page.</p>
+          <p className="muted">
+            Candidates are read-only here; review and promotion arrive in later phases. No ontology
+            write happens on this page.
+          </p>
           {candidates.data?.length === 0 && (
             <p className="muted">No candidates yet. Discover a cluster from the Clusters page.</p>
           )}
           <div className="card-grid">
             {candidates.data?.map((candidate) => (
               <article key={candidate.id} className="project-card">
-                <p className="status"><i /> {(candidate.confidence * 100).toFixed(0)}% confidence</p>
+                <p className="status">
+                  <i /> {(candidate.confidence * 100).toFixed(0)}% confidence
+                </p>
                 <h3>{candidate.display_name ?? candidate.canonical_name ?? candidate.type}</h3>
                 <p>
                   <TypeChip type={candidate.type} /> · {candidate.evidence_count} evidence runs
                   {candidate.simulated ? " · simulated" : ""}
                 </p>
-                <Link to={`/projects/${projectId}/discoveries/${candidate.id}`}>Open candidate →</Link>
+                <Link to={`/projects/${projectId}/discoveries/${candidate.id}`}>
+                  Open candidate →
+                </Link>
               </article>
             ))}
           </div>
         </section>
       </ProjectShell>
       {open && (
-        <div className="modal-backdrop" role="dialog" aria-label="Candidate detail" onClick={() => setOpen(null)}>
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-label="Candidate detail"
+          onClick={() => setOpen(null)}
+        >
           <div className="modal" onClick={(event) => event.stopPropagation()}>
             <p className="eyebrow">CANDIDATE / {detail.data?.status?.toUpperCase() ?? "…"}</p>
             <h2>{detail.data?.display_name ?? detail.data?.canonical_name ?? "…"}</h2>
             {detail.isPending && <p className="muted">Loading…</p>}
             {detail.data && (
               <>
-                <p><TypeChip type={detail.data.type} /> · confidence {(detail.data.confidence * 100).toFixed(0)}%</p>
+                <p>
+                  <TypeChip type={detail.data.type} /> · confidence{" "}
+                  {(detail.data.confidence * 100).toFixed(0)}%
+                </p>
                 {detail.data.definition && <p className="muted">{detail.data.definition}</p>}
                 {detail.data.aliases.length > 0 && (
                   <p className="muted">aliases: {detail.data.aliases.join(", ")}</p>
                 )}
                 <p className="muted">
-                  existing match: {detail.data.existing_match ?? "none"} · reason: {detail.data.reason}
+                  existing match: {detail.data.existing_match ?? "none"} · reason:{" "}
+                  {detail.data.reason}
                 </p>
                 <p className="muted">
                   evidence: {detail.data.evidence_run_ids.length} member runs (
-                  {detail.data.evidence_run_ids.slice(0, 3).map((id) => id.slice(0, 8)).join(", ")})
+                  {detail.data.evidence_run_ids
+                    .slice(0, 3)
+                    .map((id) => id.slice(0, 8))
+                    .join(", ")}
+                  )
                 </p>
-                <p className="muted">provider {detail.data.provider}{detail.data.simulated ? " (simulated)" : ""}</p>
+                <p className="muted">
+                  provider {detail.data.provider}
+                  {detail.data.simulated ? " (simulated)" : ""}
+                </p>
               </>
             )}
             <div className="modal-actions">
-              <button className="ghost" onClick={() => setOpen(null)}>Close</button>
+              <button className="ghost" onClick={() => setOpen(null)}>
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -120,9 +163,14 @@ export function DiscoveriesPage() {
   );
 }
 
-
 export type CandidateHistory = {
-  events: Array<{ event: string; actor: string; from: string | null; to: string | null; created_at: string }>;
+  events: Array<{
+    event: string;
+    actor: string;
+    from: string | null;
+    to: string | null;
+    created_at: string;
+  }>;
   reviews: Array<{ reviewer: string; decision: string; rationale: string; created_at: string }>;
 };
 
@@ -142,25 +190,33 @@ export function CandidateReviewPage() {
   const detail = useQuery({
     queryKey: ["candidate", projectId, candidateId],
     enabled: project.isSuccess,
-    queryFn: async (): Promise<CandidateDetail> => (await controlFetch(base, token)) as CandidateDetail,
+    queryFn: async (): Promise<CandidateDetail> =>
+      (await controlFetch(base, token)) as CandidateDetail,
   });
   const history = useQuery({
     queryKey: ["candidate-history", projectId, candidateId],
     enabled: project.isSuccess,
-    queryFn: async (): Promise<CandidateHistory> => (await controlFetch(`${base}/history`, token)) as CandidateHistory,
+    queryFn: async (): Promise<CandidateHistory> =>
+      (await controlFetch(`${base}/history`, token)) as CandidateHistory,
   });
   const pool = useQuery({
     queryKey: ["unknowns", projectId, ""],
     enabled: project.isSuccess,
     queryFn: async (): Promise<{ items: Array<{ run_id: string; content: string }> }> =>
-      (await controlFetch(`/workspaces/${project.data!.workspace_id}/projects/${projectId}/unknowns?limit=50`, token)) as {
+      (await controlFetch(
+        `/workspaces/${project.data!.workspace_id}/projects/${projectId}/unknowns?limit=50`,
+        token,
+      )) as {
         items: Array<{ run_id: string; content: string }>;
       },
   });
 
   const act = useMutation({
     mutationFn: async (payload: { action: string; body?: unknown }) =>
-      controlFetch(`${base}/${payload.action}`, token, { method: "POST", body: JSON.stringify(payload.body ?? {}) }),
+      controlFetch(`${base}/${payload.action}`, token, {
+        method: "POST",
+        body: JSON.stringify(payload.body ?? {}),
+      }),
     onSuccess: (result) => {
       const message = (result as { detail?: string; status?: string; evidence?: number }) ?? {};
       setFeedback(
@@ -169,17 +225,31 @@ export function CandidateReviewPage() {
           : `Done — status: ${message.status ?? "updated"}${message.evidence !== undefined ? ` (evidence: ${message.evidence})` : ""}`,
       );
       void queryClient.invalidateQueries({ queryKey: ["candidate", projectId, candidateId] });
-      void queryClient.invalidateQueries({ queryKey: ["candidate-history", projectId, candidateId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["candidate-history", projectId, candidateId],
+      });
     },
     onError: (error: Error) => setFeedback(error.message),
   });
 
-  if (project.isPending || detail.isPending) return <main><p className="lede">Loading candidate…</p></main>;
-  if (!project.data || !detail.data) return <main><p className="lede">Candidate unavailable.</p></main>;
+  if (project.isPending || detail.isPending)
+    return (
+      <main>
+        <p className="lede">Loading candidate…</p>
+      </main>
+    );
+  if (!project.data || !detail.data)
+    return (
+      <main>
+        <p className="lede">Candidate unavailable.</p>
+      </main>
+    );
 
   const evidenceCount = detail.data.evidence_run_ids.length;
   const belowThreshold = evidenceCount < MIN_EVIDENCE;
-  const notAttached = (pool.data?.items ?? []).filter((item) => !detail.data!.evidence_run_ids.includes(item.run_id));
+  const notAttached = (pool.data?.items ?? []).filter(
+    (item) => !detail.data!.evidence_run_ids.includes(item.run_id),
+  );
 
   return (
     <main>
@@ -188,21 +258,34 @@ export function CandidateReviewPage() {
           <p className="eyebrow">CANDIDATE / {detail.data.status.toUpperCase()}</p>
           <h2>{detail.data.display_name ?? detail.data.canonical_name ?? detail.data.type}</h2>
           <p className="muted">
-            <TypeChip type={detail.data.type} /> · {evidenceCount}/{MIN_EVIDENCE} evidence · confidence{" "}
-            {(detail.data.confidence * 100).toFixed(0)}% ·{" "}
+            <TypeChip type={detail.data.type} /> · {evidenceCount}/{MIN_EVIDENCE} evidence ·
+            confidence {(detail.data.confidence * 100).toFixed(0)}% ·{" "}
             <Link to={`/projects/${projectId}/discoveries`}>all candidates</Link>
           </p>
           {detail.data.definition && <p className="muted">{detail.data.definition}</p>}
           {belowThreshold && (
-            <p className="field-error">Insufficient evidence ({evidenceCount}/{MIN_EVIDENCE}) — review completion is blocked until you collect more.</p>
+            <p className="field-error">
+              Insufficient evidence ({evidenceCount}/{MIN_EVIDENCE}) — review completion is blocked
+              until you collect more.
+            </p>
           )}
           <div className="panel">
-            <div className="panel-head"><h3>Evidence manager</h3></div>
+            <div className="panel-head">
+              <h3>Evidence manager</h3>
+            </div>
             <table className="table">
-              <thead><tr><th>Evidence run</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Evidence run</th>
+                </tr>
+              </thead>
               <tbody>
                 {detail.data.evidence_run_ids.map((id) => (
-                  <tr key={id}><td><code>{id}</code></td></tr>
+                  <tr key={id}>
+                    <td>
+                      <code>{id}</code>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -212,13 +295,17 @@ export function CandidateReviewPage() {
                 <div className="panel-head">
                   <select defaultValue="">
                     {notAttached.slice(0, 10).map((item) => (
-                      <option key={item.run_id} value={item.run_id}>{item.run_id.slice(0, 8)}… · {item.content.slice(0, 40)}</option>
+                      <option key={item.run_id} value={item.run_id}>
+                        {item.run_id.slice(0, 8)}… · {item.content.slice(0, 40)}
+                      </option>
                     ))}
                   </select>
                   <button
                     className="ghost"
                     onClick={(event) => {
-                      const select = (event.target as HTMLElement).parentElement?.querySelector("select");
+                      const select = (event.target as HTMLElement).parentElement?.querySelector(
+                        "select",
+                      );
                       const value = select instanceof HTMLSelectElement ? select.value : "";
                       if (value) act.mutate({ action: "collect", body: { unknown_ids: [value] } });
                     }}
@@ -230,12 +317,18 @@ export function CandidateReviewPage() {
             )}
           </div>
           <div className="panel">
-            <div className="panel-head"><h3>Review panel</h3></div>
+            <div className="panel-head">
+              <h3>Review panel</h3>
+            </div>
             <p className="muted">
-              Request review, then decide. Model output has zero authority — only this human decision counts, and it still needs evaluation + promotion gates before activation. There is deliberately no Activate button.
+              Request review, then decide. Model output has zero authority — only this human
+              decision counts, and it still needs evaluation + promotion gates before activation.
+              There is deliberately no Activate button.
             </p>
             <div className="modal-actions">
-              <button className="ghost" onClick={() => act.mutate({ action: "request-review" })}>Request review</button>
+              <button className="ghost" onClick={() => act.mutate({ action: "request-review" })}>
+                Request review
+              </button>
             </div>
             <label>
               Decision
@@ -247,7 +340,12 @@ export function CandidateReviewPage() {
             </label>
             <label>
               Rationale (required)
-              <textarea rows={3} value={rationale} onChange={(event) => setRationale(event.target.value)} placeholder="Why this decision…" />
+              <textarea
+                rows={3}
+                value={rationale}
+                onChange={(event) => setRationale(event.target.value)}
+                placeholder="Why this decision…"
+              />
             </label>
             <div className="modal-actions">
               <button
@@ -259,7 +357,11 @@ export function CandidateReviewPage() {
             </div>
             <label>
               Or reject outright with a reason
-              <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder="Reason (min 5 chars)" />
+              <input
+                value={rejectReason}
+                onChange={(event) => setRejectReason(event.target.value)}
+                placeholder="Reason (min 5 chars)"
+              />
             </label>
             <div className="modal-actions">
               <button
@@ -270,27 +372,39 @@ export function CandidateReviewPage() {
                 Reject candidate
               </button>
             </div>
-            {feedback && <p className="muted" role="status">{feedback}</p>}
+            {feedback && (
+              <p className="muted" role="status">
+                {feedback}
+              </p>
+            )}
           </div>
           <div className="panel">
-            <div className="panel-head"><h3>Promotion (Phase 14)</h3></div>
+            <div className="panel-head">
+              <h3>Promotion (Phase 14)</h3>
+            </div>
             <p className="muted">
-              Requires: approved status, ≥5 evidence, and a passing evaluation — then an explicit human reviewer.
-              There is no automatic activation anywhere.
+              Requires: approved status, ≥5 evidence, and a passing evaluation — then an explicit
+              human reviewer. There is no automatic activation anywhere.
             </p>
             {detail.data.status === "approved" ? (
               <PromotePanel projectId={projectId} candidateId={candidateId} token={token} />
             ) : (
-              <p className="field-error">Promotion is disabled — candidate is {detail.data.status} (must be approved with a passing evaluation).</p>
+              <p className="field-error">
+                Promotion is disabled — candidate is {detail.data.status} (must be approved with a
+                passing evaluation).
+              </p>
             )}
           </div>
           <div className="panel">
-            <div className="panel-head"><h3>History (append-only)</h3></div>
+            <div className="panel-head">
+              <h3>History (append-only)</h3>
+            </div>
             <ul className="timeline">
               <li>created · candidate proposed (discovery)</li>
               {history.data?.events.map((entry, index) => (
                 <li key={index}>
-                  {entry.event} · {entry.from ?? "?"} → {entry.to ?? "?"} · {new Date(entry.created_at).toLocaleString()}
+                  {entry.event} · {entry.from ?? "?"} → {entry.to ?? "?"} ·{" "}
+                  {new Date(entry.created_at).toLocaleString()}
                 </li>
               ))}
               {history.data?.reviews.map((entry, index) => (
@@ -306,10 +420,17 @@ export function CandidateReviewPage() {
   );
 }
 
-
 export type EvaluationRow = { id: string; candidate_id: string; overall_passed: boolean };
 
-function PromotePanel({ projectId, candidateId, token }: { projectId: string; candidateId: string; token: string }) {
+function PromotePanel({
+  projectId,
+  candidateId,
+  token,
+}: {
+  projectId: string;
+  candidateId: string;
+  token: string;
+}) {
   const auth = useAuth();
   const workspace = useQuery({
     queryKey: ["project", projectId],
@@ -320,9 +441,14 @@ function PromotePanel({ projectId, candidateId, token }: { projectId: string; ca
     queryKey: ["evaluations", projectId],
     enabled: workspace.isSuccess,
     queryFn: async (): Promise<EvaluationRow[]> =>
-      (await controlFetch(`/workspaces/${workspace.data!.workspace_id}/projects/${projectId}/evaluations`, token)) as EvaluationRow[],
+      (await controlFetch(
+        `/workspaces/${workspace.data!.workspace_id}/projects/${projectId}/evaluations`,
+        token,
+      )) as EvaluationRow[],
   });
-  const latest = evaluations.data?.find((row) => row.candidate_id === candidateId && row.overall_passed);
+  const latest = evaluations.data?.find(
+    (row) => row.candidate_id === candidateId && row.overall_passed,
+  );
   const [reviewer, setReviewer] = useState("owner@acme.openclass.test");
   const [rationale, setRationale] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -331,16 +457,25 @@ function PromotePanel({ projectId, candidateId, token }: { projectId: string; ca
       controlFetch(
         `/workspaces/${workspace.data!.workspace_id}/projects/${projectId}/unknowns/candidates/${candidateId}/promote`,
         token,
-        { method: "POST", body: JSON.stringify({ evaluation_id: latest!.id, reviewer, rationale }) },
+        {
+          method: "POST",
+          body: JSON.stringify({ evaluation_id: latest!.id, reviewer, rationale }),
+        },
       ),
     onSuccess: (result) => {
       const version = (result as { version?: { version_number?: number } }).version;
-      setMessage(`Promoted — ontology v${version?.version_number ?? "?"} created; candidate is now active.`);
+      setMessage(
+        `Promoted — ontology v${version?.version_number ?? "?"} created; candidate is now active.`,
+      );
     },
     onError: (error: Error) => setMessage(error.message),
   });
   if (!latest) {
-    return <p className="field-error">No passing evaluation found for this candidate — run a passing evaluation first.</p>;
+    return (
+      <p className="field-error">
+        No passing evaluation found for this candidate — run a passing evaluation first.
+      </p>
+    );
   }
   return (
     <>
@@ -353,7 +488,12 @@ function PromotePanel({ projectId, candidateId, token }: { projectId: string; ca
       </label>
       <label>
         Rationale
-        <textarea rows={2} value={rationale} onChange={(event) => setRationale(event.target.value)} placeholder="Why this promotion is safe…" />
+        <textarea
+          rows={2}
+          value={rationale}
+          onChange={(event) => setRationale(event.target.value)}
+          placeholder="Why this promotion is safe…"
+        />
       </label>
       <div className="modal-actions">
         <button
@@ -363,7 +503,11 @@ function PromotePanel({ projectId, candidateId, token }: { projectId: string; ca
           Promote to new ontology version
         </button>
       </div>
-      {message && <p className="muted" role="status">{message}</p>}
+      {message && (
+        <p className="muted" role="status">
+          {message}
+        </p>
+      )}
     </>
   );
 }

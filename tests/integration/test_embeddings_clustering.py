@@ -136,9 +136,7 @@ def test_cluster_run_reuses_cached_embeddings(
     assert len(calls) == 1
     assert calls[0] >= 2
 
-    second = mock_client.post(
-        f"/api/v1/projects/{slug}/unknowns/cluster", json={"threshold": 0.5}
-    )
+    second = mock_client.post(f"/api/v1/projects/{slug}/unknowns/cluster", json={"threshold": 0.5})
     assert second.status_code == 200
     assert len(calls) == 1
 
@@ -167,4 +165,3 @@ def test_unknown_transition_synchronizes_linked_evidence_status(mock_client: Tes
     evidence_after = mock_client.get(f"/api/v1/projects/{slug}/evidence").json()
     linked_after = [ev for ev in evidence_after if ev["decision_run_id"] == run_id]
     assert linked_after[0]["status"] == "dismissed"
-

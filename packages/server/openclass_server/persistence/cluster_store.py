@@ -43,8 +43,7 @@ class ClusterStore:
             return {}
         id_strs = [str(run_id) for run_id in run_ids]
         stmt = sa.text(
-            "SELECT run_id, vector FROM embeddings"
-            " WHERE model = :model AND run_id IN :run_ids"
+            "SELECT run_id, vector FROM embeddings WHERE model = :model AND run_id IN :run_ids"
         ).bindparams(sa.bindparam("run_ids", expanding=True))
         async with self.sessions() as session:
             rows = await session.execute(stmt, {"model": model, "run_ids": id_strs})

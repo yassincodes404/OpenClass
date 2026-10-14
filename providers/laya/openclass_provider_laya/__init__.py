@@ -170,7 +170,7 @@ class LayaDecisionProvider:
                     if 400 <= resp.status_code < 500:
                         raise ProviderError(f"Laya rejected request with HTTP {resp.status_code}")
                     last_error = ProviderError(f"Laya server error HTTP {resp.status_code}")
-                except (httpx.TimeoutException, httpx.NetworkError) as err:
+                except (httpx.HTTPError, OSError) as err:
                     last_error = ProviderError(f"Laya transport error: {type(err).__name__}")
                 if attempt < self._retries:
                     await asyncio.sleep(0.5 * (2**attempt))

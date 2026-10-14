@@ -83,13 +83,10 @@ describe("EngineClient", () => {
 
     const client = new EngineClient();
 
-    await client.request(
-      "GET",
-      "/api/v1/projects/proj-1",
-      undefined,
-      200,
-      { workspaceId: "ws-acme-01", actor: "user:alice@acme.io" },
-    );
+    await client.request("GET", "/api/v1/projects/proj-1", undefined, 200, {
+      workspaceId: "ws-acme-01",
+      actor: "user:alice@acme.io",
+    });
 
     expect(fetchMock).toHaveBeenNthCalledWith(1, "http://127.0.0.1:7331/api/v1/projects/proj-1", {
       method: "GET",
@@ -167,9 +164,7 @@ describe("EngineClient", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        jsonResponse(422, { detail: [{ msg: "field required" }] }),
-      ),
+      vi.fn(async () => jsonResponse(422, { detail: [{ msg: "field required" }] })),
     );
     await expect(client.createProject("", "")).rejects.toThrow(
       new BadRequestException("Invalid engine payload: field required"),

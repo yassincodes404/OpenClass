@@ -28,9 +28,7 @@ def verify_manifest(manifest: Path, root: Path) -> int:
     return len(inventory)
 
 
-def verify_inputs(
-    base: Path, root: Path, *, require_build_files: bool = False
-) -> dict[str, Any]:
+def verify_inputs(base: Path, root: Path, *, require_build_files: bool = False) -> dict[str, Any]:
     kb = JevKnowledgeBase.model_validate_json((base / "knowledge.json").read_text())
     if require_build_files or all(
         (root / e.path).is_file() for obs in kb.observations for e in obs.evidence

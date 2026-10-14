@@ -103,7 +103,10 @@ const exampleSchema = z.object({
   source: z.enum(["human", "verified_external"]),
   annotator: z.string().trim().min(2).max(200),
   rationale: z.string().trim().max(2000).optional().default(""),
-  slice_tag: z.enum(["historical", "recent", "rare", "hard", "unknown", "adversarial"]).optional().default("historical"),
+  slice_tag: z
+    .enum(["historical", "recent", "rare", "hard", "unknown", "adversarial"])
+    .optional()
+    .default("historical"),
 });
 
 // Genesis integration types are fixed (webhook/rest_api/...); a support
@@ -112,7 +115,11 @@ const exampleSchema = z.object({
 const integrationSchema = z.object({
   name: z.string().trim().min(2).max(60),
   type: z.enum(["webhook"]),
-  secret_ref: z.string().trim().regex(/^[A-Z][A-Z0-9_]{2,}$/).optional(),
+  secret_ref: z
+    .string()
+    .trim()
+    .regex(/^[A-Z][A-Z0-9_]{2,}$/)
+    .optional(),
   endpoint: z.string().trim().url().optional(),
 });
 
@@ -267,7 +274,11 @@ export class DecisionController {
   }
 
   @Get("eval-datasets")
-  async listDatasets(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async listDatasets(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.listDatasets(project.engine_project_id);
   }
@@ -285,7 +296,12 @@ export class DecisionController {
   }
 
   @Get("eval-datasets/:datasetId")
-  async datasetDetail(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string, @Param("datasetId") datasetId: string) {
+  async datasetDetail(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("datasetId") datasetId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.datasetDetail(project.engine_project_id, datasetId);
   }
@@ -324,7 +340,11 @@ export class DecisionController {
   }
 
   @Get("evaluations")
-  async listEvaluations(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async listEvaluations(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.listEvaluations(project.engine_project_id);
   }
@@ -350,19 +370,32 @@ export class DecisionController {
   }
 
   @Get("evaluations/:evaluationId")
-  async evaluationDetail(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string, @Param("evaluationId") evaluationId: string) {
+  async evaluationDetail(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+    @Param("evaluationId") evaluationId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.evaluationDetail(project.engine_project_id, evaluationId);
   }
 
   @Get("analytics/summary")
-  async analyticsSummary(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async analyticsSummary(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.analyticsSummary(project.engine_project_id);
   }
 
   @Get("alerts/rules")
-  async listAlertRules(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async listAlertRules(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.listAlertRules(project.engine_project_id);
   }
@@ -381,7 +414,11 @@ export class DecisionController {
 
   @Post("alerts/evaluate")
   @HttpCode(200)
-  async evaluateAlerts(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async evaluateAlerts(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.evaluateAlerts(project.engine_project_id);
   }
@@ -398,7 +435,11 @@ export class DecisionController {
   }
 
   @Get("integrations")
-  async listIntegrations(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async listIntegrations(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.listIntegrations(project.engine_project_id);
   }
@@ -424,13 +465,21 @@ export class DecisionController {
   }
 
   @Get("integrations/adapters")
-  async listAdapters(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async listAdapters(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.listAdapters(project.engine_project_id);
   }
 
   @Get("integrations/routes")
-  async listRoutes(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async listRoutes(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.listRoutes(project.engine_project_id);
   }
@@ -443,7 +492,8 @@ export class DecisionController {
     @Body() body: unknown,
   ) {
     const input = parseBody(routeSchema, body);
-    if (input.integration_id === undefined) throw new BadRequestException("integration_id is required");
+    if (input.integration_id === undefined)
+      throw new BadRequestException("integration_id is required");
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
     return this.engine.createRoute(project.engine_project_id, input.integration_id, {
       match_choice: input.match_choice,
@@ -453,7 +503,11 @@ export class DecisionController {
   }
 
   @Get("integrations/outcomes")
-  async routingOutcomes(@Req() request: RequestWithPrincipal, @Param("workspaceId") workspaceId: string, @Param("projectId") projectId: string) {
+  async routingOutcomes(
+    @Req() request: RequestWithPrincipal,
+    @Param("workspaceId") workspaceId: string,
+    @Param("projectId") projectId: string,
+  ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     return this.engine.routingOutcomes(project.engine_project_id);
   }

@@ -132,9 +132,12 @@ def create_app(
                     "kind": "rate_limit",
                 },
             )
+        content: dict[str, str] = {"detail": "Decision provider failed"}
+        if exc.kind != "unknown":
+            content["kind"] = exc.kind
         return JSONResponse(
             status_code=502,
-            content={"detail": "Decision provider failed", "kind": exc.kind},
+            content=content,
         )
 
     @app.exception_handler(TimeoutError)
@@ -159,15 +162,11 @@ def create_app(
         request.state.workspace_id = workspace_id
         request.state.actor = actor
 
-        if config.auth_required and not is_public_engine_path(
-            request.url.path, request.method
-        ):
+        if config.auth_required and not is_public_engine_path(request.url.path, request.method):
             provided_token = request.headers.get(
                 "X-OpenClass-Internal-Token"
             ) or request.headers.get("Authorization")
-            if not verify_internal_token(
-                provided_token, config.internal_token.get_secret_value()
-            ):
+            if not verify_internal_token(provided_token, config.internal_token.get_secret_value()):
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Valid internal authentication token is required"},

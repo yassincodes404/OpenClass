@@ -256,12 +256,12 @@ Engine migration `0017_candidate_reviews`. Seeder: `pnpm seed:portal-phase-11`
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Approve a 2-evidence candidate | `409 collect more evidence (2/5)` + blocking banner |
-| 2 | Attach evidence → Request review → approve | Status `approved` (still inactive; no Activate exists) |
-| 3 | Reject with reason | `rejected` + audited; terminal (repeat → 409) |
-| 4 | Review a candidate straight from `candidate` | 409 illegal transition — collect/request-review first |
+| #   | Action                                       | Expected                                               |
+| --- | -------------------------------------------- | ------------------------------------------------------ |
+| 1   | Approve a 2-evidence candidate               | `409 collect more evidence (2/5)` + blocking banner    |
+| 2   | Attach evidence → Request review → approve   | Status `approved` (still inactive; no Activate exists) |
+| 3   | Reject with reason                           | `rejected` + audited; terminal (repeat → 409)          |
+| 4   | Review a candidate straight from `candidate` | 409 illegal transition — collect/request-review first  |
 
 Lifecycle: `discovered → candidate → collecting_evidence → validating → approved
 → active` (+ rejected terminal). Only human review decisions count (reviews are
@@ -276,12 +276,12 @@ hard/unknown/adversarial slices).
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Add example with `source: prediction` | `400 predictions cannot be ground truth` |
-| 2 | Add example with an unknown-to-ontology label | `400 not an existing class or UNKNOWN` |
-| 3 | Duplicate text | `409` flagged |
-| 4 | Seal → add example | `409 dataset is sealed and immutable`; UI shows the sealed banner |
+| #   | Action                                        | Expected                                                          |
+| --- | --------------------------------------------- | ----------------------------------------------------------------- |
+| 1   | Add example with `source: prediction`         | `400 predictions cannot be ground truth`                          |
+| 2   | Add example with an unknown-to-ontology label | `400 not an existing class or UNKNOWN`                            |
+| 3   | Duplicate text                                | `409` flagged                                                     |
+| 4   | Seal → add example                            | `409 dataset is sealed and immutable`; UI shows the sealed banner |
 
 Ground truth accepts only `human` or `verified_external` sources with a named
 annotator; every row keeps its provenance. Admin+ creates/seals; reviewer+
@@ -295,11 +295,11 @@ evaluation where the false-novelty gate fails on a hard gold set).
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Open the passing evaluation | All gates green, "ready for human approval" (no auto-promotion) |
-| 2 | Open the blocked evaluation | Red banner, failed gate highlighted, promotion stays blocked |
-| 3 | Evaluate an unsealed dataset | `400 dataset must be sealed before evaluation` |
+| #   | Action                       | Expected                                                        |
+| --- | ---------------------------- | --------------------------------------------------------------- |
+| 1   | Open the passing evaluation  | All gates green, "ready for human approval" (no auto-promotion) |
+| 2   | Open the blocked evaluation  | Red banner, failed gate highlighted, promotion stays blocked    |
+| 3   | Evaluate an unsealed dataset | `400 dataset must be sealed before evaluation`                  |
 
 Replay is deterministic (mock provider, simulated): the same sealed dataset is
 replayed against the baseline ontology and baseline + candidate class. Metrics:
@@ -317,13 +317,13 @@ to v2; verifies the canonical phrase now classifies known).
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Promote without evaluation / approval / evidence | `409` with the specific guard reason |
-| 2 | Promote with passing eval + reviewer + rationale | v2 created, v1 unchanged, diff shows the added class |
-| 3 | Run a text containing the new canonical phrase | Now classifies known with v2 |
-| 4 | Roll back to v1 | v3 derived from v1 (history intact); classifying returns UNKNOWN |
-| 5 | Promote an already-active candidate / reference a stale evaluation | `409` |
+| #   | Action                                                             | Expected                                                         |
+| --- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| 1   | Promote without evaluation / approval / evidence                   | `409` with the specific guard reason                             |
+| 2   | Promote with passing eval + reviewer + rationale                   | v2 created, v1 unchanged, diff shows the added class             |
+| 3   | Run a text containing the new canonical phrase                     | Now classifies known with v2                                     |
+| 4   | Roll back to v1                                                    | v3 derived from v1 (history intact); classifying returns UNKNOWN |
+| 5   | Promote an already-active candidate / reference a stale evaluation | `409`                                                            |
 
 Guards (all required): approved status, ≥5 evidence, the LATEST evaluation
 passing (a newer failed evaluation blocks), explicit reviewer + rationale.
@@ -338,12 +338,12 @@ simulated spike — plus fresh UNKNOWN runs; evaluate fires the alert).
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | Open project overview | KPI cards: UNKNOWN rate with window delta, pending reviews, recurring unknown, cost |
-| 2 | Open `/projects/:id/analytics` | Runs-vs-UNKNOWN SVG trend, top classes, alert rules, fired alerts, recent versions, live tail |
-| 3 | Add rule + Evaluate now | Breached rules fire (measured > threshold), appear under Recent alerts, `quality.alert` audited |
-| 4 | Watch live tail | New events appear via the resumable `/ops/events` polling (SSE transport available on the engine) |
+| #   | Action                         | Expected                                                                                          |
+| --- | ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| 1   | Open project overview          | KPI cards: UNKNOWN rate with window delta, pending reviews, recurring unknown, cost               |
+| 2   | Open `/projects/:id/analytics` | Runs-vs-UNKNOWN SVG trend, top classes, alert rules, fired alerts, recent versions, live tail     |
+| 3   | Add rule + Evaluate now        | Breached rules fire (measured > threshold), appear under Recent alerts, `quality.alert` audited   |
+| 4   | Watch live tail                | New events appear via the resumable `/ops/events` polling (SSE transport available on the engine) |
 
 All metrics are measured persisted values (undefined → null, never invented).
 Alert metrics: unknown_rate, recurring_unknowns, latency, cost. The event log
@@ -359,13 +359,13 @@ including an UNKNOWN escalation). Start the engine with
 
 Manual checks:
 
-| # | Action | Expected |
-| --- | --- | --- |
-| 1 | POST /webhooks/zendesk with a known billing ticket | Tagged + routed per rule; outcome logged |
-| 2 | POST an unmatched ticket | Escalated to human triage; no auto-reply |
-| 3 | Bad/missing bearer token | `401`; nothing ingested |
-| 4 | Same event_key + same content | `200 deduplicated` (receipts); changed content → `409` |
-| 5 | Configure a rule for UNKNOWN | `400` — the escalation path is fixed |
+| #   | Action                                             | Expected                                               |
+| --- | -------------------------------------------------- | ------------------------------------------------------ |
+| 1   | POST /webhooks/zendesk with a known billing ticket | Tagged + routed per rule; outcome logged               |
+| 2   | POST an unmatched ticket                           | Escalated to human triage; no auto-reply               |
+| 3   | Bad/missing bearer token                           | `401`; nothing ingested                                |
+| 4   | Same event_key + same content                      | `200 deduplicated` (receipts); changed content → `409` |
+| 5   | Configure a rule for UNKNOWN                       | `400` — the escalation path is fixed                   |
 
 Adapters: zendesk/intercom connect as source-named webhook integrations
 (simulated); freshdesk/salesforce/slack show honest "not implemented" stubs.

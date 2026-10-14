@@ -156,4 +156,3 @@ async def test_integrations_lifecycle_api(app, monkeypatch: pytest.MonkeyPatch) 
             },
         )
         assert ssrf_endpoint.status_code == 422
-

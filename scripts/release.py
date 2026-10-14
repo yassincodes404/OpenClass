@@ -43,7 +43,9 @@ def main() -> None:
 
     for path in expected_paths:
         assert tomllib.loads(path.read_text())["project"]["version"] == version, path
-        assert (path.parent / "LICENSE").read_bytes() == (root / "LICENSE").read_bytes(), path
+        assert (path.parent / "LICENSE").read_text(encoding="utf-8").replace("\r\n", "\n") == (
+            root / "LICENSE"
+        ).read_text(encoding="utf-8").replace("\r\n", "\n"), path
     for path in [
         root / "package.json",
         *root.glob("apps/*/package.json"),
