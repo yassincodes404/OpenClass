@@ -35,6 +35,17 @@ import pytest
                 "openclass_provider_glm",
             },
         ),
+        (
+            "packages/tui",
+            {
+                "openclass_server",
+                "openclass_core",
+                "openclass_provider_mock",
+                "openclass_provider_jev",
+                "openclass_provider_laya",
+                "openclass_provider_glm",
+            },
+        ),
         ("providers/jev", {"openclass_server", "openclass_sdk", "openclass_cli"}),
         ("providers/mock", {"openclass_server", "openclass_sdk", "openclass_cli"}),
         ("providers/laya", {"openclass_server", "openclass_sdk", "openclass_cli"}),
@@ -43,7 +54,7 @@ import pytest
 )
 def test_dependency_direction(directory: str, forbidden: set[str]) -> None:
     for path in Path(directory).rglob("*.py"):
-        for node in ast.walk(ast.parse(path.read_text())):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             modules = (
                 [node.module]
                 if isinstance(node, ast.ImportFrom) and node.module

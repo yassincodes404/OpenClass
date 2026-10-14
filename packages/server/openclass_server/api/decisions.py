@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import time
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from openclass_core.decision_executor import DecisionExecutor
+from openclass_core.evidence import FeedbackAction
 from openclass_core.projects import (
     DecisionRun,
     DecisionService,
@@ -18,6 +19,7 @@ from openclass_core.projects import (
 from openclass_core.projects import ProjectService as ProjectDomainService
 from openclass_core.providers import DecisionProvider, ProviderError
 from openclass_core.repositories import NotFoundError
+from pydantic import BaseModel, Field
 
 from openclass_server.api.schemas import (
     DecisionServiceCreate,
@@ -26,6 +28,17 @@ from openclass_server.api.schemas import (
 )
 from openclass_server.provider_config import reject_credentials, resolve_decision_provider
 from openclass_server.settings import Settings
+
+
+class ResumeDecisionRunRequest(BaseModel):
+    approved_choice: str | None = Field(default=None, min_length=1, max_length=120)
+    operator: str = Field(default="operator", min_length=1, max_length=200)
+    rationale: str = Field(default="", max_length=2000)
+
+
+class CancelDecisionRunRequest(BaseModel):
+    operator: str = Field(default="operator", min_length=1, max_length=200)
+    reason: str = Field(min_length=3, max_length=2000)
 
 
 def decisions_router(
@@ -166,5 +179,87 @@ def decisions_router(
     )
     async def get_decision_run(identifier: str, run_id: UUID) -> DecisionRun:
         return await projects.get_decision_run(identifier=identifier, run_id=run_id)
+
+    @router.post("/api/v1/projects/{identifier}/runs/{run_id}/resume")
+    async def resume_decision_run(
+        identifier: str, run_id: UUID, body: ResumeDecisionRunRequest
+    ) -> dict[str, Any]:
+        run = await projects.get_decision_run(identifier=identifier, run_id=run_id)
+        service = await projects.get_decision_service(
+            identifier=identifier, service_id_or_slug=str(run.decision_service_id)
+        )
+        feedback_items = await projects.list_run_feedback(identifier=identifier, run_id=run_id)
+        if run.state_snapshot.get("status") == "cancelled" or any(
+            item.action == FeedbackAction.NOTE and (item.note or "").startswith("CANCELLED:")
+            for item in feedback_items
+        ):
+            raise HTTPException(status_code=409, detail="Decision run is already cancelled")
+
+        if run.supervision_outcome not in {"REVIEW", "ESCALATE", "UNKNOWN"}:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Decision run cannot be resumed from supervision outcome "
+                    f"'{run.supervision_outcome}'"
+                ),
+            )
+
+        valid_choices = {choice.key for node in service.nodes for choice in node.choices} | {
+            "UNKNOWN"
+        }
+        if body.approved_choice is not None:
+            if body.approved_choice not in valid_choices:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid approved_choice '{body.approved_choice}' for service",
+                )
+            final_choice = body.approved_choice
+            action = (
+                FeedbackAction.CORRECT
+                if final_choice != run.selected_choice
+                else FeedbackAction.CONFIRM
+            )
+            await projects.submit_run_feedback(
+                identifier=identifier,
+                run_id=run_id,
+                action=action,
+                corrected_choice=final_choice if action == FeedbackAction.CORRECT else None,
+                note=body.rationale or f"Resumed by {body.operator}",
+            )
+        else:
+            final_choice = run.selected_choice
+            await projects.submit_run_feedback(
+                identifier=identifier,
+                run_id=run_id,
+                action=FeedbackAction.CONFIRM,
+                note=body.rationale or f"Resumed by {body.operator}",
+            )
+
+        return {
+            "run_id": str(run.id),
+            "status": "completed",
+            "selected_choice": final_choice,
+            "supervision_outcome": "TRUSTED",
+            "resumed_by": body.operator,
+            "rationale": body.rationale,
+        }
+
+    @router.post("/api/v1/projects/{identifier}/runs/{run_id}/cancel")
+    async def cancel_decision_run(
+        identifier: str, run_id: UUID, body: CancelDecisionRunRequest
+    ) -> dict[str, Any]:
+        run = await projects.get_decision_run(identifier=identifier, run_id=run_id)
+        await projects.submit_run_feedback(
+            identifier=identifier,
+            run_id=run_id,
+            action=FeedbackAction.NOTE,
+            note=f"CANCELLED:{body.operator}:{body.reason}",
+        )
+        return {
+            "run_id": str(run.id),
+            "status": "cancelled",
+            "cancelled_by": body.operator,
+            "reason": body.reason,
+        }
 
     return router

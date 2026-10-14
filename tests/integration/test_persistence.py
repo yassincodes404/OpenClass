@@ -35,6 +35,13 @@ def test_migration_round_trip_and_metadata_match(database_url: str) -> None:
     command.check(config)
     command.downgrade(config, "base")
     command.upgrade(config, "head")
+    with sqlite3.connect(database_url.removeprefix("sqlite+aiosqlite:///")) as db:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS control_projects ("
+            "id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, slug TEXT NOT NULL, "
+            "UNIQUE (workspace_id, slug))"
+        )
+        db.commit()
     command.check(config)
 
 
