@@ -384,3 +384,100 @@ def test_sdk_webhook_identity_and_token_are_separate() -> None:
             token="test-token",
         )
         assert response["status"] == "duplicate"
+
+
+def test_sdk_phase_05_to_16_routes() -> None:
+    def handle(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        method = request.method
+        if path == "/api/v1/projects/my-proj/unknowns" and method == "GET":
+            return httpx.Response(200, json={"items": [{"run_id": "r1"}], "total": 1})
+        if path == "/api/v1/projects/my-proj/unknowns/r1/triage" and method == "POST":
+            return httpx.Response(200, json={"run_id": "r1", "category": "candidate_new_class"})
+        if path == "/api/v1/projects/my-proj/unknowns/r1/transition" and method == "POST":
+            return httpx.Response(200, json={"run_id": "r1", "status": "triaged"})
+        if path == "/api/v1/projects/my-proj/unknowns/cluster" and method == "POST":
+            return httpx.Response(200, json={"cluster_count": 1, "cluster_ids": ["c1"]})
+        if path == "/api/v1/projects/my-proj/unknowns/clusters" and method == "GET":
+            return httpx.Response(200, json=[{"id": "c1", "size": 3}])
+        if path == "/api/v1/projects/my-proj/clusters/c1/discover" and method == "POST":
+            return httpx.Response(201, json={"id": "dc-1", "status": "proposed"})
+        if path == "/api/v1/projects/my-proj/discovery-candidates" and method == "GET":
+            return httpx.Response(200, json=[{"id": "dc-1", "status": "proposed"}])
+        if path == "/api/v1/projects/my-proj/eval-datasets" and method == "POST":
+            return httpx.Response(201, json={"id": "ds-1", "name": "Holdout Suite"})
+        if path == "/api/v1/projects/my-proj/eval-datasets/ds-1/examples" and method == "POST":
+            return httpx.Response(201, json={"id": "ex-1", "split": "holdout"})
+        if path == "/api/v1/projects/my-proj/eval-datasets/ds-1/seal" and method == "POST":
+            return httpx.Response(200, json={"id": "ds-1", "sealed": True})
+        if path == "/api/v1/projects/my-proj/evaluations" and method == "POST":
+            return httpx.Response(201, json={"id": "eval-1", "overall_passed": True})
+        if (
+            path == "/api/v1/projects/my-proj/discovery-candidates/dc-1/promote"
+            and method == "POST"
+        ):
+            return httpx.Response(200, json={"version_number": 2, "status": "promoted"})
+        if path == "/api/v1/projects/my-proj/ontology" and method == "GET":
+            return httpx.Response(200, json={"current_version": 2, "versions": []})
+        if path == "/api/v1/projects/my-proj/analytics/summary" and method == "GET":
+            return httpx.Response(200, json={"total_runs": 42, "unknown_rate": 0.1})
+        if path == "/api/v1/projects/my-proj/alerts/rules" and method == "POST":
+            return httpx.Response(201, json={"id": "ar-1", "name": "Unknown Spike"})
+        return httpx.Response(404)
+
+    with OpenClass(transport=httpx.MockTransport(handle)) as client:
+        assert client.project_unknowns("my-proj", state="needs_evidence")["total"] == 1
+        assert (
+            client.triage_project_unknown("my-proj", "r1", category="candidate_new_class")[
+                "category"
+            ]
+            == "candidate_new_class"
+        )
+        assert client.transition_project_unknown("my-proj", "r1", to="triaged")["status"] == (
+            "triaged"
+        )
+        assert client.cluster_unknowns("my-proj", threshold=0.82)["cluster_count"] == 1
+        assert len(client.clusters("my-proj")) == 1
+        assert client.discover_cluster("my-proj", "c1")["id"] == "dc-1"
+        assert len(client.discovery_candidates("my-proj")) == 1
+        assert client.create_eval_dataset("my-proj", name="Holdout Suite")["id"] == "ds-1"
+        assert (
+            client.add_eval_example(
+                "my-proj",
+                "ds-1",
+                content="Cancel subscription",
+                expected_choice="CANCELLATION",
+                split="holdout",
+            )["split"]
+            == "holdout"
+        )
+        assert client.seal_eval_dataset("my-proj", "ds-1")["sealed"] is True
+        assert (
+            client.run_evaluation("my-proj", dataset_id="ds-1", candidate_id="dc-1")[
+                "overall_passed"
+            ]
+            is True
+        )
+        assert (
+            client.promote_discovery_candidate(
+                "my-proj",
+                "dc-1",
+                evaluation_id="eval-1",
+                reviewer="lead",
+                rationale="Verified on holdout",
+            )["version_number"]
+            == 2
+        )
+        assert client.project_ontology("my-proj")["current_version"] == 2
+        assert client.operations_summary("my-proj")["total_runs"] == 42
+        assert (
+            client.create_alert_rule(
+                "my-proj",
+                name="Unknown Spike",
+                metric="unknown_rate",
+                operator="gt",
+                threshold=0.25,
+            )["id"]
+            == "ar-1"
+        )
+

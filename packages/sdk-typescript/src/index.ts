@@ -984,4 +984,304 @@ export class OpenClass {
       { "X-OpenClass-Token": input.token },
     );
   }
+
+  // ── Phase 05–16: Unknowns, Clustering, Discovery, Evaluation, Ontology & Ops ──
+
+  projectUnknowns(
+    project: string,
+    options?: {
+      state?: string;
+      category?: string;
+      query?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ): Promise<Record<string, unknown>> {
+    const params = new URLSearchParams();
+    if (options?.state !== undefined) params.set("state", options.state);
+    if (options?.category !== undefined) params.set("category", options.category);
+    if (options?.query !== undefined) params.set("query", options.query);
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    if (options?.offset !== undefined) params.set("offset", String(options.offset));
+    const query = params.toString() ? `?${params.toString()}` : "";
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/unknowns${query}`);
+  }
+
+  projectUnknownStats(project: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/unknowns/stats`);
+  }
+
+  projectUnknown(input: { project: string; runId: string }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/unknowns/${encodeURIComponent(input.runId)}`,
+    );
+  }
+
+  triageProjectUnknown(input: {
+    project: string;
+    runId: string;
+    category: string;
+    assignee?: string;
+    note?: string;
+  }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = { category: input.category };
+    if (input.assignee !== undefined) body.assignee = input.assignee;
+    if (input.note !== undefined) body.note = input.note;
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/unknowns/${encodeURIComponent(input.runId)}/triage`,
+      body,
+      "POST",
+    );
+  }
+
+  transitionProjectUnknown(input: {
+    project: string;
+    runId: string;
+    to: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/unknowns/${encodeURIComponent(input.runId)}/transition`,
+      { to: input.to },
+      "POST",
+    );
+  }
+
+  clusterUnknowns(input: {
+    project: string;
+    threshold?: number;
+    limit?: number;
+  }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = {};
+    if (input.threshold !== undefined) body.threshold = input.threshold;
+    if (input.limit !== undefined) body.limit = input.limit;
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/unknowns/cluster`,
+      body,
+      "POST",
+    );
+  }
+
+  clusters(project: string): Promise<Array<Record<string, unknown>>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/unknowns/clusters`);
+  }
+
+  cluster(input: { project: string; clusterId: string }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/unknowns/clusters/${encodeURIComponent(input.clusterId)}`,
+    );
+  }
+
+  discoverCluster(input: { project: string; clusterId: string }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/clusters/${encodeURIComponent(input.clusterId)}/discover`,
+      {},
+      "POST",
+    );
+  }
+
+  discoveryCandidates(project: string): Promise<Array<Record<string, unknown>>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/discovery-candidates`);
+  }
+
+  discoveryCandidate(input: {
+    project: string;
+    candidateId: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/discovery-candidates/${encodeURIComponent(input.candidateId)}`,
+    );
+  }
+
+  discoveryCandidateAction(input: {
+    project: string;
+    candidateId: string;
+    action: "collect" | "request-review" | "review" | "reject";
+    body?: Record<string, unknown>;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/discovery-candidates/${encodeURIComponent(input.candidateId)}/${encodeURIComponent(input.action)}`,
+      input.body ?? {},
+      "POST",
+    );
+  }
+
+  discoveryCandidateHistory(input: {
+    project: string;
+    candidateId: string;
+  }): Promise<Array<Record<string, unknown>>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/discovery-candidates/${encodeURIComponent(input.candidateId)}/history`,
+    );
+  }
+
+  evalDatasets(project: string): Promise<Array<Record<string, unknown>>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/eval-datasets`);
+  }
+
+  createEvalDataset(input: {
+    project: string;
+    name: string;
+    description?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets`,
+      { name: input.name, description: input.description ?? "" },
+      "POST",
+    );
+  }
+
+  evalDataset(input: { project: string; datasetId: string }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets/${encodeURIComponent(input.datasetId)}`,
+    );
+  }
+
+  addEvalExample(input: {
+    project: string;
+    datasetId: string;
+    content: string;
+    expectedChoice: string;
+    split?: "dev" | "holdout";
+    sourceType?: string;
+    verifiedBy?: string;
+    runId?: string;
+  }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = {
+      content: input.content,
+      expected_choice: input.expectedChoice,
+      split: input.split ?? "dev",
+      source_type: input.sourceType ?? "verified_manual",
+      verified_by: input.verifiedBy ?? "operator",
+    };
+    if (input.runId !== undefined) body.run_id = input.runId;
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets/${encodeURIComponent(input.datasetId)}/examples`,
+      body,
+      "POST",
+    );
+  }
+
+  sealEvalDataset(input: {
+    project: string;
+    datasetId: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets/${encodeURIComponent(input.datasetId)}/seal`,
+      {},
+      "POST",
+    );
+  }
+
+  runEvaluation(input: {
+    project: string;
+    datasetId: string;
+    candidateId: string;
+    serviceId?: string;
+  }): Promise<Record<string, unknown>> {
+    const body: Record<string, unknown> = {
+      dataset_id: input.datasetId,
+      candidate_id: input.candidateId,
+    };
+    if (input.serviceId !== undefined) body.service_id = input.serviceId;
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/evaluations`,
+      body,
+      "POST",
+    );
+  }
+
+  evaluations(project: string): Promise<Array<Record<string, unknown>>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/evaluations`);
+  }
+
+  evaluation(input: { project: string; evaluationId: string }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/evaluations/${encodeURIComponent(input.evaluationId)}`,
+    );
+  }
+
+  promoteDiscoveryCandidate(input: {
+    project: string;
+    candidateId: string;
+    evaluationId: string;
+    reviewer: string;
+    rationale: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/discovery-candidates/${encodeURIComponent(input.candidateId)}/promote`,
+      {
+        evaluation_id: input.evaluationId,
+        reviewer: input.reviewer,
+        rationale: input.rationale,
+      },
+      "POST",
+    );
+  }
+
+  projectOntology(project: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/ontology`);
+  }
+
+  projectOntologyDiff(input: {
+    project: string;
+    fromVersion: number;
+    toVersion: number;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/ontology/diff?from_version=${encodeURIComponent(String(input.fromVersion))}&to_version=${encodeURIComponent(String(input.toVersion))}`,
+    );
+  }
+
+  rollbackProjectOntology(input: {
+    project: string;
+    fromVersion: number;
+    rationale: string;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/ontology/rollback`,
+      { from_version: input.fromVersion, rationale: input.rationale },
+      "POST",
+    );
+  }
+
+  operationsSummary(project: string): Promise<Record<string, unknown>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/analytics/summary`);
+  }
+
+  alertRules(project: string): Promise<Array<Record<string, unknown>>> {
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/alerts/rules`);
+  }
+
+  createAlertRule(input: {
+    project: string;
+    name: string;
+    metric: string;
+    operator: string;
+    threshold: number;
+  }): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/alerts/rules`,
+      {
+        name: input.name,
+        metric: input.metric,
+        operator: input.operator,
+        threshold: input.threshold,
+      },
+      "POST",
+    );
+  }
+
+  evaluateAlerts(project: string): Promise<Record<string, unknown>> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(project)}/alerts/evaluate`,
+      {},
+      "POST",
+    );
+  }
+
+  opsEvents(project: string, after?: string): Promise<Array<Record<string, unknown>>> {
+    const query = after !== undefined ? `?after=${encodeURIComponent(after)}` : "";
+    return this.request(`/api/v1/projects/${encodeURIComponent(project)}/ops/events${query}`);
+  }
 }
+

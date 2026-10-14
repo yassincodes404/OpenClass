@@ -45,3 +45,57 @@ def test_cli_connection_failure_is_actionable(monkeypatch: pytest.MonkeyPatch, c
         main()
     assert error.value.code == 1
     assert "openclass serve" in capsys.readouterr().err
+
+
+def test_cli_project_cluster_discover_and_promote_commands(
+    monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    monkeypatch.setattr(
+        sys, "argv", ["openclass", "cluster", "my-proj", "--threshold", "0.85"]
+    )
+    monkeypatch.setattr(
+        OpenClass,
+        "cluster_unknowns",
+        lambda self, project, *, threshold=None, limit=None: {
+            "project": project,
+            "threshold": threshold,
+            "cluster_count": 2,
+        },
+    )
+    main()
+    out = json.loads(capsys.readouterr().out)
+    assert out["project"] == "my-proj"
+    assert out["threshold"] == 0.85
+    assert out["cluster_count"] == 2
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "openclass",
+            "promote",
+            "my-proj",
+            "dc-1",
+            "--evaluation-id",
+            "eval-1",
+            "--reviewer",
+            "lead",
+            "--rationale",
+            "Holdout passed",
+        ],
+    )
+    monkeypatch.setattr(
+        OpenClass,
+        "promote_discovery_candidate",
+        lambda self, project, candidate_id, *, evaluation_id, reviewer, rationale: {
+            "project": project,
+            "candidate_id": candidate_id,
+            "evaluation_id": evaluation_id,
+            "reviewer": reviewer,
+            "version_number": 2,
+        },
+    )
+    main()
+    promoted = json.loads(capsys.readouterr().out)
+    assert promoted["version_number"] == 2
+

@@ -619,3 +619,81 @@ test("project integrations and system health operate over public HTTP contract",
     true,
   );
 });
+
+test("phase 05-16 unknown clustering, discovery, evaluation, ontology, and ops endpoints work over HTTP", async () => {
+  const fetcher: typeof fetch = async (url, init) => {
+    const method = init?.method ?? "GET";
+    const urlStr = String(url);
+    if (urlStr.includes("/unknowns?") && method === "GET") {
+      return Response.json({ items: [{ run_id: "r1" }], total: 1 });
+    }
+    if (urlStr.endsWith("/unknowns/r1/triage") && method === "POST") {
+      return Response.json({ run_id: "r1", category: "candidate_new_class" });
+    }
+    if (urlStr.endsWith("/unknowns/cluster") && method === "POST") {
+      return Response.json({ cluster_count: 1, cluster_ids: ["c1"] });
+    }
+    if (urlStr.endsWith("/clusters/c1/discover") && method === "POST") {
+      return Response.json({ id: "dc-1", status: "proposed" }, { status: 201 });
+    }
+    if (urlStr.endsWith("/eval-datasets") && method === "POST") {
+      return Response.json({ id: "ds-1", name: "Holdout" }, { status: 201 });
+    }
+    if (urlStr.endsWith("/evaluations") && method === "POST") {
+      return Response.json({ id: "eval-1", overall_passed: true }, { status: 201 });
+    }
+    if (urlStr.endsWith("/discovery-candidates/dc-1/promote") && method === "POST") {
+      return Response.json({ version_number: 2, status: "promoted" });
+    }
+    if (urlStr.endsWith("/ontology") && method === "GET") {
+      return Response.json({ current_version: 2 });
+    }
+    if (urlStr.endsWith("/analytics/summary") && method === "GET") {
+      return Response.json({ total_runs: 42 });
+    }
+    return new Response("Not found", { status: 404 });
+  };
+
+  const client = new OpenClass("http://example.internal", fetcher);
+  const unknowns = await client.projectUnknowns("p1", { state: "needs_evidence" });
+  assert.equal(unknowns.total, 1);
+
+  const triaged = await client.triageProjectUnknown({
+    project: "p1",
+    runId: "r1",
+    category: "candidate_new_class",
+  });
+  assert.equal(triaged.category, "candidate_new_class");
+
+  const clustered = await client.clusterUnknowns({ project: "p1", threshold: 0.82 });
+  assert.equal(clustered.cluster_count, 1);
+
+  const discovered = await client.discoverCluster({ project: "p1", clusterId: "c1" });
+  assert.equal(discovered.id, "dc-1");
+
+  const dataset = await client.createEvalDataset({ project: "p1", name: "Holdout" });
+  assert.equal(dataset.id, "ds-1");
+
+  const evalRun = await client.runEvaluation({
+    project: "p1",
+    datasetId: "ds-1",
+    candidateId: "dc-1",
+  });
+  assert.equal(evalRun.overall_passed, true);
+
+  const promoted = await client.promoteDiscoveryCandidate({
+    project: "p1",
+    candidateId: "dc-1",
+    evaluationId: "eval-1",
+    reviewer: "lead",
+    rationale: "Passed holdout",
+  });
+  assert.equal(promoted.version_number, 2);
+
+  const ontology = await client.projectOntology("p1");
+  assert.equal(ontology.current_version, 2);
+
+  const ops = await client.operationsSummary("p1");
+  assert.equal(ops.total_runs, 42);
+});
+
