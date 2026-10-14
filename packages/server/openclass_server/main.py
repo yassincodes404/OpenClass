@@ -53,6 +53,7 @@ from openclass_server.provider_config import project_diagnosis_provider as confi
 from openclass_server.provider_config import project_teacher_provider as configured_teacher
 from openclass_server.provider_config import supervisor_provider as configured_supervisor
 from openclass_server.rate_limit import RateLimiter
+from openclass_server.security import is_public_engine_path, verify_internal_token
 from openclass_server.settings import EXPECTED_SCHEMA_REVISION, Settings
 
 
@@ -153,6 +154,26 @@ def create_app(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         correlation_id = request.headers.get("X-Correlation-ID") or str(uuid4())
+        workspace_id = (request.headers.get("X-OpenClass-Workspace-Id") or "").strip() or None
+        actor = (request.headers.get("X-OpenClass-Actor") or "").strip() or None
+        request.state.workspace_id = workspace_id
+        request.state.actor = actor
+
+        if config.auth_required and not is_public_engine_path(
+            request.url.path, request.method
+        ):
+            provided_token = request.headers.get(
+                "X-OpenClass-Internal-Token"
+            ) or request.headers.get("Authorization")
+            if not verify_internal_token(
+                provided_token, config.internal_token.get_secret_value()
+            ):
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Valid internal authentication token is required"},
+                    headers={"X-Correlation-ID": correlation_id},
+                )
+
         client = request.client.host if request.client else "unknown"
         allowed, retry_after, limit, remaining = limiter.check(
             client, request.url.path, method=request.method
@@ -170,6 +191,8 @@ def create_app(
             )
         response = await call_next(request)
         response.headers["X-Correlation-ID"] = correlation_id
+        if workspace_id:
+            response.headers["X-OpenClass-Workspace-Id"] = workspace_id
         if limit:
             response.headers["X-RateLimit-Limit"] = str(limit)
             response.headers["X-RateLimit-Remaining"] = str(remaining)

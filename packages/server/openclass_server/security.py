@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
+import hmac
 import ipaddress
 import re
 import socket
 from urllib.parse import urlsplit
 
 _SECRET_REF_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,199}$")
+_WEBHOOK_PATH_RE = re.compile(
+    r"^/api/v1/projects/[^/]+/(?:integrations/[^/]+/webhook|webhooks/[^/]+)$"
+)
 
 FORBIDDEN_INTEGRATION_SECRET_REFS: frozenset[str] = frozenset(
     {
         "DATABASE_URL",
         "OPENCLASS_DATABASE_URL",
+        "OPENCLASS_INTERNAL_TOKEN",
         "POSTGRES_PASSWORD",
         "PGPASSWORD",
         "AI_GATEWAY_API_KEY",
@@ -63,6 +68,28 @@ def contains_secret(value: object, secret: str) -> bool:
         )
     if isinstance(value, (list, tuple)):
         return any(contains_secret(item, secret) for item in value)
+    return False
+
+
+def verify_internal_token(provided: str | None, expected: str) -> bool:
+    """Verify internal control-plane-to-engine token in constant time."""
+    expected_clean = expected.strip()
+    if not provided or not expected_clean:
+        return False
+    candidate = provided.strip()
+    if candidate.lower().startswith("bearer "):
+        candidate = candidate[7:].strip()
+    if not candidate:
+        return False
+    return hmac.compare_digest(candidate.encode("utf-8"), expected_clean.encode("utf-8"))
+
+
+def is_public_engine_path(path: str, method: str = "GET") -> bool:
+    """Allow unauthenticated liveness/readiness probes and signed webhook ingress routes."""
+    if path in {"/health", "/health/ready"}:
+        return True
+    if method.upper() == "POST" and _WEBHOOK_PATH_RE.match(path):
+        return True
     return False
 
 

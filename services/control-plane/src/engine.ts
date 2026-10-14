@@ -60,6 +60,29 @@ export type EngineDecisionRun = {
 @Injectable()
 export class EngineClient {
   private readonly baseUrl = process.env.ENGINE_BASE_URL ?? "http://127.0.0.1:7331";
+  private readonly internalToken = process.env.OPENCLASS_INTERNAL_TOKEN ?? "";
+
+  private buildHeaders(
+    hasBody: boolean,
+    extra?: Record<string, string | undefined>,
+  ): Record<string, string> {
+    const headers: Record<string, string> = {};
+    if (hasBody) {
+      headers["content-type"] = "application/json";
+    }
+    const token = this.internalToken.trim();
+    if (token) {
+      headers["X-OpenClass-Internal-Token"] = token;
+    }
+    if (extra) {
+      for (const [key, value] of Object.entries(extra)) {
+        if (value && value.trim()) {
+          headers[key] = value.trim();
+        }
+      }
+    }
+    return headers;
+  }
 
   async createProject(name: string, description: string): Promise<EngineProject> {
     return this.request<EngineProject>("POST", "/api/v1/projects", { name, description }, 201);
@@ -428,15 +451,17 @@ export class EngineClient {
     body: unknown,
     expectedStatuses: number[],
     idempotencyKey?: string,
+    context?: { workspaceId?: string; actor?: string },
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
         method,
-        headers: {
-          "content-type": "application/json",
-          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
-        },
+        headers: this.buildHeaders(true, {
+          "Idempotency-Key": idempotencyKey,
+          "X-OpenClass-Workspace-Id": context?.workspaceId,
+          "X-OpenClass-Actor": context?.actor,
+        }),
         body: JSON.stringify(body),
       });
     } catch {
@@ -451,12 +476,21 @@ export class EngineClient {
     throw new BadGatewayException("Engine request failed");
   }
 
-  async request<T>(method: string, path: string, body?: unknown, expectedStatus = 200): Promise<T> {
+  async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    expectedStatus = 200,
+    context?: { workspaceId?: string; actor?: string },
+  ): Promise<T> {
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
         method,
-        headers: body ? { "content-type": "application/json" } : {},
+        headers: this.buildHeaders(Boolean(body), {
+          "X-OpenClass-Workspace-Id": context?.workspaceId,
+          "X-OpenClass-Actor": context?.actor,
+        }),
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch {
