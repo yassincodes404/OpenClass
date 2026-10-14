@@ -113,6 +113,29 @@ describe("portal auth gate", () => {
     ).toBeTruthy();
     expect(screen.queryByText("Sign out")).toBeNull();
   });
+
+  it("renders authenticated navigation with user email workspace context and Sign out button", async () => {
+    vi.stubGlobal(
+      "fetch",
+      stubControl([
+        {
+          id: "w-1",
+          slug: "acme-support",
+          name: "Acme Support (ops@acme.io)",
+          role: "owner",
+        },
+      ]),
+    );
+    keycloak.init.mockResolvedValue(true);
+    renderPortal("/projects");
+
+    expect(await screen.findByText("Acme Support (ops@acme.io)")).toBeTruthy();
+    expect(screen.getByText(/ops@acme\.io/i)).toBeTruthy();
+    const signOutBtn = screen.getByRole("button", { name: "Sign out" });
+    expect(signOutBtn).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Home" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Projects" })).toBeTruthy();
+  });
 });
 
 describe("portal landing page (Precision Observatory)", () => {
@@ -155,6 +178,104 @@ describe("portal landing page (Precision Observatory)", () => {
     ).toBeTruthy();
   });
 
+  it("renders all 4 observation presets in OpenWorldLoopStage, switches presets when clicked, and updates active stage telemetry", () => {
+    keycloak.init.mockResolvedValue(false);
+    renderPortal("/");
+
+    const presetChargedTwice = screen.getByRole("tab", { name: /I was charged twice/i });
+    const presetCancelPlan = screen.getByRole("tab", { name: /Cancel my plan/i });
+    const presetComplianceAudit = screen.getByRole("tab", {
+      name: /Export compliance packet for EU.*audit/i,
+    });
+    const presetUpstream502 = screen.getByRole("tab", { name: /Upstream 502.*Timeout/i });
+
+    expect(presetChargedTwice).toBeTruthy();
+    expect(presetCancelPlan).toBeTruthy();
+    expect(presetComplianceAudit).toBeTruthy();
+    expect(presetUpstream502).toBeTruthy();
+
+    // Default active preset is "Cancel my plan"
+    expect(presetCancelPlan.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("OBSERVED → CHECKING COVERAGE")).toBeTruthy();
+    expect(screen.getByText("likely novel")).toBeTruthy();
+
+    // Click Preset 1 ("I was charged twice") and verify telemetry updates
+    fireEvent.click(presetChargedTwice);
+    expect(presetChargedTwice.getAttribute("aria-selected")).toBe("true");
+    expect(presetCancelPlan.getAttribute("aria-selected")).toBe("false");
+    expect(screen.getByText("INGESTED → PINNED TO v1")).toBeTruthy();
+    expect(
+      screen.getByText("Raw source event is immutable; predictions never overwrite input."),
+    ).toBeTruthy();
+
+    // Click Preset 3 ("Export compliance packet for EU invoice audit") and verify telemetry updates
+    fireEvent.click(presetComplianceAudit);
+    expect(presetComplianceAudit.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("OBSERVED → BOUNDARY TEST")).toBeTruthy();
+    expect(screen.getByText("ambiguous review")).toBeTruthy();
+    expect(
+      screen.getByText("Supervision policy monitors top-2 class margin on every run."),
+    ).toBeTruthy();
+
+    // Click Preset 4 ("Upstream 502 Bad Gateway / Inference Timeout") and verify telemetry updates
+    fireEvent.click(presetUpstream502);
+    expect(presetUpstream502.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("DISPATCHING TO PROVIDER")).toBeTruthy();
+    expect(screen.getByText("provider error")).toBeTruthy();
+    expect(screen.getByText("∑ P = N/A (FAULT)")).toBeTruthy();
+  });
+
+  it("toggles Play/Pause aria-pressed state and switches all 5 stage scrubber buttons", () => {
+    keycloak.init.mockResolvedValue(false);
+    renderPortal("/");
+
+    const playPauseButton = screen.getByRole("button", { name: /Pause trace|Auto-trace/i });
+    expect(playPauseButton.getAttribute("aria-pressed")).toBe("true");
+
+    // Click to pause
+    fireEvent.click(playPauseButton);
+    expect(playPauseButton.getAttribute("aria-pressed")).toBe("false");
+    expect(playPauseButton.textContent).toContain("Auto-trace");
+
+    // Click to resume playing
+    fireEvent.click(playPauseButton);
+    expect(playPauseButton.getAttribute("aria-pressed")).toBe("true");
+    expect(playPauseButton.textContent).toContain("Pause trace");
+
+    // Verify all 5 stage scrubber buttons switch steps and update telemetry
+    const stepButtons = [
+      {
+        pattern: /01 \/ OBSERVE/i,
+        badge: "OBSERVED → CHECKING COVERAGE",
+      },
+      {
+        pattern: /02 \/ SCORE/i,
+        badge: "ABSTAINED → PERMANENT UNKNOWN",
+      },
+      {
+        pattern: /03 \/ EVIDENCE/i,
+        badge: "STORED IN EVIDENCE POOL",
+      },
+      {
+        pattern: /04 \/ TEACHER/i,
+        badge: "CANDIDATE PROPOSED (INACTIVE)",
+      },
+      {
+        pattern: /05 \/ GOVERN/i,
+        badge: "HELD AT REPLAY & HUMAN GATE",
+      },
+    ];
+
+    for (const [idx, stepSpec] of stepButtons.entries()) {
+      const btn = screen.getByRole("button", { name: stepSpec.pattern });
+      fireEvent.click(btn);
+      expect(btn.getAttribute("aria-pressed")).toBe("true");
+      expect(playPauseButton.getAttribute("aria-pressed")).toBe("false");
+      expect(screen.getByText(stepSpec.badge)).toBeTruthy();
+      expect(screen.getByText(new RegExp(`STEP ${idx + 1} \\/ 5`, "i"))).toBeTruthy();
+    }
+  });
+
   it("switches grounded proof scenarios and developer quickstart tabs", () => {
     keycloak.init.mockResolvedValue(false);
     renderPortal("/");
@@ -168,3 +289,4 @@ describe("portal landing page (Precision Observatory)", () => {
     expect(screen.getByText(/Trigger an advisory Supervisor review/i)).toBeTruthy();
   });
 });
+

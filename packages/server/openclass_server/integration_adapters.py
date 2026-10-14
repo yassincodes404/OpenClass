@@ -93,7 +93,11 @@ class HTTPIntegrationProbe:
             except IntegrationConfigurationError:
                 status = IntegrationStatus.DISCONNECTED
                 error = "Webhook authentication credential is unavailable"
-        elif integration.type == IntegrationType.REST_API:
+        elif integration.type in {
+            IntegrationType.REST_API,
+            IntegrationType.MCP,
+            IntegrationType.PROVIDER,
+        }:
             endpoint = integration.endpoint or ""
             try:
                 validated_endpoint = validate_outbound_url(
@@ -117,17 +121,48 @@ class HTTPIntegrationProbe:
                         transport=self.transport,
                         trust_env=False,
                     ) as client:
-                        response = await client.get(validated_endpoint, headers=headers)
-                    status = (
-                        IntegrationStatus.CONNECTED
-                        if 200 <= response.status_code < 300
-                        else IntegrationStatus.DEGRADED
-                    )
-                    error = (
-                        None
-                        if status == IntegrationStatus.CONNECTED
-                        else f"HTTP {response.status_code}"
-                    )
+                        if integration.type == IntegrationType.MCP:
+                            response = await client.post(
+                                validated_endpoint,
+                                headers=headers,
+                                json={
+                                    "jsonrpc": "2.0",
+                                    "id": 1,
+                                    "method": "tools/list",
+                                    "params": {},
+                                },
+                            )
+                            if response.status_code == 405:
+                                response = await client.get(validated_endpoint, headers=headers)
+                        else:
+                            response = await client.get(validated_endpoint, headers=headers)
+
+                    if integration.type == IntegrationType.MCP:
+                        if 200 <= response.status_code < 300:
+                            status, error = IntegrationStatus.CONNECTED, None
+                            discovered = self._extract_mcp_tools(response)
+                            capabilities = discovered or ("mcp_tools", "context_fetch")
+                        else:
+                            status = IntegrationStatus.DEGRADED
+                            error = f"HTTP {response.status_code}"
+                    elif integration.type == IntegrationType.PROVIDER:
+                        if 200 <= response.status_code < 300 or response.status_code in {401, 403}:
+                            status, error = IntegrationStatus.CONNECTED, None
+                            capabilities = ("model_inference",)
+                        else:
+                            status = IntegrationStatus.DEGRADED
+                            error = f"HTTP {response.status_code}"
+                    else:
+                        status = (
+                            IntegrationStatus.CONNECTED
+                            if 200 <= response.status_code < 300
+                            else IntegrationStatus.DEGRADED
+                        )
+                        error = (
+                            None
+                            if status == IntegrationStatus.CONNECTED
+                            else f"HTTP {response.status_code}"
+                        )
                 except IntegrationConfigurationError:
                     status, error = (
                         IntegrationStatus.DISCONNECTED,
@@ -145,3 +180,28 @@ class HTTPIntegrationProbe:
             capabilities=capabilities,
             error_message=error,
         )
+
+    @staticmethod
+    def _extract_mcp_tools(response: httpx.Response) -> tuple[str, ...]:
+        try:
+            payload = response.json()
+        except ValueError:
+            return ()
+        if not isinstance(payload, Mapping):
+            return ()
+        result = payload.get("result")
+        if not isinstance(result, Mapping):
+            return ()
+        tools = result.get("tools")
+        if not isinstance(tools, list):
+            return ()
+        names: list[str] = []
+        for item in tools:
+            if isinstance(item, str) and item.strip():
+                names.append(item.strip())
+            elif isinstance(item, Mapping):
+                name = item.get("name")
+                if isinstance(name, str) and name.strip():
+                    names.append(name.strip())
+        return tuple(names)
+

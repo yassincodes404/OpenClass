@@ -6,15 +6,18 @@ import json
 import os
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException, Request, Response
 from openclass_core.projects import ProjectService as ProjectDomainService
 from openclass_core.routing import (
+    DeliveryMode,
+    RouteOutcome,
     RoutingRule,
     adapter_status,
-    decide_routing,
+    evaluate_routing,
+    match_rule,
 )
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -26,6 +29,12 @@ class RouteCreate(BaseModel):
     match_choice: str = Field(min_length=1, max_length=100)
     action: str = Field(pattern=r"^(tag|assign_queue)$")
     action_value: str = Field(default="", max_length=200)
+
+
+class RouteEvaluate(BaseModel):
+    run_id: str = Field(min_length=1, max_length=100)
+    integration_id: str | None = None
+    delivery_mode: DeliveryMode = "simulated"
 
 
 class SourceDelivery(BaseModel):
@@ -78,6 +87,54 @@ def support_router(
                 )
                 for row in rows
             ]
+
+    async def _record_outcome(
+        *,
+        project_id: UUID,
+        integration_id: str,
+        event_id: str,
+        outcome: RouteOutcome,
+    ) -> tuple[dict[str, str], bool]:
+        detail_payload = outcome.to_payload()
+        outcome_row_id = str(
+            uuid5(NAMESPACE_URL, f"openclass:route_outcome:{project_id}:{outcome.idempotency_key}")
+        )
+        async with sessions.begin() as session:
+            existing_query = await session.execute(
+                sa.text(
+                    "SELECT id, detail FROM routing_outcomes"
+                    " WHERE project_id = :pid AND id = :id LIMIT 1"
+                ),
+                {"pid": str(project_id), "id": outcome_row_id},
+            )
+            existing = existing_query.first()
+            if existing is not None:
+                existing_detail = (
+                    json.loads(existing.detail)
+                    if isinstance(existing.detail, str)
+                    else existing.detail
+                )
+                return existing_detail, True
+
+            await session.execute(
+                sa.text(
+                    "INSERT INTO routing_outcomes"
+                    " (id, project_id, integration_id, event_id, selected_choice,"
+                    "  action, detail, created_at)"
+                    " VALUES (:id, :pid, :iid, :eid, :choice, :action, :detail, :created)"
+                ),
+                {
+                    "id": outcome_row_id,
+                    "pid": str(project_id),
+                    "iid": integration_id,
+                    "eid": event_id,
+                    "choice": outcome.selected_choice,
+                    "action": outcome.action,
+                    "detail": json.dumps(detail_payload),
+                    "created": datetime.now(UTC),
+                },
+            )
+        return detail_payload, False
 
     @router.get("/api/v1/projects/{identifier}/integrations/adapters")
     async def adapters(identifier: str) -> list[dict[str, Any]]:
@@ -136,6 +193,66 @@ def support_router(
             "match_choice": body.match_choice.upper(),
             "action": body.action,
             "action_value": body.action_value,
+        }
+
+    @router.post("/api/v1/projects/{identifier}/integrations/routes/evaluate", status_code=200)
+    async def evaluate_route(
+        identifier: str,
+        body: RouteEvaluate,
+        response: Response,
+    ) -> dict[str, Any]:
+        project = await projects.get(identifier)
+        async with sessions() as session:
+            run_row = (
+                await session.execute(
+                    sa.text(
+                        "SELECT id, raw_event_id, selected_choice FROM decision_runs"
+                        " WHERE project_id = :pid AND id = :rid LIMIT 1"
+                    ),
+                    {"pid": str(project.id), "rid": body.run_id},
+                )
+            ).first()
+            if run_row is None:
+                raise HTTPException(status_code=404, detail="Decision run not found")
+            integration_id = body.integration_id
+            if integration_id is None:
+                int_row = (
+                    await session.execute(
+                        sa.text(
+                            "SELECT id FROM project_integrations"
+                            " WHERE project_id = :pid LIMIT 1"
+                        ),
+                        {"pid": str(project.id)},
+                    )
+                ).first()
+                integration_id = str(int_row.id) if int_row is not None else "default"
+        rules = await _routes(project.id)
+        route_outcome = evaluate_routing(
+            rules,
+            run_row.selected_choice,
+            run_id=str(run_row.id),
+            delivery_mode=body.delivery_mode,
+        )
+        matched = match_rule(rules, run_row.selected_choice)
+        effective_integration_id = matched.integration_id if matched is not None else integration_id
+        outcome, deduplicated = await _record_outcome(
+            project_id=project.id,
+            integration_id=effective_integration_id,
+            event_id=str(run_row.raw_event_id),
+            outcome=route_outcome,
+        )
+        if not deduplicated:
+            response.status_code = 201
+        return {
+            "run_id": str(run_row.id),
+            "event_id": str(run_row.raw_event_id),
+            "selected_choice": run_row.selected_choice,
+            "routing": outcome,
+            "delivery_mode": route_outcome.delivery_mode,
+            "idempotency_key": route_outcome.idempotency_key,
+            "deduplicated": deduplicated,
+            "routed": not deduplicated,
+            "simulated": route_outcome.delivery_mode == "simulated",
         }
 
     @router.post("/api/v1/projects/{identifier}/webhooks/{source}", status_code=201)
@@ -216,6 +333,7 @@ def support_router(
         # Classify with the project's first decision service, then route.
         services = await projects.list_decision_services(identifier=identifier)
         selected = "UNKNOWN"
+        run_id = str(event.id)
         if services:
             from openclass_core.decision_executor import DecisionExecutor
 
@@ -224,33 +342,29 @@ def support_router(
             run = await executor.execute(fetched, services[0])
             await projects.record_decision_run(run)
             selected = run.selected_choice
+            run_id = str(run.id)
         rules = await _routes(project.id)
-        outcome = decide_routing(rules, selected)
-        async with sessions.begin() as session:
-            await session.execute(
-                sa.text(
-                    "INSERT INTO routing_outcomes"
-                    " (id, project_id, integration_id, event_id, selected_choice,"
-                    "  action, detail, created_at)"
-                    " VALUES (:id, :pid, :iid, :eid, :choice, :action, :detail, :created)"
-                ),
-                {
-                    "id": str(uuid4()),
-                    "pid": str(project.id),
-                    "iid": integration["id"],
-                    "eid": str(event.id),
-                    "choice": selected,
-                    "action": outcome["action"],
-                    "detail": json.dumps(outcome),
-                    "created": datetime.now(UTC),
-                },
-            )
+        route_outcome = evaluate_routing(
+            rules,
+            selected,
+            run_id=run_id,
+            delivery_mode="simulated",
+        )
+        outcome, deduped_outcome = await _record_outcome(
+            project_id=project.id,
+            integration_id=integration["id"],
+            event_id=str(event.id),
+            outcome=route_outcome,
+        )
         return {
+            "run_id": run_id,
             "event_id": str(event.id),
             "selected_choice": selected,
             "routing": outcome,
-            "routed": True,
-            "simulated": True,
+            "delivery_mode": route_outcome.delivery_mode,
+            "idempotency_key": route_outcome.idempotency_key,
+            "routed": not deduped_outcome,
+            "simulated": route_outcome.delivery_mode == "simulated",
         }
 
     @router.get("/api/v1/projects/{identifier}/integrations/outcomes")
@@ -265,14 +379,27 @@ def support_router(
                 ),
                 {"pid": str(project.id)},
             )
-            return [
-                {
-                    "selected_choice": row.selected_choice,
-                    "action": row.action,
-                    "detail": json.loads(row.detail) if isinstance(row.detail, str) else row.detail,
-                    "created_at": row.created_at,
-                }
-                for row in rows
-            ]
+            results: list[dict[str, Any]] = []
+            for row in rows:
+                detail = json.loads(row.detail) if isinstance(row.detail, str) else row.detail
+                results.append(
+                    {
+                        "selected_choice": row.selected_choice,
+                        "action": row.action,
+                        "detail": detail,
+                        "delivery_mode": (
+                            detail.get("delivery_mode", "simulated")
+                            if isinstance(detail, dict)
+                            else "simulated"
+                        ),
+                        "idempotency_key": (
+                            detail.get("idempotency_key", "")
+                            if isinstance(detail, dict)
+                            else ""
+                        ),
+                        "created_at": row.created_at,
+                    }
+                )
+            return results
 
     return router
