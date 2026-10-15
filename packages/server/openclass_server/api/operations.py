@@ -13,10 +13,14 @@ import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from openclass_core.alerting import AlertRule, evaluate_rules
+from openclass_core.projects import ProjectRunMeasurements
 from openclass_core.projects import ProjectService as ProjectDomainService
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from openclass_server.persistence import run_queries as rq
+from openclass_server.persistence.project_repository import SQLProjectRepository
+from openclass_server.persistence.tables import DecisionRunRow
 from openclass_server.persistence.unknown_triage import UnknownTriageStore
 from openclass_server.settings import Settings
 
@@ -39,74 +43,9 @@ def operations_router(
 
     async def _measurements(
         project_id: str, since: datetime, until: datetime | None = None
-    ) -> dict[str, float | None]:
-        """Measured persisted values only — no samples, no invention."""
-        async with sessions() as session:
-            if until is not None:
-                runs_rows = await session.execute(
-                    sa.text(
-                        "SELECT payload FROM decision_runs WHERE project_id = :pid"
-                        " AND created_at >= :since AND created_at < :until"
-                    ),
-                    {"pid": project_id, "since": since, "until": until},
-                )
-            else:
-                runs_rows = await session.execute(
-                    sa.text(
-                        "SELECT payload FROM decision_runs WHERE project_id = :pid"
-                        " AND created_at >= :since"
-                    ),
-                    {"pid": project_id, "since": since},
-                )
-            unknown = total = 0
-            recurring: dict[str, int] = {}
-            latencies: list[float] = []
-            for row in runs_rows:
-                payload = row.payload
-                if isinstance(payload, str):
-                    payload = json.loads(payload)
-                payload = payload if isinstance(payload, dict) else {}
-                total += 1
-                run = payload
-                if (
-                    run.get("selected_choice") == "UNKNOWN"
-                    or run.get("supervision_outcome") == "UNKNOWN"
-                ):
-                    unknown += 1
-                    snapshot = run.get("input_snapshot", {})
-                    hash_key = str(snapshot.get("content_hash", snapshot.get("content", "")))
-                    recurring[hash_key] = recurring.get(hash_key, 0) + 1
-                latency = run.get("latency_ms")
-                if isinstance(latency, (int, float)):
-                    latencies.append(float(latency))
-            if until is not None:
-                cost = await session.execute(
-                    sa.text(
-                        "SELECT COALESCE(SUM(estimated_cost), 0) FROM provider_usage"
-                        " WHERE project_id = :pid AND usage_date >= :since_date"
-                        " AND usage_date < :until_date"
-                    ),
-                    {
-                        "pid": project_id,
-                        "since_date": since.date(),
-                        "until_date": until.date(),
-                    },
-                )
-            else:
-                cost = await session.execute(
-                    sa.text(
-                        "SELECT COALESCE(SUM(estimated_cost), 0) FROM provider_usage"
-                        " WHERE project_id = :pid AND usage_date >= :since_date"
-                    ),
-                    {"pid": project_id, "since_date": since.date()},
-                )
-            cost_value = float(cost.scalar() or 0.0)
-        return {
-            "unknown_rate": (unknown / total) if total else None,
-            "recurring_unknowns": float(max(recurring.values())) if recurring else 0.0,
-            "latency": (sum(latencies) / len(latencies)) if latencies else None,
-            "cost": cost_value,
-        }
+    ) -> ProjectRunMeasurements:
+        """Aggregate in SQL, including the winning mutable checkpoint view."""
+        return await SQLProjectRepository(sessions).run_measurements(project_id, since, until)
 
     @router.get("/api/v1/projects/{identifier}/analytics/summary")
     async def analytics_summary(
@@ -117,25 +56,34 @@ def operations_router(
         now = datetime.now(UTC)
         week_ago = now - timedelta(days=days)
         two_weeks_ago = now - timedelta(days=days * 2)
-        current = await _measurements(str(project.id), week_ago)
+        current = await _measurements(str(project.id), week_ago, until=now)
         previous = await _measurements(str(project.id), two_weeks_ago, until=week_ago)
         async with sessions() as session:
             top = await session.execute(
-                sa.text(
-                    "SELECT selected_choice, count(*) AS n FROM decision_runs"
-                    " WHERE project_id = :pid AND created_at >= :since"
-                    " GROUP BY selected_choice ORDER BY n DESC LIMIT 5"
-                ),
-                {"pid": str(project.id), "since": week_ago},
+                sa.select(rq.choice.label("selected_choice"), sa.func.count().label("n"))
+                .select_from(rq.joined_runs)
+                .where(
+                    DecisionRunRow.project_id == str(project.id),
+                    DecisionRunRow.created_at >= week_ago,
+                )
+                .group_by(rq.choice)
+                .order_by(sa.desc("n"), rq.choice)
+                .limit(5)
             )
+            day = sa.func.date(DecisionRunRow.created_at)
             daily = await session.execute(
-                sa.text(
-                    "SELECT date(created_at) AS day, count(*) AS total,"
-                    " SUM(CASE WHEN selected_choice = 'UNKNOWN' THEN 1 ELSE 0 END) AS unknowns"
-                    " FROM decision_runs WHERE project_id = :pid AND created_at >= :since"
-                    " GROUP BY day ORDER BY day"
-                ),
-                {"pid": str(project.id), "since": week_ago},
+                sa.select(
+                    day.label("day"),
+                    sa.func.count().label("total"),
+                    sa.func.sum(sa.case((rq.unknown, 1), else_=0)).label("unknowns"),
+                )
+                .select_from(rq.joined_runs)
+                .where(
+                    DecisionRunRow.project_id == str(project.id),
+                    DecisionRunRow.created_at >= week_ago,
+                )
+                .group_by(day)
+                .order_by(day)
             )
             pending = await session.execute(
                 sa.text(
@@ -159,8 +107,8 @@ def operations_router(
                 ),
                 {"pid": str(project.id)},
             )
-        prev_rate = previous.get("unknown_rate")
-        curr_rate = current.get("unknown_rate")
+        prev_rate = previous.unknown_rate
+        curr_rate = current.unknown_rate
         return {
             "window_days": days,
             "unknown_rate": curr_rate,
@@ -168,9 +116,12 @@ def operations_router(
             "unknown_rate_delta": None
             if curr_rate is None or prev_rate is None
             else round(curr_rate - prev_rate, 4),
-            "latency_avg_ms": current.get("latency"),
-            "provider_cost": current.get("cost"),
-            "recurring_unknowns": current.get("recurring_unknowns"),
+            "latency_avg_ms": current.latency,
+            "provider_cost": current.cost,
+            "provider_cost_measurement": current.cost_window.model_dump(mode="json"),
+            "previous_provider_cost": previous.cost,
+            "previous_provider_cost_measurement": previous.cost_window.model_dump(mode="json"),
+            "recurring_unknowns": current.recurring_unknowns,
             "top_classes": [{"class": row.selected_choice, "count": row.n} for row in top],
             "daily": [
                 {"date": str(row.day), "total": row.total, "unknowns": row.unknowns or 0}
@@ -272,9 +223,10 @@ def operations_router(
                 )
                 for row in rows
             ]
-        since = datetime.now(UTC) - timedelta(hours=1)
-        measurements = await _measurements(str(project.id), since)
-        alerts = evaluate_rules(rules, measurements)
+        now = datetime.now(UTC)
+        since = now - timedelta(hours=1)
+        measurements = await _measurements(str(project.id), since, until=now)
+        alerts = evaluate_rules(rules, measurements.alert_values())
         for alert in alerts:
             async with sessions.begin() as session:
                 await session.execute(
@@ -297,7 +249,11 @@ def operations_router(
             await triage_store.append_audit(
                 project.id, "portal-user", "quality.alert", f"rule:{alert['metric']}", dict(alert)
             )
-        return {"fired": len(alerts), "alerts": alerts, "measurements": measurements}
+        return {
+            "fired": len(alerts),
+            "alerts": alerts,
+            "measurements": measurements.model_dump(mode="json"),
+        }
 
     @router.get("/api/v1/projects/{identifier}/ops/events")
     async def project_events(identifier: str, after: str = "") -> dict[str, Any]:

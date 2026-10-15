@@ -298,10 +298,10 @@ def test_distinct_event_keys_with_identical_content_succeed_independently(
     )
     assert second.status_code == 201
     assert second.json()["status"] == "ingested"
-    assert second.json()["event_id"] != first.json()["event_id"]
+    assert second.json()["event_id"] == first.json()["event_id"]
     project_base = url.split("/integrations/")[0]
     events = mock_client.get(f"{project_base}/events").json()
-    assert len(events) == 2
+    assert len(events) == 1
     audit = mock_client.get(f"{project_base}/audit").json()
     ingested = [a for a in audit if a["event_type"] == "integration.webhook_ingested"]
     assert len(ingested) == 2

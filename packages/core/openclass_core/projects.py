@@ -7,11 +7,14 @@ authentication exists.
 """
 
 import json
+from collections.abc import Awaitable, Callable
+from contextlib import AbstractAsyncContextManager, nullcontext
 from contextvars import ContextVar, Token
 from datetime import UTC, datetime
 from enum import StrEnum
+from functools import wraps
 from hashlib import sha256
-from typing import Any, Literal, Protocol
+from typing import Any, Concatenate, Literal, Protocol
 from uuid import UUID, uuid4
 
 from pydantic import Field, model_validator
@@ -131,6 +134,7 @@ AuditEventType = Literal[
     "evaluation.dataset_sealed",
     "evaluation.completed",
     "quality.alert",
+    "decision.provider_failed",
 ]
 
 DecisionRunStatus = Literal["completed", "paused", "resuming", "resumed", "cancelled", "failed"]
@@ -371,6 +375,44 @@ class ProjectSummary(Model):
     audit_events: int = Field(default=0, ge=0)
 
 
+class ProviderCostWindow(Model):
+    """Declared estimates for an exact UTC [since, until) attempt cohort.
+
+    A daily aggregate cannot establish when an unlocated legacy attempt happened.
+    Missing prices and failure costs are unknown, never implicit zero charges.
+    """
+
+    since: datetime
+    until: datetime
+    status: Literal["complete", "partial", "unavailable"]
+    amount: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    declared_cost: float = Field(ge=0, allow_inf_nan=False)
+    timestamped_attempts: int = Field(ge=0)
+    declared_cost_attempts: int = Field(ge=0)
+    missing_cost_attempts: int = Field(ge=0)
+    legacy_unlocated_attempts: int = Field(ge=0)
+    reasons: tuple[Literal["declared_cost_missing", "legacy_attempt_timestamps_missing"], ...] = ()
+    provenance: Literal["persisted_run_metadata_and_failure_audit"] = (
+        "persisted_run_metadata_and_failure_audit"
+    )
+
+
+class ProjectRunMeasurements(Model):
+    unknown_rate: float | None = Field(ge=0, le=1)
+    recurring_unknowns: float = Field(ge=0)
+    latency: float | None = Field(ge=0)
+    cost: float | None = Field(ge=0, allow_inf_nan=False)
+    cost_window: ProviderCostWindow
+
+    def alert_values(self) -> dict[str, float | None]:
+        return {
+            "unknown_rate": self.unknown_rate,
+            "recurring_unknowns": self.recurring_unknowns,
+            "latency": self.latency,
+            "cost": self.cost,
+        }
+
+
 def slugify(name: str) -> str:
     slug = ""
     for char in name.lower():
@@ -500,7 +542,15 @@ class EvidenceRepository(Protocol):
     ) -> EvidenceItem | None: ...
 
 
-class ProjectRepository(EvidenceRepository, Protocol):
+class UnitOfWork(Protocol):
+    """One task-confined transaction; nested mutations join their outer owner."""
+
+    def transaction(self) -> AbstractAsyncContextManager[None]:
+        """In-memory adapters may be synchronous; SQL adapters must override."""
+        return nullcontext()
+
+
+class ProjectRepository(EvidenceRepository, UnitOfWork, Protocol):
     """Persistence boundary. Implementations must keep projects isolated by
     identifier and store audit events atomically with the change they record."""
 
@@ -516,6 +566,9 @@ class ProjectRepository(EvidenceRepository, Protocol):
 
     async def audit_events(self, project_id: UUID) -> list[ProjectAuditEvent]: ...
 
+    async def count_audit_events(self, project_id: UUID) -> int:
+        return len(await self.audit_events(project_id))
+
     async def create_raw_event(self, event: RawEvent) -> None: ...
 
     async def create_raw_events(self, events: list[RawEvent]) -> None: ...
@@ -529,6 +582,17 @@ class ProjectRepository(EvidenceRepository, Protocol):
     async def get_raw_event_by_hash(
         self, project_id: UUID, content_hash: str
     ) -> RawEvent | None: ...
+
+    async def get_raw_events_by_hashes(
+        self, project_id: UUID, content_hashes: set[str]
+    ) -> dict[str, RawEvent]:
+        """In-memory fallback; SQL implementations use one set-based lookup."""
+        result: dict[str, RawEvent] = {}
+        for content_hash in content_hashes:
+            event = await self.get_raw_event_by_hash(project_id, content_hash)
+            if event is not None:
+                result[content_hash] = event
+        return result
 
     async def count_raw_events(self, project_id: UUID) -> int: ...
 
@@ -551,8 +615,23 @@ class ProjectRepository(EvidenceRepository, Protocol):
     async def create_decision_run(self, run: DecisionRun) -> None: ...
 
     async def list_decision_runs(
-        self, project_id: UUID, limit: int = 50, offset: int = 0
+        self,
+        project_id: UUID,
+        limit: int | None = 50,
+        offset: int = 0,
+        *,
+        unknown_only: bool = False,
+        state: str | None = None,
+        category: str | None = None,
+        query: str | None = None,
+        decision_service_id: UUID | None = None,
     ) -> list[DecisionRun]: ...
+
+    async def analytics_summary(self, project_id: UUID) -> dict[str, Any]: ...
+
+    async def unknown_statistics(self, project_id: UUID) -> dict[str, Any]: ...
+
+    async def run_recurrence(self, project_id: UUID, event_ids: list[UUID]) -> dict[str, int]: ...
 
     async def get_decision_run(self, project_id: UUID, run_id: UUID) -> DecisionRun: ...
 
@@ -563,6 +642,17 @@ class ProjectRepository(EvidenceRepository, Protocol):
     async def count_unknown_decision_runs(self, project_id: UUID) -> int: ...
 
     async def count_pending_choice_candidates(self, project_id: UUID) -> int: ...
+
+
+def atomic_mutation[R, **P](
+    method: Callable[Concatenate["ProjectService", P], Awaitable[R]],
+) -> Callable[Concatenate["ProjectService", P], Awaitable[R]]:
+    @wraps(method)
+    async def wrapped(self: "ProjectService", /, *args: P.args, **kwargs: P.kwargs) -> R:
+        async with self.repository.transaction():
+            return await method(self, *args, **kwargs)
+
+    return wrapped
 
 
 class ProjectService:
@@ -677,6 +767,7 @@ class ProjectService:
         )
         return claimed
 
+    @atomic_mutation
     async def update(self, identifier: str, update: ProjectUpdate) -> Project:
         if update.workspace_id is not None:
             project = await self.claim_unassigned(
@@ -721,7 +812,7 @@ class ProjectService:
 
     async def summary(self, identifier: str) -> ProjectSummary:
         project = await self.repository.get_project(identifier)
-        events = await self.repository.audit_events(project.id)
+        audit_count = await self.repository.count_audit_events(project.id)
         raw_count = await self.repository.count_raw_events(project.id)
         runs_count = await self.repository.count_decision_runs(project.id)
         unknown_count = await self.repository.count_unknown_decision_runs(project.id)
@@ -733,9 +824,10 @@ class ProjectService:
             unknowns=unknown_count,
             pending_evidence=evidence_counts.get("pending", 0),
             pending_candidates=candidate_count,
-            audit_events=len(events),
+            audit_events=audit_count,
         )
 
+    @atomic_mutation
     async def ingest_event(
         self,
         identifier: str,
@@ -758,6 +850,9 @@ class ProjectService:
             metadata=metadata or {},
             created_at=self.clock(),
         )
+        existing = await self.repository.get_raw_event_by_hash(project.id, event.content_hash)
+        if existing is not None:
+            return existing, True
         try:
             await self.repository.create_raw_event(event)
         except ConflictError:
@@ -767,6 +862,7 @@ class ProjectService:
             return existing, True
         return event, False
 
+    @atomic_mutation
     async def ingest_events_batch(
         self,
         identifier: str,
@@ -775,31 +871,34 @@ class ProjectService:
     ) -> list[tuple[RawEvent, bool]]:
         project = await self.repository.get_project(identifier)
         results: list[tuple[RawEvent, bool]] = []
+        pending: dict[str, RawEvent] = {}
+        events: list[RawEvent] = []
         for item in items:
-            c = item.get("content", "")
-            if not isinstance(c, str) or not c.strip():
+            content = item.get("content", "")
+            if not isinstance(content, str) or not content.strip():
                 continue
             meta = item.get("metadata", {})
-            st = item.get("source_type", source_type)
             event = RawEvent(
                 project_id=project.id,
-                source_type=st,
-                content=c.strip(),
+                source_type=item.get("source_type", source_type),
+                content=content.strip(),
                 metadata=meta if isinstance(meta, dict) else {},
                 created_at=self.clock(),
             )
-            try:
-                await self.repository.create_raw_event(event)
-                results.append((event, False))
-            except ConflictError:
-                existing = await self.repository.get_raw_event_by_hash(
-                    project.id, event.content_hash
-                )
-                if existing is None:
-                    raise
-                results.append((existing, True))
-        if not results:
+            events.append(event)
+        if not events:
             raise ValueError("no valid events to ingest")
+        stored = await self.repository.get_raw_events_by_hashes(
+            project.id, {event.content_hash for event in events}
+        )
+        for event in events:
+            existing = pending.get(event.content_hash) or stored.get(event.content_hash)
+            if existing is not None:
+                results.append((existing, True))
+            else:
+                pending[event.content_hash] = event
+                results.append((event, False))
+        await self.repository.create_raw_events(list(pending.values()))
         return results
 
     async def list_events(
@@ -946,6 +1045,7 @@ class ProjectService:
         project = await self.repository.get_project(identifier)
         return await self.repository.list_decision_services(project.id)
 
+    @atomic_mutation
     async def update_decision_service(
         self, identifier: str, service_id_or_slug: str, update: DecisionServiceUpdate
     ) -> DecisionService:
@@ -984,7 +1084,10 @@ class ProjectService:
         await self.repository.update_decision_service(service)
         return service
 
+    @atomic_mutation
     async def record_decision_run(self, run: DecisionRun) -> EvidenceItem | None:
+        # Ownership may have changed while the provider was executing.
+        await self.repository.get_project(str(run.project_id))
         await self.repository.create_decision_run(run)
         item = evidence_from_run(run)
         if item is not None:
@@ -1008,12 +1111,36 @@ class ProjectService:
         project = await self.repository.get_project(identifier)
         return await self.repository.list_decision_runs(project.id, limit=limit, offset=offset)
 
+    async def list_unknown_runs(
+        self,
+        identifier: str,
+        limit: int | None = 50,
+        offset: int = 0,
+        *,
+        state: str | None = None,
+        category: str | None = None,
+        query: str | None = None,
+        decision_service_id: UUID | None = None,
+    ) -> list[DecisionRun]:
+        project = await self.repository.get_project(identifier)
+        return await self.repository.list_decision_runs(
+            project.id,
+            limit=limit,
+            offset=offset,
+            unknown_only=True,
+            state=state,
+            category=category,
+            query=query,
+            decision_service_id=decision_service_id,
+        )
+
     async def get_decision_run(self, identifier: str, run_id: UUID) -> DecisionRun:
         project = await self.repository.get_project(identifier)
         return await self.repository.get_decision_run(project.id, run_id)
 
     # ── Evidence Domain Methods ──────────────────────────────────────────
 
+    @atomic_mutation
     async def submit_run_feedback(
         self,
         identifier: str,
@@ -1095,6 +1222,7 @@ class ProjectService:
         project = await self.repository.get_project(identifier)
         return await self.repository.list_run_feedback(project.id, run_id)
 
+    @atomic_mutation
     async def triage_evidence(
         self,
         identifier: str,
@@ -1125,6 +1253,7 @@ class ProjectService:
         await self.repository.update_evidence_item(updated, audit)
         return updated
 
+    @atomic_mutation
     async def transition_evidence(
         self,
         identifier: str,
@@ -1161,6 +1290,7 @@ class ProjectService:
         await self.repository.update_evidence_item(updated, audit)
         return updated
 
+    @atomic_mutation
     async def create_evidence_case(
         self,
         identifier: str,
@@ -1172,6 +1302,8 @@ class ProjectService:
         project = await self.repository.get_project(identifier)
         if not title.strip():
             raise ValueError("Case title is required")
+        if decision_service_id is not None:
+            await self.repository.get_decision_service(project.id, str(decision_service_id))
         case = EvidenceCase(
             project_id=project.id,
             decision_service_id=decision_service_id,
@@ -1189,7 +1321,7 @@ class ProjectService:
         await self.repository.create_evidence_case(case, audit)
 
         if evidence_ids:
-            for eid in evidence_ids:
+            for eid in sorted(set(evidence_ids), key=str):
                 item = await self.repository.get_evidence_item(project.id, eid)
                 updated_item = item.model_copy(update={"evidence_case_id": case.id})
                 item_audit = ProjectAuditEvent(
@@ -1203,6 +1335,7 @@ class ProjectService:
 
         return case
 
+    @atomic_mutation
     async def add_evidence_to_case(
         self, identifier: str, case_id: UUID, evidence_id: UUID
     ) -> EvidenceCase:
@@ -1218,6 +1351,15 @@ class ProjectService:
             created_at=self.clock(),
         )
         await self.repository.update_evidence_item(updated_item, audit)
+        return case
+
+    @atomic_mutation
+    async def add_evidence_items_to_case(
+        self, identifier: str, case_id: UUID, evidence_ids: list[UUID]
+    ) -> EvidenceCase:
+        case = await self.get_evidence_case(identifier, case_id)
+        for evidence_id in sorted(set(evidence_ids), key=str):
+            await self.add_evidence_to_case(identifier, case_id, evidence_id)
         return case
 
     async def list_evidence(
