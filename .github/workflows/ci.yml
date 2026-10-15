@@ -36,6 +36,8 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
+      - run: uv run python -m scripts.jev_contract.audit
+      - run: uv run pytest -q scripts/live_stack/test_quickstart.py
       - run: uv run pytest -q
       - run: uv build --all-packages
       - run: uv run python scripts/release.py
@@ -47,6 +49,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
+      CIRCLE_NODE_TOTAL: 3
+      NODE_OPTIONS: --max-old-space-size=1024
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -58,6 +62,7 @@ jobs:
       - run: pnpm run format:check
       - run: pnpm run typecheck
       - run: pnpm test
+      - run: pnpm test:delivery
       - run: pnpm run build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm run test:web
@@ -68,16 +73,35 @@ jobs:
       OPENCLASS_DECISION_PROVIDER: mock
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose up --build -d --wait
+      - run: docker compose --env-file .env.example up --build -d --wait
       - run: >-
           docker compose exec -T server python -c
           "import urllib.request; assert urllib.request.urlopen('http://localhost:7331/health/ready').status == 200"
+      - run: docker compose exec -T server python -m scripts.live_stack.engine_smoke
       - run: docker compose exec -T server openclass init examples/support-intents/classifier.json
       - run: docker compose exec -T server openclass classify "Cancel my plan"
-      - if: failure()
-        run: docker compose logs
+      - run: docker compose --profile test run --build --rm test
       - if: always()
         run: docker compose down --volumes
+  live-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run test:web:live
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-backend-browser-evidence
+          path: test-results/**/*.png
+          if-no-files-found: ignore
   security:
     runs-on: ubuntu-latest
     steps:

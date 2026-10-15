@@ -34,7 +34,9 @@
     "build": "pnpm --recursive --if-present run build",
     "typecheck": "pnpm --recursive --if-present run typecheck",
     "test": "pnpm --filter @openclass/control-plane --filter @openclass/portal --filter @openclass/sdk test",
-    "test:web": "playwright test",
+    "test:web": "playwright test --project=desktop --project=mobile",
+    "test:web:live": "node scripts/live_stack/run.mjs",
+    "test:delivery": "node --test scripts/live_stack/*.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

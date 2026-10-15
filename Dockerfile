@@ -18,14 +18,14 @@ COPY providers/ollama providers/ollama
 RUN uv sync --frozen --all-packages --no-dev
 COPY alembic.ini LICENSE ./
 COPY examples examples
+COPY benchmarks benchmarks
+COPY scripts scripts
 RUN useradd --create-home --uid 10001 openclass
 ENV PATH="/app/.venv/bin:$PATH"
 
 FROM base AS test
 RUN uv sync --frozen --all-packages
 COPY tests tests
-COPY scripts scripts
-COPY benchmarks benchmarks
 USER openclass
 CMD ["pytest", "-q", "-p", "no:cacheprovider", "--tb=short"]
 
