@@ -31,8 +31,10 @@ import type { Pool } from "pg";
 export type RequestWithPrincipal = {
   principal: Principal;
   keyPrefix?: string;
+  keyId?: string;
   keyProjectId?: string;
   keyScopes?: ApiKeyScope[];
+  keyRequiredScope?: ApiKeyScope;
 };
 
 @Injectable()
@@ -48,8 +50,10 @@ export class DecisionGuard implements CanActivate {
       headers: Record<string, string | undefined>;
       principal?: Principal;
       keyPrefix?: string;
+      keyId?: string;
       keyProjectId?: string;
       keyScopes?: ApiKeyScope[];
+      keyRequiredScope?: ApiKeyScope;
     }>();
     const token = request.headers.authorization?.startsWith("Bearer ")
       ? request.headers.authorization.slice(7)
@@ -61,8 +65,10 @@ export class DecisionGuard implements CanActivate {
         const verified = await this.apiKeys.verify(token, requiredScope);
         request.principal = { subject: `api-key:${verified.projectId}` };
         request.keyPrefix = token.slice(0, 14);
+        request.keyId = verified.keyId;
         request.keyProjectId = verified.projectId;
         request.keyScopes = verified.scopes;
+        request.keyRequiredScope = requiredScope;
         return true;
       } catch (error) {
         if (error instanceof HttpException) throw error;

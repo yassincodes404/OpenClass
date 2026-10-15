@@ -131,7 +131,7 @@ describe("EngineClient", () => {
       vi.fn(async () => jsonResponse(404, { detail: "Project not found in engine" })),
     );
     await expect(client.getProject("missing-proj")).rejects.toThrow(
-      new NotFoundException("Project not found in engine"),
+      new NotFoundException("Engine rejected the request"),
     );
 
     vi.stubGlobal(
@@ -146,9 +146,7 @@ describe("EngineClient", () => {
         reviewer: "alice",
         rationale: "ready",
       }),
-    ).rejects.toThrow(
-      new ConflictException("Candidate promotion requires verified replay evaluation"),
-    );
+    ).rejects.toThrow(new ConflictException("Engine rejected the request"));
 
     vi.stubGlobal(
       "fetch",
@@ -167,7 +165,7 @@ describe("EngineClient", () => {
       vi.fn(async () => jsonResponse(422, { detail: [{ msg: "field required" }] })),
     );
     await expect(client.createProject("", "")).rejects.toThrow(
-      new BadRequestException("Invalid engine payload: field required"),
+      new BadRequestException("Engine rejected the request"),
     );
 
     vi.stubGlobal(

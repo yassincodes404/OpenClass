@@ -6,7 +6,9 @@
     "start:dev": "nest start --watch",
     "build": "nest build",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --exclude '**/*.postgres.spec.ts'",
+    "migrate": "node scripts/migrate.mjs",
+    "test:postgres": "node scripts/test-postgres.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",

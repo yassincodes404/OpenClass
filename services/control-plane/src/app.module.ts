@@ -1,4 +1,7 @@
 import { Module } from "@nestjs/common";
+import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
+import { MutationInterceptor } from "./mutation.interceptor.js";
+import { SafeExceptionFilter } from "./safe-exception.filter.js";
 import { PortalController } from "./portal.controller.js";
 import { ApiKeyService } from "./api-key.service.js";
 import { AuditService } from "./audit.service.js";
@@ -41,6 +44,8 @@ import { WorkspaceService } from "./workspace.service.js";
     DecisionGuard,
     IngestionService,
     { provide: CONTROL_DB, useFactory: createControlPool },
+    { provide: APP_INTERCEPTOR, useClass: MutationInterceptor },
+    { provide: APP_FILTER, useClass: SafeExceptionFilter },
   ],
 })
 export class AppModule {}

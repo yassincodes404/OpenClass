@@ -64,15 +64,11 @@ const auditStub = {
   record: vi.fn(async () => undefined),
   list: vi.fn(async () => ({ items: [], next_cursor: null })),
 } as unknown as import("./audit.service.js").AuditService;
-const idempotencyStub = {
-  replay: vi.fn(async () => null),
-  remember: vi.fn(async () => undefined),
-} as unknown as import("./idempotency.service.js").IdempotencyService;
 
 function serviceWith(pool: Pool, engine: EngineClient) {
   const apiKeys = new ApiKeyService(pool);
   return {
-    service: new ProjectService(pool, engine, apiKeys, auditStub, idempotencyStub),
+    service: new ProjectService(pool, engine, apiKeys, auditStub),
     apiKeys,
   };
 }

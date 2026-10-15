@@ -3,8 +3,10 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { correlationId, requestContext } from "./request-context.js";
 
 export type EngineProject = {
   id: string;
@@ -73,6 +75,7 @@ export type EngineRequestOptions = {
   workspaceId?: string;
   actor?: string;
   idempotencyKey?: string;
+  correlationId?: string;
 };
 
 /**
@@ -81,6 +84,7 @@ export type EngineRequestOptions = {
  */
 @Injectable()
 export class EngineClient {
+  private readonly logger = new Logger(EngineClient.name);
   private readonly baseUrl = process.env.ENGINE_BASE_URL ?? "http://127.0.0.1:7331";
   private readonly internalToken = process.env.OPENCLASS_INTERNAL_TOKEN ?? "";
 
@@ -923,21 +927,25 @@ export class EngineClient {
       response = await fetch(`${this.baseUrl}${path}`, {
         method,
         headers: this.buildHeaders(true, {
-          "Idempotency-Key": idempotencyKey ?? context?.idempotencyKey,
+          "Idempotency-Key":
+            requestContext.getStore()?.idempotencyKey ?? idempotencyKey ?? context?.idempotencyKey,
+          "X-Correlation-ID": this.requestCorrelation(context),
           "X-OpenClass-Workspace-Id": context?.workspaceId,
           "X-OpenClass-Actor": context?.actor,
         }),
         body: JSON.stringify(body),
       });
     } catch {
+      this.failure(method, undefined, context);
       throw new BadGatewayException("Engine is temporarily unavailable");
     }
     const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (expectedStatuses.includes(response.status))
       return { status: response.status, body: payload };
-    const message =
-      typeof payload.detail === "string" ? payload.detail : "Engine rejected the request";
+    this.failure(method, response.status, context);
+    const message = "Engine rejected the request";
     if (response.status === 404) throw new NotFoundException(message);
+    if (response.status === 409) throw new ConflictException(message);
     if (response.status === 429)
       throw new BadGatewayException("Engine rate limit reached; retry shortly");
     if (response.status >= 400 && response.status < 500) throw new BadRequestException(message);
@@ -962,34 +970,40 @@ export class EngineClient {
       response = await fetch(`${this.baseUrl}${path}`, {
         method,
         headers: this.buildHeaders(Boolean(body), {
-          "Idempotency-Key": resolvedContext?.idempotencyKey,
+          "Idempotency-Key":
+            requestContext.getStore()?.idempotencyKey ?? resolvedContext?.idempotencyKey,
+          "X-Correlation-ID": this.requestCorrelation(resolvedContext),
           "X-OpenClass-Workspace-Id": resolvedContext?.workspaceId,
           "X-OpenClass-Actor": resolvedContext?.actor,
         }),
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch {
+      this.failure(method, undefined, resolvedContext);
       throw new BadGatewayException("Engine is temporarily unavailable");
     }
     if (response.status === expectedStatus) return (await response.json()) as T;
-    const detail = await this.errorMessage(response);
+    this.failure(method, response.status, resolvedContext);
+    const detail = "Engine rejected the request";
     if (response.status === 404) throw new NotFoundException(detail);
     if (response.status === 409) throw new ConflictException(detail);
     if (response.status >= 400 && response.status < 500) throw new BadRequestException(detail);
     throw new BadGatewayException("Engine request failed");
   }
 
-  private async errorMessage(response: Response): Promise<string> {
-    try {
-      const payload = (await response.json()) as { detail?: unknown };
-      const detail = payload.detail;
-      if (typeof detail === "string") return detail.slice(0, 300);
-      if (Array.isArray(detail) && detail.length && typeof detail[0]?.msg === "string") {
-        return `Invalid engine payload: ${detail[0].msg}`.slice(0, 300);
-      }
-    } catch {
-      // fall through to the generic engine message
-    }
-    return "Engine rejected the request";
+  private requestCorrelation(context?: EngineRequestOptions): string | undefined {
+    const value = context?.correlationId ?? requestContext.getStore()?.correlationId;
+    return value === undefined ? undefined : correlationId(value);
+  }
+
+  private failure(method: string, status?: number, context?: EngineRequestOptions): void {
+    // No upstream body/message, URL, request content, actor, or credentials.
+    this.logger.warn({
+      event: "control.engine_request_failed",
+      code: status === undefined ? "engine_unavailable" : "engine_rejected",
+      method,
+      status: status ?? null,
+      correlation_id: this.requestCorrelation(context) ?? null,
+    });
   }
 }
