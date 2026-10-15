@@ -9,3 +9,4 @@ playwright-report/
 apps/web/next-env.d.ts
 artifacts/
 .unlazy/
+.playwright-mcp/

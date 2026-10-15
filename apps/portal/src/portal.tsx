@@ -1,8 +1,10 @@
 import { Suspense, lazy } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth";
 import { ClassifierDetailPage, ClassifiersPage, ProjectOverview, Projects } from "./projects";
-import { ObservatoryArchitectureSections, OpenWorldLoopStage } from "./open-world-stage";
+import { OpenWorldLoopStage } from "./open-world-stage";
+import { ObservatoryArchitectureSections } from "./observatory-sections";
+import "./landing.css";
 
 const ProjectSettingsPage = lazy(() =>
   import("./security-pages").then((m) => ({ default: m.ProjectSettingsPage })),
@@ -64,7 +66,7 @@ const EvaluationDetailPage = lazy(() =>
  * OpenClass Portal Landing Experience (`<Home />`)
  * Owner: Abdelhamid Khaled (@AbdelhamidKhald)
  *
- * Design Paradigm: "Botanical Telemetry / Precision Observatory"
+ * Public landing copy is illustrative; the workspace remains the live product.
  * Preserves all existing Portal navigation contracts (`<NavLink className="primary" to="/projects">Open workspace ↗</NavLink>`)
  * while making OpenClass's governed decision and discovery architecture visible,
  * interactive, and verifiable.
@@ -72,134 +74,78 @@ const EvaluationDetailPage = lazy(() =>
 function Home() {
   return (
     <main className="landing">
-      {/* Live Telemetry & Invariant Provenance Ribbon */}
-      <div className="oc-telemetry-ribbon" aria-label="Genesis platform provenance">
-        <span className="oc-ribbon-badge">GENESIS v0.0.1 · AGPL-3.0</span>
-        <span className="oc-ribbon-item">
-          <i>●</i> UNKNOWN IS PERMANENT
-        </span>
-        <span className="oc-ribbon-item">
-          <i>●</i> PREDICTIONS ≠ GROUND TRUTH
-        </span>
-        <span className="oc-ribbon-item">
-          <i>●</i> APPEND-ONLY ONTOLOGY SNAPSHOTS
-        </span>
-      </div>
-
-      {/* Hero Split: Narrative + Closed-World vs. Open-World Comparison */}
       <section className="oc-hero-grid" aria-label="OpenClass overview">
         <div className="oc-hero-copy">
-          <p className="eyebrow">
-            OPENCLASS / GOVERNED DECISIONS · THE OPEN-WORLD CLASSIFICATION ENGINE
-          </p>
+          <p className="eyebrow">THE OPEN-WORLD CLASSIFICATION ENGINE</p>
           <h1>
-            Start with what you know. Discover what you don’t.{" "}
-            <span className="oc-hero-subline">
-              Turn uncertainty into <em>evidence.</em>
-            </span>
+            Make room for <br />
+            the <em>unknown.</em>
           </h1>
           <p className="lede">
-            A secure portal for teams that refuse to force uncertain requests into the wrong
-            workflow. Fast bounded models handle what your active ontology supports, unfamiliar
-            inputs persist as first-class <code>UNKNOWN</code> evidence, and Teacher proposals pass
-            replay evaluation and human review before becoming versioned knowledge.
+            Classify what you know. Keep uncertainty as evidence. Review changes before they become
+            your next version.
           </p>
-
           <div className="oc-cta-row">
             <NavLink className="primary" to="/projects">
               Open workspace ↗
             </NavLink>
             <a className="ghost-link" href="#open-world-loop">
-              Inspect decision loop ↓
+              Try the loop
             </a>
-            <a className="mono-link" href="#quickstart">
-              $ docker compose up · Quickstart
-            </a>
-          </div>
-
-          <div className="oc-invariant-pills">
-            <span className="oc-inv-pill">
-              <strong>FAST PATH</strong> Jev · Laya · Mock
-            </span>
-            <span className="oc-inv-pill">
-              <strong>ABSTENTION</strong> First-class UNKNOWN pool
-            </span>
-            <span className="oc-inv-pill">
-              <strong>SUPERVISION</strong> Advisory reviews (OC-016)
-            </span>
-            <span className="oc-inv-pill">
-              <strong>GOVERNANCE</strong> Replay-gated vN+1 (OC-008/009)
-            </span>
           </div>
         </div>
-
-        {/* Right Column: Closed-World Guess vs. OpenClass Governed Decision */}
-        <aside className="oc-contrast-card" aria-label="Closed-world vs open-world comparison">
-          <div className="oc-contrast-head">
-            <span>OBSERVATION TRACE</span>
-            <code>“Cancel my plan”</code>
+        <aside className="oc-hero-example" aria-label="Simulated classification example">
+          <p className="oc-example-label">A SMALL EXAMPLE. A DIFFERENT OUTCOME.</p>
+          <blockquote>“Cancel my plan.”</blockquote>
+          <div className="oc-example-choices" aria-label="Available classes">
+            <span>billing</span>
+            <span>technical</span>
+            <span>sales</span>
           </div>
-          <p className="oc-contrast-context">
-            Active Ontology <code>v1</code> knows only <code>{"{billing, technical, sales}"}</code>:
+          <div className="oc-example-result">
+            <span aria-hidden="true">↳</span>
+            <div>
+              <strong>UNKNOWN</strong>
+              <p>Not a bad guess. A useful signal.</p>
+            </div>
+          </div>
+          <p className="oc-example-caption">
+            Simulated example with a three-class ontology. Unknown does not automatically mean a new
+            class.
           </p>
-
-          <div className="oc-contrast-box bad">
-            <div className="oc-contrast-box-top">
-              <span className="oc-tone-chip tone-error">CLOSED-WORLD CLASSIFIER</span>
-              <code>FORCED GUESS</code>
-            </div>
-            <strong>Routes to billing (0.54)</strong>
-            <p>
-              Forces an unsupported cancellation request into the least-wrong label, triggering an
-              invoice workflow and hiding the missing concept.
-            </p>
-          </div>
-
-          <div className="oc-contrast-box good">
-            <div className="oc-contrast-box-top">
-              <span className="oc-tone-chip tone-known">OPENCLASS GOVERNED ENGINE</span>
-              <code>DISCIPLINED ABSTENTION</code>
-            </div>
-            <strong>Selects UNKNOWN (0.950) → Evidence Pool</strong>
-            <p>
-              Preserves the full distribution, isolates the observation for clustering, and proposes
-              candidate <code>cancellation</code> gated by replay evaluation and human approval.
-            </p>
-          </div>
         </aside>
       </section>
 
-      {/* Signature Interactive Animated Scene */}
-      <OpenWorldLoopStage />
+      <div className="oc-product-principles" aria-label="OpenClass principles">
+        <span>Local first</span>
+        <span>Provider independent</span>
+        <span>Human-approved evolution</span>
+        <a href="#quickstart">Run it locally ↗</a>
+      </div>
 
-      {/* Fast vs Slow Path, 6 Invariants, Grounded Proofs, Honest Matrix & Quickstart */}
+      <OpenWorldLoopStage />
       <ObservatoryArchitectureSections />
 
-      {/* Closing CTA Banner & Architectural Footer */}
       <section className="oc-closing-banner" aria-label="Get started with OpenClass">
         <div>
-          <p className="eyebrow">READY FOR GOVERNED EVOLUTION</p>
-          <h2>Refuse to force uncertain reality into the wrong workflow.</h2>
-          <p className="muted">
-            Inspect projects, classifiers, decision runs, unknown clusters, and provider governance
-            in the workspace.
-          </p>
+          <h2>Your classes are a starting point.</h2>
+          <p>Keep the evidence. Make the next decision with more context.</p>
         </div>
         <div className="oc-cta-row">
           <NavLink className="primary" to="/projects">
-            Open Project Workspace ↗
+            Open workspace ↗
           </NavLink>
-          <a className="ghost-link" href="#open-world-loop">
-            Back to decision stage ↑
+          <a className="ghost-link" href="https://github.com/yassincodes404/OpenClass">
+            Read the source
           </a>
         </div>
       </section>
 
       <footer className="oc-portal-footer">
-        <span>Local first. Provider independent. Evidence driven.</span>
-        <span>
-          v0.0.1 Genesis Foundation · AGPL-3.0-only · No secrets in logs, errors, or events.
-        </span>
+        <span>OpenClass. Start with what you know.</span>
+        <a href="https://github.com/yassincodes404/OpenClass/blob/main/LICENSE">
+          Open source · AGPL-3.0-only
+        </a>
       </footer>
     </main>
   );
@@ -241,8 +187,9 @@ function Header() {
 }
 
 export function Portal() {
+  const { pathname } = useLocation();
   return (
-    <>
+    <div className={`portal-shell${pathname === "/" ? " is-landing" : ""}`}>
       <Header />
       <Suspense fallback={<div className="panel">Loading workspace module…</div>}>
         <Routes>
@@ -286,6 +233,6 @@ export function Portal() {
           <Route path="/projects/:projectId/audit" element={<ProjectAuditPage />} />
         </Routes>
       </Suspense>
-    </>
+    </div>
   );
 }

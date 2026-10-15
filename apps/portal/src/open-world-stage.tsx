@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
 /**
  * ============================================================================
@@ -433,9 +433,9 @@ export const PREDEFINED_SCENARIOS: readonly PresetScenario[] = [
         probabilities: UNKNOWN_CANCEL_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 · 891dc20d (still active)",
-          topClass: `Candidate: cancellation (${UNKNOWN_CANCEL_DIST.topDisplay} inactive)`,
+          topClass: `UNKNOWN (${UNKNOWN_CANCEL_DIST.topDisplay}); cancellation is an inactive proposal`,
           unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay} (evidence n=3)`,
-          topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay} (cluster cohesion 0.84)`,
+          topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay} (original observation)`,
           topProbability: UNKNOWN_CANCEL_DIST.topProbability,
           unknownProbability: UNKNOWN_CANCEL_DIST.unknownProbability,
           topMargin: UNKNOWN_CANCEL_DIST.topMargin,
@@ -464,8 +464,8 @@ export const PREDEFINED_SCENARIOS: readonly PresetScenario[] = [
         probabilities: UNKNOWN_CANCEL_DIST.probabilities,
         telemetry: {
           ontologyVersion: "v1 → v2 gated (OC-008 / OC-009)",
-          topClass: `cancellation (${UNKNOWN_CANCEL_DIST.topDisplay} pending replay)`,
-          unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay} → <0.050 post-v2`,
+          topClass: `UNKNOWN (${UNKNOWN_CANCEL_DIST.topDisplay}); candidate awaiting verified replay`,
+          unknownProb: `${UNKNOWN_CANCEL_DIST.unknownDisplay} (post-change result not yet measured)`,
           topMarginDisplay: `${UNKNOWN_CANCEL_DIST.topMarginDisplay} (requires 0 regressions)`,
           topProbability: UNKNOWN_CANCEL_DIST.topProbability,
           unknownProbability: UNKNOWN_CANCEL_DIST.unknownProbability,
@@ -981,6 +981,7 @@ export interface OpenWorldLoopStageProps {
 
 export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStageProps = {}) {
   const stageRef = useRef<HTMLElement | null>(null);
+  const stageId = useId();
 
   // Detect OS/browser reduced-motion preference safely (SSR & JSDOM safe).
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => {
@@ -992,7 +993,8 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
 
   const [presetId, setPresetId] = useState<PresetId>("unknown_cancel");
   const [stepIndex, setStepIndex] = useState<StageStepIndex>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(() => !reducedMotion);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [animateStep, setAnimateStep] = useState(false);
   const [isInView, setIsInView] = useState<boolean>(true);
   const [isDocVisible, setIsDocVisible] = useState<boolean>(true);
 
@@ -1054,19 +1056,48 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
     if (!isPlaying || !isInView || !isDocVisible || reducedMotion) {
       return;
     }
-    const timer = window.setInterval(() => {
-      setStepIndex((prev) => ((prev + 1) % 5) as StageStepIndex);
+    const timer = window.setTimeout(() => {
+      if (stepIndex === 4) {
+        setIsPlaying(false);
+      } else {
+        setStepIndex((stepIndex + 1) as StageStepIndex);
+      }
     }, 2800);
-    return () => window.clearInterval(timer);
-  }, [isPlaying, isInView, isDocVisible, reducedMotion, presetId]);
+    return () => window.clearTimeout(timer);
+  }, [isPlaying, isInView, isDocVisible, reducedMotion, presetId, stepIndex]);
 
   function selectPreset(nextId: PresetId) {
     setPresetId(nextId);
     setStepIndex(0);
+    setIsPlaying(false);
+    setAnimateStep(false);
     const chosen = PRESET_SCENARIOS.find((p) => p.id === nextId);
     if (chosen && onSelectObservation && nextId !== "error_timeout") {
       onSelectObservation(chosen.observation);
     }
+  }
+
+  function selectStep(index: StageStepIndex, animate = false) {
+    setIsPlaying(false);
+    setAnimateStep(animate);
+    setStepIndex(index);
+  }
+
+  function navigateScenarios(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const next =
+      event.key === "ArrowRight"
+        ? (index + 1) % PRESET_SCENARIOS.length
+        : event.key === "ArrowLeft"
+          ? (index + PRESET_SCENARIOS.length - 1) % PRESET_SCENARIOS.length
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? PRESET_SCENARIOS.length - 1
+              : null;
+    if (next === null) return;
+    event.preventDefault();
+    selectPreset(PRESET_SCENARIOS[next]!.id);
+    document.getElementById(`${stageId}-scenario-${next}`)?.focus();
   }
 
   return (
@@ -1074,43 +1105,58 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
       id="open-world-loop"
       ref={stageRef}
       className={`oc-observatory-stage tone-${activePreset.accentTone}`}
+      data-motion={animateStep && !reducedMotion ? "animate" : "instant"}
       aria-label="Interactive open-world decision and governed discovery architecture"
     >
       {/* Top Instrument Control Bar: Scenario Presets + Playback Toggle */}
       <div className="oc-stage-topbar">
         <div className="oc-stage-title-block">
-          <p className="eyebrow">INTERACTIVE TELEMETRY OBSERVATORY · GOVERNED DECISION LOOP</p>
-          <h2>
-            Trace how OpenClass separates confident routing, uncertainty, supervision, and faults.
-          </h2>
+          <span className="oc-demo-label">SIMULATED WALKTHROUGH · NO PROVIDER CALLS</span>
+          <h2>One input. A more considered path.</h2>
+          <p>Choose a scenario. Follow the decision, not just the prediction.</p>
         </div>
         <div className="oc-playback-controls">
           <button
             type="button"
             className="oc-play-btn"
-            onClick={() => setIsPlaying((prev) => !prev)}
+            onClick={(event) => {
+              setAnimateStep(event.detail > 0);
+              if (!isPlaying && stepIndex === 4) setStepIndex(0);
+              setIsPlaying((prev) => !prev);
+            }}
             aria-pressed={isPlaying}
+            disabled={reducedMotion}
+            aria-describedby={reducedMotion ? `${stageId}-motion-note` : undefined}
           >
-            {isPlaying ? "Pause trace ❚❚" : "Auto-trace ▶"}
+            {isPlaying ? "Pause walkthrough" : "Play walkthrough"}
           </button>
           <span className="oc-stage-clock">
             STEP {stepIndex + 1} / 5 · {activePreset.badge}
           </span>
         </div>
       </div>
+      {reducedMotion && (
+        <p id={`${stageId}-motion-note`} className="oc-motion-note">
+          Reduced motion is on. Choose any step to explore at your own pace.
+        </p>
+      )}
 
       {/* Scenario Selector Pills */}
       <div className="oc-preset-bar" role="tablist" aria-label="Decision trace scenarios">
-        {PRESET_SCENARIOS.map((preset) => {
+        {PRESET_SCENARIOS.map((preset, index) => {
           const isSelected = preset.id === presetId;
           return (
             <button
               key={preset.id}
+              id={`${stageId}-scenario-${index}`}
               type="button"
               role="tab"
               aria-selected={isSelected}
+              aria-controls={`${stageId}-scenario-panel`}
+              tabIndex={isSelected ? 0 : -1}
               className={`oc-preset-pill tone-${preset.accentTone} ${isSelected ? "active" : ""}`}
               onClick={() => selectPreset(preset.id)}
+              onKeyDown={(event) => navigateScenarios(event, index)}
             >
               <span className="oc-preset-kicker">{preset.shortTitle}</span>
               <strong className="oc-preset-obs">“{preset.observation}”</strong>
@@ -1121,7 +1167,12 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
       </div>
 
       {/* Main Split: Code-Native SVG Architecture Canvas + Live Telemetry Inspector */}
-      <div className="oc-stage-shell">
+      <div
+        className="oc-stage-shell"
+        id={`${stageId}-scenario-panel`}
+        role="tabpanel"
+        aria-labelledby={`${stageId}-scenario-${PRESET_SCENARIOS.indexOf(activePreset)}`}
+      >
         <div className="oc-svg-frame">
           <div className="oc-svg-caption-bar">
             <span>
@@ -1232,6 +1283,36 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
             </g>
           </svg>
 
+          <ol className="oc-mobile-loop" aria-label="Mobile decision loop">
+            {activePreset.steps.map((step) => (
+              <li
+                key={step.index}
+                className={
+                  step.index === stepIndex ? "active" : step.index < stepIndex ? "completed" : ""
+                }
+              >
+                <button
+                  type="button"
+                  aria-label={`Go to ${step.label}`}
+                  aria-current={step.index === stepIndex ? "step" : undefined}
+                  onClick={(event) => selectStep(step.index, event.detail > 0)}
+                >
+                  <span className="oc-mobile-step-number" aria-hidden="true">
+                    {step.index + 1}
+                  </span>
+                  <span className="oc-mobile-step-copy">
+                    <strong>{step.label}</strong>
+                    <span>{step.headline}</span>
+                    {step.index === stepIndex && <small>{step.telemetry.outcomeBadge}</small>}
+                  </span>
+                  <span className="oc-mobile-step-indicator" aria-hidden="true">
+                    {step.index < stepIndex ? "✓" : step.index === stepIndex ? "↳" : ""}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ol>
+
           {/* 5-Step Interactive Scrubber Bar */}
           <div className="oc-step-scrubber" role="group" aria-label="Pipeline execution steps">
             {activePreset.steps.map((step) => {
@@ -1245,16 +1326,30 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
                   className={`oc-step-btn ${isCurrent ? "active" : ""} ${
                     isCompleted ? "completed" : ""
                   }`}
-                  onClick={() => {
-                    setIsPlaying(false);
-                    setStepIndex(step.index);
-                  }}
+                  onClick={(event) => selectStep(step.index, event.detail > 0)}
                 >
                   <span className="oc-step-code">{step.code}</span>
                   <span className="oc-step-label">{step.label}</span>
                 </button>
               );
             })}
+          </div>
+          <div className="oc-step-navigation" aria-label="Walkthrough navigation">
+            <button
+              type="button"
+              disabled={stepIndex === 0}
+              onClick={(event) => selectStep((stepIndex - 1) as StageStepIndex, event.detail > 0)}
+            >
+              Previous
+            </button>
+            <span aria-live={isPlaying ? "off" : "polite"}>STEP {stepIndex + 1} / 5</span>
+            <button
+              type="button"
+              disabled={stepIndex === 4}
+              onClick={(event) => selectStep((stepIndex + 1) as StageStepIndex, event.detail > 0)}
+            >
+              Next
+            </button>
           </div>
         </div>
 
@@ -1267,7 +1362,9 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
                 {activeStep.telemetry.noveltyState.replaceAll("_", " ")}
               </span>
             </div>
-            <h3 className="oc-inspector-headline">{activeStep.headline}</h3>
+            <h3 className="oc-inspector-headline" key={`${presetId}-${stepIndex}`}>
+              {activeStep.headline}
+            </h3>
             <p className="oc-inspector-narration">{activeStep.narration}</p>
 
             {/* GPU-Composited Probability Distribution Track (scaleX) */}
@@ -1318,9 +1415,18 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
             </dl>
 
             {/* Wire / SQL Trace Snippet */}
-            <pre className="oc-trace-pre">
-              <code>{activeStep.traceSnippet}</code>
-            </pre>
+            <details
+              className="oc-trace-detail"
+              onFocusCapture={() => setIsPlaying(false)}
+              onToggle={(event) => {
+                if (event.currentTarget.open) setIsPlaying(false);
+              }}
+            >
+              <summary>Inspect the example payload</summary>
+              <pre className="oc-trace-pre">
+                <code>{activeStep.traceSnippet}</code>
+              </pre>
+            </details>
 
             {/* Enforced Architectural Rule */}
             <div className="oc-authority-callout">
@@ -1334,620 +1440,9 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
   );
 }
 
-/**
- * Grounded Use Cases & Proof Explorer (Section 5 of the Creative Specification).
- * All numbers, hashes, and class names match checked-in repository artifacts:
- * - `examples/support-intents/classifier.json`
- * - `docs/guides/automation-proof2.md` (`b28e35ee` -> `906044f2`)
- * - `docs/architecture/adr-research-phase-complete.md` (`891dc20d` -> `a0043a1e`)
- */
-interface GroundedProofSpec {
-  id: string;
-  tag: string;
-  title: string;
-  artifactPath: string;
-  statusBadge: string;
-  summary: string;
-  versionChain: string;
-  steps: Array<{ phase: string; detail: string; code: string }>;
-  outcomeMetric: string;
-}
-
-const GROUNDED_PROOFS: readonly GroundedProofSpec[] = [
-  {
-    id: "support-intents",
-    tag: "01 / SUPPORT INTENT ROUTING",
-    title: "Customer Support Classification & Missing-Concept Discovery",
-    artifactPath: "examples/support-intents/classifier.json",
-    statusBadge: "SHIPPED IN GENESIS v0.0.1",
-    summary:
-      "Starts with a 3-class ontology (billing, technical, sales). Confident knowns resolve on the fast path; unfamiliar cancellation requests persist in the unknown pool without corrupting billing queues.",
-    versionChain:
-      "Ontology v1 (billing, technical, sales) → Unknown Pool → Candidate: cancellation",
-    steps: [
-      {
-        phase: "Fast Path (Known)",
-        detail:
-          "“I was charged twice” matches billing with low novelty (0.05) and routes immediately.",
-        code: 'selected_class: "billing" · novelty.state: "known"',
-      },
-      {
-        phase: "Disciplined Abstention (UNKNOWN)",
-        detail:
-          "“Cancel my plan” scores 0.95 unknown probability and is stored in unknown_events instead of guessing.",
-        code: 'selected_class: null · reasons: ["strong_unknown_probability"]',
-      },
-      {
-        phase: "Advisory Supervision (OC-016)",
-        detail:
-          "Supervisor reviews persisted runs off the critical path and flags boundary overlap without mutating the run.",
-        code: 'finding: "possible_missing_class" · recommendation: "collect_more_evidence"',
-      },
-    ],
-    outcomeMetric: "Zero forced guesses on out-of-ontology intents · Append-only SQL history",
-  },
-  {
-    id: "devops-port-macro",
-    tag: "02 / DEVOPS RECOVERY MACRO",
-    title: "Port-Conflict Recovery & Negative-Transfer Gate (Proof #2 & #2B)",
-    artifactPath: "docs/guides/automation-proof2.md",
-    statusBadge: "FROZEN RESEARCH PROOF",
-    summary:
-      "When a container test runner hits 'Address already in use', five real Jev decisions halt safely at BLOCKED. One Teacher call proposes a 4-step recovery macro verified by real socket bind and report checks.",
-    versionChain: "Policy v1 (b28e35ee…) → Candidate (d23d7342…) → Approved Policy v2 (906044f2…)",
-    steps: [
-      {
-        phase: "Safe Blocked Halt",
-        detail:
-          "Baseline policy encounters a live port conflict in disposable containers and halts without destructive retries.",
-        code: "status: BLOCKED · failure_signature: Address already in use",
-      },
-      {
-        phase: "Bounded Macro Synthesis",
-        detail:
-          "Teacher composes only registered primitives: choose_available_test_port → set_environment → run_tests → write_report.",
-        code: "macro: recover_port_conflict (4 verified primitives)",
-      },
-      {
-        phase: "Replay Gate Rejects Regression (Proof #2B)",
-        detail:
-          "When an over-broad trigger regressed 2 baseline cases (9/12 pass despite LLM confidence 1.0), the deterministic gate blocked promotion.",
-        code: "Run 2 reuse: 6 Jev calls · 0 Teacher calls · 100% postcondition verified",
-      },
-    ],
-    outcomeMetric:
-      "6 Jev fast-path calls & 0 Teacher calls after promotion · Regressing candidate rejected",
-  },
-  {
-    id: "policy-graph-v4",
-    tag: "03 / MULTI-LAYER POLICY EVOLUTION",
-    title: "Three-Layer PolicyGraph Evolution (Decision Space, Procedure, State)",
-    artifactPath: "docs/architecture/adr-research-phase-complete.md",
-    statusBadge: "HASH-VERIFIED v1 → v4 CHAIN",
-    summary:
-      "Separates semantic Choice ('what was decided') from Transition ('what happens next': CAPABILITY, HUMAN, LLM, WORKFLOW) and attributes failures across 10 architectural layers.",
-    versionChain: "v1 (891dc20d) → v2 (0a83f9d9) → v3 (67152f52) → v4 (a0043a1e)",
-    steps: [
-      {
-        phase: "v1 → v2 (DECISION_SPACE)",
-        detail:
-          "Learns ADD_CHOICE for TLS certificate failure from recurring UNKNOWN observations.",
-        code: "operator: add_choice · retention: 1.00",
-      },
-      {
-        phase: "v2 → v3 (PROCEDURE)",
-        detail:
-          "Repairs CA-migration script drift (flush-before-rotate) without altering routing choices.",
-        code: "operator: replace_procedure · retention: 1.00",
-      },
-      {
-        phase: "v3 → v4 (STATE_REPRESENTATION)",
-        detail:
-          "Adds conditional generation-probe state feature with machine scope compiled deterministically by OpenClass.",
-        code: "operator: add_state_feature · required: false (compiler-enforced)",
-      },
-    ],
-    outcomeMetric:
-      "95.98% Jev accuracy across 176 characterization cases (2–32 flat choices) · 1.0 retention across v1→v4",
-  },
-] as const;
-
-const QUICKSTART_TABS = [
-  {
-    id: "cli",
-    label: "CLI & Docker Compose",
-    lang: "bash",
-    code: `git clone https://github.com/yassincodes404/OpenClass.git
-cd OpenClass
-OPENCLASS_DECISION_PROVIDER=mock docker compose up --build -d --wait
-curl http://localhost:7331/health/ready
-
-# Initialize Ontology v1 (billing, technical, sales)
-docker compose exec server openclass init examples/support-intents/classifier.json
-
-# 1. Confident known observation -> routes to "billing"
-docker compose exec server openclass classify "I was charged twice"
-
-# 2. Unfamiliar observation -> persisted as permanent UNKNOWN evidence
-docker compose exec server openclass classify "Cancel my plan"
-docker compose exec server openclass unknowns --classifier support-intent`,
-  },
-  {
-    id: "ts-sdk",
-    label: "TypeScript SDK (@openclass/sdk)",
-    lang: "typescript",
-    code: `import { OpenClass } from "@openclass/sdk";
-
-const client = new OpenClass("http://localhost:7331");
-
-// Evaluate an observation against the active immutable ontology
-const run = await client.classify({
-  classifier: "support-intent",
-  observation: "Cancel my plan",
-});
-
-console.log(run.selected_class); // null (persisted to Unknown Pool)
-console.log(run.novelty);        // { state: "likely_novel", score: 0.95, reasons: [...] }
-
-// Trigger an advisory Supervisor review (never mutates the run or ontology)
-const review = await client.reviewRun({
-  classifier: "support-intent",
-  runId: run.id,
-});
-console.log(review.result.finding, review.result.recommendation);`,
-  },
-  {
-    id: "py-sdk",
-    label: "Python SDK (openclass-sdk)",
-    lang: "python",
-    code: `from openclass_sdk import OpenClass
-
-with OpenClass("http://localhost:7331") as client:
-    result = client.classify(
-        classifier="support-intent",
-        observation="I was charged twice",
-    )
-    print(result["selected_class"])      # "billing"
-    print(result["novelty"]["state"])    # "known"
-
-    # Inspect persisted UNKNOWN evidence pool for discovery clustering
-    unknown_pool = client.unknowns("support-intent")
-    print(f"Captured {len(unknown_pool)} unknown observations.")`,
-  },
-] as const;
-
-export function ObservatoryArchitectureSections() {
-  const [selectedProofId, setSelectedProofId] = useState<string>("support-intents");
-  const [selectedCodeTab, setSelectedCodeTab] = useState<string>("cli");
-  const [copiedTab, setCopiedTab] = useState<string | null>(null);
-
-  const activeProof =
-    GROUNDED_PROOFS.find((item) => item.id === selectedProofId) ?? GROUNDED_PROOFS[0];
-  const activeSnippet =
-    QUICKSTART_TABS.find((item) => item.id === selectedCodeTab) ?? QUICKSTART_TABS[0];
-
-  async function handleCopyCode() {
-    try {
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(activeSnippet.code);
-      }
-      setCopiedTab(activeSnippet.id);
-      window.setTimeout(() => setCopiedTab(null), 1800);
-    } catch {
-      setCopiedTab(activeSnippet.id);
-      window.setTimeout(() => setCopiedTab(null), 1800);
-    }
-  }
-
-  return (
-    <div className="oc-architecture-sections">
-      {/* SECTION 3: Fast Path vs. Slow Path Architecture */}
-      <section className="oc-section-block" aria-labelledby="oc-fast-slow-heading">
-        <div className="oc-section-head">
-          <p className="eyebrow">LATENCY & AUTHORITY HIERARCHY</p>
-          <h2 id="oc-fast-slow-heading">Keep frontier LLMs off your critical path.</h2>
-          <p className="oc-section-sub">
-            Calling a general-purpose reasoning model on every request breaks latency budgets,
-            inflates token spend, and invites silent drift. OpenClass separates{" "}
-            <strong>bounded synchronous decisions</strong> from{" "}
-            <strong>asynchronous supervisory intelligence</strong>.
-          </p>
-        </div>
-
-        <div className="oc-dual-lane-grid">
-          <article className="oc-lane-card tone-known">
-            <div className="oc-lane-head">
-              <span className="oc-tone-chip tone-known">FAST PATH · SYNCHRONOUS RUNTIME</span>
-              <code>EVERY REQUEST · BOUNDED SLA</code>
-            </div>
-            <h3>Bounded DecisionProvider + Deterministic Policy</h3>
-            <p>
-              Evaluates a version-pinned choice space (<code>v1</code>) plus <code>UNKNOWN</code>.
-              In research characterization (<code>benchmarks/jev/</code>), Jev routed{" "}
-              <strong>95.98% across 176 authored cases</strong> from 2 to 32 flat choices with zero
-              literal aliases.
-            </p>
-            <div className="oc-lane-flow">
-              <span>StateSnapshot</span>
-              <i>→</i>
-              <span>Bounded Provider (Jev / Laya)</span>
-              <i>→</i>
-              <span>Margin & Novelty Gate</span>
-              <i>→</i>
-              <span>Trusted Action or UNKNOWN</span>
-            </div>
-          </article>
-
-          <article className="oc-lane-card tone-review">
-            <div className="oc-lane-head">
-              <span className="oc-tone-chip tone-review">
-                SLOW PATH · ASYNCHRONOUS SUPERVISION & TEACHER
-              </span>
-              <code>SAMPLED / TRIGGERED BY EVIDENCE</code>
-            </div>
-            <h3>Supervisor Audits & Teacher Proposals Off the Critical Path</h3>
-            <p>
-              Stronger reasoning models inspect persisted runs, low-margin decisions, and recurring{" "}
-              <code>UNKNOWN</code> clusters to emit strictly typed, inactive candidates—called{" "}
-              <strong>once per concept gap</strong>, never once per user request.
-            </p>
-            <div className="oc-lane-flow">
-              <span>Unknown Cluster (n ≥ 3)</span>
-              <i>→</i>
-              <span>Teacher Proposal</span>
-              <i>→</i>
-              <span>Replay Gate (OC-008)</span>
-              <i>→</i>
-              <span>Human Approval → vN+1</span>
-            </div>
-          </article>
-        </div>
-
-        {/* Teacher Owns Meaning vs. OpenClass Owns Mechanics Contract */}
-        <div className="oc-authority-matrix">
-          <div className="oc-authority-col">
-            <p className="eyebrow">TEACHER & SUPERVISOR LLMs OWN MEANING</p>
-            <ul>
-              <li>
-                Identify what semantic concept is missing from a recurring <code>UNKNOWN</code>{" "}
-                cluster.
-              </li>
-              <li>
-                Diagnose whether a failure stems from <code>DECISION_SPACE</code>,{" "}
-                <code>PROCEDURE</code>, or <code>STATE_REPRESENTATION</code>.
-              </li>
-              <li>
-                Propose canonical labels, descriptions, aliases, and grounded rationales from stored
-                evidence.
-              </li>
-            </ul>
-          </div>
-          <div className="oc-authority-col">
-            <p className="eyebrow">OPENCLASS CORE OWNS MECHANICS & AUTHORITY</p>
-            <ul>
-              <li>
-                Assign stable UUIDs, SHA-256 version hashes, and deterministic schema/guard
-                compilation.
-              </li>
-              <li>
-                Enforce novelty thresholds, margin math, capability allowlists, and{" "}
-                <code>ProviderError</code> fault isolation.
-              </li>
-              <li>
-                Gate activation on human-verified replay evaluation (<code>OC-008</code>), human
-                review (<code>OC-009</code>), and SQL immutability triggers.
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 4: Six-Stage Governed Evolution Invariants */}
-      <section className="oc-section-block" aria-labelledby="oc-invariants-heading">
-        <div className="oc-section-head">
-          <p className="eyebrow">EPISTEMIC SAFETY & DOMAIN INVARIANTS</p>
-          <h2 id="oc-invariants-heading">
-            Six stages from anomaly to versioned knowledge. Zero silent self-modification.
-          </h2>
-          <p className="oc-section-sub">
-            Every governance boundary in OpenClass is enforced in <code>packages/core</code> and
-            PostgreSQL migrations—never left to prompt instructions.
-          </p>
-        </div>
-
-        <div className="oc-pillars-grid">
-          <article className="oc-pillar-card">
-            <span className="oc-pillar-tag">INVARIANT 01 · NOVELTY POLICY</span>
-            <h3>Persistent UNKNOWN Is Permanent</h3>
-            <p>
-              An <code>UNKNOWN</code> observation is never automatic proof of a new class. OpenClass
-              stores the full probability distribution (<code>∑ P = 1.0</code>), top-2 margin, and
-              novelty reasons without guessing.
-            </p>
-          </article>
-
-          <article className="oc-pillar-card">
-            <span className="oc-pillar-tag">INVARIANT 02 · FAULT SEPARATION</span>
-            <h3>Layer-Specific Failure Diagnosis</h3>
-            <p>
-              An upstream HTTP 502 is quarantined as a <code>ProviderError</code>, never stored as
-              semantic <code>UNKNOWN</code> evidence. A script failure attributes{" "}
-              <code>PROCEDURE</code>, not routing choices.
-            </p>
-          </article>
-
-          <article className="oc-pillar-card">
-            <span className="oc-pillar-tag">INVARIANT 03 · ZERO WRITABLE MODEL ACCESS</span>
-            <h3>Canonicalized Teacher Proposals</h3>
-            <p>
-              Discovery providers emit structured outcomes (<code>NEW_CLASS</code>,{" "}
-              <code>ALIAS</code>, <code>EXISTING_CLASS</code>, <code>INSUFFICIENT_EVIDENCE</code>)
-              checked against existing names and versioned aliases.
-            </p>
-          </article>
-
-          <article className="oc-pillar-card">
-            <span className="oc-pillar-tag">INVARIANT 04 · PREDICTIONS ≠ GROUND TRUTH</span>
-            <h3>Independent Replay Evaluation (OC-008)</h3>
-            <p>
-              Model confidence (<code>1.00</code>) and evidence counts never fabricate passing
-              evaluation scores. Baseline <code>vN</code> and candidate <code>vN+1</code> must
-              replay against human-verified datasets.
-            </p>
-          </article>
-
-          <article className="oc-pillar-card">
-            <span className="oc-pillar-tag">INVARIANT 05 · ADVISORY SUPERVISION</span>
-            <h3>Explicit Human & Supervisor Authority (OC-016)</h3>
-            <p>
-              A <code>SupervisorProvider</code> can flag <code>possible_misclassification</code> on
-              a confident run. That finding is stored append-only beside the run and never rewrites
-              history.
-            </p>
-          </article>
-
-          <article className="oc-pillar-card">
-            <span className="oc-pillar-tag">INVARIANT 06 · SQL-ENFORCED IMMUTABILITY</span>
-            <h3>Append-Only Ontology Snapshots (OC-009)</h3>
-            <p>
-              Database triggers reject <code>UPDATE</code> and <code>DELETE</code> on{" "}
-              <code>ontology_versions</code>, <code>ontology_events</code>,{" "}
-              <code>supervisor_reviews</code>, and <code>webhook_receipts</code>.
-            </p>
-          </article>
-        </div>
-      </section>
-
-      {/* SECTION 5: Grounded Repository Use Cases */}
-      <section className="oc-section-block" aria-labelledby="oc-proofs-heading">
-        <div className="oc-section-head">
-          <p className="eyebrow">GROUNDED SCENARIOS · CHECKED-IN REPOSITORY ARTIFACTS</p>
-          <h2 id="oc-proofs-heading">
-            One adaptive decision kernel. Three concrete engineering proofs.
-          </h2>
-        </div>
-
-        <div className="oc-proof-tabs" role="tablist" aria-label="Grounded engineering proofs">
-          {GROUNDED_PROOFS.map((proof) => (
-            <button
-              key={proof.id}
-              type="button"
-              role="tab"
-              aria-selected={proof.id === selectedProofId}
-              className={`oc-proof-tab ${proof.id === selectedProofId ? "active" : ""}`}
-              onClick={() => setSelectedProofId(proof.id)}
-            >
-              <span>{proof.tag}</span>
-              <strong>{proof.title}</strong>
-            </button>
-          ))}
-        </div>
-
-        <div className="oc-proof-detail" role="tabpanel" key={activeProof.id}>
-          <div className="oc-proof-meta">
-            <div>
-              <span className="oc-tone-chip tone-known">{activeProof.statusBadge}</span>
-              <h3>{activeProof.title}</h3>
-              <p>{activeProof.summary}</p>
-            </div>
-            <div className="oc-proof-hashes">
-              <span>SOURCE ARTIFACT</span>
-              <code>{activeProof.artifactPath}</code>
-              <span>VERSION LINEAGE</span>
-              <code>{activeProof.versionChain}</code>
-            </div>
-          </div>
-
-          <div className="oc-proof-steps-grid">
-            {activeProof.steps.map((step) => (
-              <div key={step.phase} className="oc-proof-step-card">
-                <span className="oc-step-phase">{step.phase}</span>
-                <p>{step.detail}</p>
-                <code>{step.code}</code>
-              </div>
-            ))}
-          </div>
-
-          <div className="oc-proof-footer">
-            <span>VERIFIED OUTCOME</span>
-            <strong>{activeProof.outcomeMetric}</strong>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 6: Honest Implementation Status Matrix */}
-      <section className="oc-section-block" aria-labelledby="oc-status-matrix-heading">
-        <div className="oc-section-head">
-          <p className="eyebrow">RADICAL ENGINEERING TRANSPARENCY · implementation-status.md</p>
-          <h2 id="oc-status-matrix-heading">
-            What ships in Genesis v0.0.1 today—and what fails closed until verified.
-          </h2>
-          <p className="oc-section-sub">
-            OpenClass refuses to fake passing evaluations from prediction counts or disguise mock
-            fixtures as live inference.
-          </p>
-        </div>
-
-        <div className="oc-status-table-wrap">
-          <table className="oc-status-table">
-            <thead>
-              <tr>
-                <th>Subsystem</th>
-                <th>Current Status</th>
-                <th>Verified Behavior in Local Tree (v0.0.1)</th>
-                <th>Gate Before v0.1.0 Discovery Release</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>Classification & Novelty Kernel</strong>
-                </td>
-                <td>
-                  <span className="oc-tone-chip tone-known">SHIPPED · v0.0.1</span>
-                </td>
-                <td>
-                  Typed <code>DecisionProvider</code> port (<code>Laya</code>, <code>Jev</code>,{" "}
-                  <code>mock</code>), configurable novelty thresholds, persistent{" "}
-                  <code>UNKNOWN</code> pool, append-only ontology snapshots.
-                </td>
-                <td>
-                  Wider-domain calibration & live provider benchmarks (<code>OC-003</code>,{" "}
-                  <code>OC-004</code>).
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Supervisor Run Reviews</strong>
-                </td>
-                <td>
-                  <span className="oc-tone-chip tone-known">SHIPPED · OC-016</span>
-                </td>
-                <td>
-                  Manual-trigger advisory <code>SupervisorProvider</code>, structured findings (
-                  <code>possible_misclassification</code>, <code>possible_missing_class</code>),
-                  immutable <code>0002_supervisor_reviews</code> table.
-                </td>
-                <td>
-                  Live OpenAI-compatible / Ollama supervisor adapters (<code>OC-018</code>) &
-                  sampling policy (<code>OC-020</code>).
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Projects, Ingestion & Webhooks</strong>
-                </td>
-                <td>
-                  <span className="oc-tone-chip tone-known">SHIPPED · OC-033</span>
-                </td>
-                <td>
-                  Project-scoped CRUD, batch ingestion, token-authenticated webhooks with{" "}
-                  <code>event_key</code> deduplication and immutable{" "}
-                  <code>0010_webhook_receipts</code>.
-                </td>
-                <td>Unified workspace tenancy boundary & vendor-signed webhook normalizers.</td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Candidate Review &amp; Sealed Evaluation Datasets</strong>
-                </td>
-                <td>
-                  <span className="oc-tone-chip tone-known">SHIPPED · PHASES 11–12</span>
-                </td>
-                <td>
-                  State-machine candidate review (<code>≥ 5</code> distinct evidence runs required),
-                  human-verified <code>0018_evaluation_sets</code> rejecting{" "}
-                  <code>source=&quot;prediction&quot;</code>, irreversible dataset sealing.
-                </td>
-                <td>
-                  Pluggable semantic embeddings (<code>OC-005</code>) &amp; unified candidate
-                  revisions across legacy/project tracks.
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Replay Evaluation &amp; Guarded Promotion</strong>
-                </td>
-                <td>
-                  <span className="oc-tone-chip tone-review">SHIPPED · SIMULATED REPLAY</span>
-                </td>
-                <td>
-                  Baseline vs. candidate regression gates (<code>0019_evaluation_runs</code>),
-                  append-only <code>0020_service_versions</code> with diff/rollback, while
-                  unverified <code>/candidates</code> routes fail closed (<code>409 Conflict</code>
-                  ).
-                </td>
-                <td>
-                  Live provider replay (<code>OC-008</code>) &amp; unified Core <code>vN+1</code>{" "}
-                  activation (<code>OC-009</code>).
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Live Operations &amp; Safe Support Routing</strong>
-                </td>
-                <td>
-                  <span className="oc-tone-chip tone-known">SHIPPED · PHASES 15–16</span>
-                </td>
-                <td>
-                  Quality KPIs, threshold alert rules (<code>0021_alert_rules</code>),
-                  cursor-resumable SSE stream, and deterministic support routing (
-                  <code>UNKNOWN → escalate</code> to human triage).
-                </td>
-                <td>
-                  External destination state verification (<code>OC-035</code>, <code>OC-038</code>
-                  ).
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* SECTION 7: Developer Quickstart & SDK Switcher */}
-      <section id="quickstart" className="oc-section-block" aria-labelledby="oc-quickstart-heading">
-        <div className="oc-section-head">
-          <p className="eyebrow">LOCAL-FIRST EXECUTION · LOOPBACK BY DEFAULT</p>
-          <h2 id="oc-quickstart-heading">Up in four commands. Inspectable over HTTP.</h2>
-          <p className="oc-section-sub">
-            Compose starts PostgreSQL 16 with <code>pgvector</code>, runs Alembic migrations (
-            <code>upgrade head</code>), and binds the FastAPI server to <code>127.0.0.1:7331</code>.
-          </p>
-        </div>
-
-        <div className="oc-code-console">
-          <div className="oc-code-console-bar">
-            <div className="oc-code-tabs" role="tablist" aria-label="Quickstart code examples">
-              {QUICKSTART_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab.id === selectedCodeTab}
-                  className={`oc-code-tab ${tab.id === selectedCodeTab ? "active" : ""}`}
-                  onClick={() => setSelectedCodeTab(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="oc-copy-btn" onClick={() => void handleCopyCode()}>
-              {copiedTab === activeSnippet.id ? "Copied · ✓" : "Copy snippet"}
-            </button>
-          </div>
-          <pre className="oc-code-pre" role="tabpanel">
-            <code>{activeSnippet.code}</code>
-          </pre>
-        </div>
-
-        <div className="oc-dependency-law">
-          <span>INWARD DEPENDENCY LAW</span>
-          <code>
-            UI & CLI → Public HTTP SDKs → FastAPI Server → Core Domain Ports ← Isolated Providers
-            (Jev / Laya / Mock)
-          </code>
-        </div>
-      </section>
-    </div>
-  );
-}
+// Preserve the existing import boundary while architecture content stays separate.
+export {
+  ObservatoryArchitectureSections,
+  GROUNDED_PROOFS,
+  QUICKSTART_TABS,
+} from "./observatory-sections";

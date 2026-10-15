@@ -52,27 +52,27 @@ Date: 2026-10-15. This is an evidence ledger, not a completion claim.
 All original acceptance criteria remain authoritative in
 `04-executable-backlog.md`, reconciled against commit `7158104`.
 
-| Item      | Takeover status | Remaining acceptance / evidence                                       |
-| --------- | --------------- | --------------------------------------------------------------------- |
-| OC-BG-012 | PARTIAL         | Complete replay, original gates and durable per-example outcomes.     |
-| OC-BG-013 | PARTIAL         | Complete transactional promotion, history, and rollback requirements. |
-| OC-BG-014 | PARTIAL         | Unify candidate domain, persistence, and lifecycle across tracks.     |
-| OC-BG-016 | PARTIAL         | Typed compiler, schemas, persisted snapshots, provenance, budgets.    |
-| OC-BG-017 | PARTIAL         | Data-driven supervision and verified calibrated profiles.             |
-| OC-BG-018 | PARTIAL         | Runtime applicability gates and independent verifiers.                |
-| OC-BG-020 | PARTIAL         | Continuous supervision sampling, triggers, and budgets.               |
-| OC-BG-021 | PARTIAL         | Integrate the ten-layer Teacher protocol into runtime paths.          |
-| OC-BG-022 | PARTIAL         | Real embeddings, cache identity, and PostgreSQL vector indexing.      |
-| OC-BG-024 | PARTIAL         | Control-plane idempotency hashing, expiry, and concurrency.           |
-| OC-BG-025 | PARTIAL         | Atomic units of work and evidence uniqueness.                         |
-| OC-BG-026 | PARTIAL         | Executed migrations and append-only database protections.             |
-| OC-BG-027 | PARTIAL         | Frontend feature parity and consistent project workflows.             |
-| OC-BG-029 | PARTIAL         | Provider/model costs and end-to-end correlation.                      |
-| OC-BG-030 | PARTIAL         | Complete pagination and SQL aggregation.                              |
-| OC-BG-032 | PARTIAL         | Transactional outbound delivery, retries, vendor verification.        |
-| OC-BG-033 | PARTIAL         | Real PostgreSQL and live-backend browser tests.                       |
-| OC-BG-034 | PARTIAL         | Full-stack Compose and original build/benchmark criteria.             |
-| OC-BG-036 | PARTIAL         | Post-promotion cohort monitoring and rollback behavior.               |
+| Item      | Takeover status | Remaining acceptance / evidence                                                                |
+| --------- | --------------- | ---------------------------------------------------------------------------------------------- |
+| OC-BG-012 | PARTIAL         | Complete replay, original gates and durable per-example outcomes.                              |
+| OC-BG-013 | PARTIAL         | Complete transactional promotion, history, and rollback requirements.                          |
+| OC-BG-014 | PARTIAL         | Unify candidate domain, persistence, and lifecycle across tracks.                              |
+| OC-BG-016 | PARTIAL         | Typed compiler, schemas, persisted snapshots, provenance, budgets.                             |
+| OC-BG-017 | PARTIAL         | Data-driven supervision and verified calibrated profiles.                                      |
+| OC-BG-018 | VERIFIED        | Original scope delivered in PR #59; runtime and independent verification tests pass.           |
+| OC-BG-020 | PARTIAL         | Continuous supervision sampling, triggers, and budgets.                                        |
+| OC-BG-021 | PARTIAL         | Integrate the ten-layer Teacher protocol into runtime paths.                                   |
+| OC-BG-022 | PARTIAL         | Real embeddings, cache identity, and PostgreSQL vector indexing.                               |
+| OC-BG-024 | PARTIAL         | Control-plane contracts delivered in PR #60; engine and broader webhook identity remain.       |
+| OC-BG-025 | PARTIAL         | Atomic units of work and evidence uniqueness.                                                  |
+| OC-BG-026 | PARTIAL         | Control-plane migrations/history delivered in PR #60; engine migration acceptance remains.     |
+| OC-BG-027 | PARTIAL         | Frontend feature parity and consistent project workflows.                                      |
+| OC-BG-029 | PARTIAL         | Control-plane correlation delivered; engine model/cost attribution and caller adoption remain. |
+| OC-BG-030 | PARTIAL         | Complete pagination and SQL aggregation.                                                       |
+| OC-BG-032 | PARTIAL         | Transactional outbound delivery, retries, vendor verification.                                 |
+| OC-BG-033 | PARTIAL         | 23 genuine control-plane PostgreSQL tests pass; authenticated live-stack browser gate remains. |
+| OC-BG-034 | PARTIAL         | Full-stack Compose and original build/benchmark criteria.                                      |
+| OC-BG-036 | PARTIAL         | Post-promotion cohort monitoring and rollback behavior.                                        |
 
 ## Checkpoint acceptance gates
 
@@ -87,7 +87,7 @@ All original acceptance criteria remain authoritative in
 - [x] Real pgvector version and actual vector operations verified separately.
 - [x] Migration upgrade and required repository checks pass.
 - [x] Independent review corrections resolved.
-- [ ] Focused PR, green CI, merge, and main verification recorded.
+- [x] Focused PR, green CI, merge, and main verification recorded.
 
 ## Guarantees to preserve
 
@@ -148,6 +148,70 @@ consistent lease TTL configuration across replicas.
 Baseline milestone comment:
 <https://github.com/yassincodes404/OpenClass/pull/57#issuecomment-6197246031>.
 
-Checkpoint implementation and independent review passed. PR publication,
-exact-commit CI, merge and main verification remain pending. No live-stack
-browser result or redesign artifact is claimed yet.
+Checkpoint [PR #58](https://github.com/yassincodes404/OpenClass/pull/58)
+merged as `91f1b97104ece21787daf597ed44a1b50a00323b`.
+[PR CI](https://github.com/yassincodes404/OpenClass/actions/runs/38773727748)
+passed Python, web, Compose and security checks. Its actual Python result was
+**645 passed, 7 skipped**, 948 warnings, 209.66 seconds.
+[Main CI](https://github.com/yassincodes404/OpenClass/actions/runs/38774433446)
+also passed. The merged tree matched the reviewed tree exactly; post-merge local
+PostgreSQL checkpoint/vector verification passed **49 tests, 1 warning**, 46.11 seconds.
+
+Automation [PR #59](https://github.com/yassincodes404/OpenClass/pull/59)
+merged as `b41173e6b2dc2635eb86fb7d7314bb7bacdd4fd1`.
+[PR CI](https://github.com/yassincodes404/OpenClass/actions/runs/38785910677)
+passed all four checks, including **783 passed, 7 skipped** with genuine
+PostgreSQL. [Main CI](https://github.com/yassincodes404/OpenClass/actions/runs/38787559766)
+passed. Parent post-merge focused automation verification passed **160 tests**.
+Independent review reproduced and resolved failure-provenance, aggregate-patch
+and overdue-verifier defects before delivery.
+
+Control-plane [PR #60](https://github.com/yassincodes404/OpenClass/pull/60)
+merged as `d8b3051c48439144c4df393cfd57f2591598cf3b`.
+All five PR checks passed. The
+[genuine PostgreSQL job](https://github.com/yassincodes404/OpenClass/actions/runs/38788850064)
+applied six migrations, applied zero on repeat, and passed **23 tests**.
+Both [main CI](https://github.com/yassincodes404/OpenClass/actions/runs/38790288768)
+and [main PostgreSQL CI](https://github.com/yassincodes404/OpenClass/actions/runs/38790288731)
+passed. Parent post-merge control-plane verification passed **109 tests**.
+Independent review fixes cover case-insensitive secret routes, API-key caller
+identity, authorization revalidation after reservation waits, and tied audit
+cursors. This delivery closes control-plane slices, not all of the original
+OC-BG-024/026/029/033 criteria.
+
+## Continuing work
+
+- Original `OC-BG-018` is verified through PR #59. The first full local run
+  exposed a collection-time freshness-test flake; freezing observation and
+  evaluation clocks fixed it. Hosted PostgreSQL subsequently passed without
+  database skips.
+- Engine persistence and full-stack delivery edits remain preserved in separate
+  `D:\Projects 2\OpenClass-workstreams\` worktrees. Engine review accepted four
+  migration/recurrence/latency/cost corrections but reproduced an attachment
+  regression that incorrectly resynchronizes terminal UNKNOWN state. Caller
+  adoption and genuine PostgreSQL execution remain open.
+- Full-stack review reproduced a broken no-key base quickstart, unreadable
+  Keycloak realm permissions on Linux, and missing interruption cleanup.
+  Corrections and hosted authenticated live-browser acceptance remain required.
+  Static/unit checks do not prove successful stack startup. The benchmark audit
+  reported `historical_files_preserved: 0`; it does not close the original
+  frozen-evidence requirement.
+- Landing implementation `05b9eb5d17b68ef40add9c12d986115abec2668f`
+  has **22 passing component tests** and independent code/visual approval.
+  Fresh actual-browser verification covers **40 scenario/step checks**, five
+  viewport captures, readable mobile/tablet cards, exact zero-duration reduced
+  motion, and a decodable desktop interaction recording. The
+  [artifact manifest](../../artifacts/landing-redesign/README.md) records its
+  scope and limits. Focused PR CI and merge remain required.
+- After safely integrating merged main without overlapping saved landing
+  edits, `make check` passed (109 control-plane, 22 portal, 18 SDK tests).
+  Explicit offline `make test` passed **725 tests, 7 skipped, 58 deselected**,
+  948 warnings, 188.33 seconds. PostgreSQL/live cases were deliberately excluded,
+  not passed. Bounded two-worker `npm run build` and all 11 Python package
+  builds passed. Initial formatting failure came from an untracked browser
+  snapshot; the formatter now excludes generated `.playwright-mcp/` artifacts
+  without deleting or staging them.
+- Host disk exhaustion interrupted four worker reports; saved source was
+  preserved. Storage recovered, but the local Docker engine did not restart
+  successfully. New database acceptance must use genuine hosted PostgreSQL CI,
+  not silently skipped checks or fake extension files.
