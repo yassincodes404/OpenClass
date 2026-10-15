@@ -15,6 +15,7 @@ export interface Project {
   description: string;
   status: "active" | "archived";
   owner_id: string | null;
+  workspace_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -464,23 +465,75 @@ export class OpenClassError extends Error {
   }
 }
 
+export interface OpenClassClientOptions {
+  baseURL?: string;
+  baseUrl?: string;
+  workspaceId?: string;
+  actor?: string;
+  fetcher?: typeof fetch;
+}
+
+export interface OpenClassRequestOptions {
+  workspaceId?: string;
+  actor?: string;
+  headers?: Record<string, string>;
+}
+
 export class OpenClass {
+  private readonly baseURL: string;
+  private readonly fetcher: typeof fetch;
+  private readonly defaultWorkspaceId?: string;
+  private readonly defaultActor?: string;
+
   constructor(
-    private readonly baseURL = "http://localhost:7331",
-    private readonly fetcher: typeof fetch = (...args) => globalThis.fetch(...args),
-  ) {}
+    baseURLOrOptions: string | OpenClassClientOptions = "http://localhost:7331",
+    fetcher: typeof fetch = (...args) => globalThis.fetch(...args),
+    options?: { workspaceId?: string; actor?: string },
+  ) {
+    if (typeof baseURLOrOptions === "string") {
+      this.baseURL = baseURLOrOptions;
+      this.fetcher = fetcher;
+      this.defaultWorkspaceId = options?.workspaceId;
+      this.defaultActor = options?.actor;
+    } else {
+      this.baseURL =
+        baseURLOrOptions.baseURL ?? baseURLOrOptions.baseUrl ?? "http://localhost:7331";
+      this.fetcher = baseURLOrOptions.fetcher ?? fetcher;
+      this.defaultWorkspaceId = baseURLOrOptions.workspaceId ?? options?.workspaceId;
+      this.defaultActor = baseURLOrOptions.actor ?? options?.actor;
+    }
+  }
 
   private async request<T>(
     path: string,
     body?: unknown,
     method?: "GET" | "POST" | "PATCH" | "DELETE",
-    headers?: Record<string, string>,
+    headersOrOptions?: Record<string, string> | OpenClassRequestOptions,
   ): Promise<T> {
+    let extraHeaders: Record<string, string> = {};
+    let workspaceId = this.defaultWorkspaceId;
+    let actor = this.defaultActor;
+    if (headersOrOptions) {
+      if (
+        "workspaceId" in headersOrOptions ||
+        "actor" in headersOrOptions ||
+        "headers" in headersOrOptions
+      ) {
+        const opts = headersOrOptions as OpenClassRequestOptions;
+        if (opts.workspaceId !== undefined) workspaceId = opts.workspaceId;
+        if (opts.actor !== undefined) actor = opts.actor;
+        if (opts.headers) extraHeaders = { ...opts.headers };
+      } else {
+        extraHeaders = { ...(headersOrOptions as Record<string, string>) };
+      }
+    }
     const response = await this.fetcher(`${this.baseURL.replace(/\/$/, "")}${path}`, {
       method: method ?? (body === undefined ? "GET" : "POST"),
       headers: {
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-        ...headers,
+        ...(workspaceId ? { "X-OpenClass-Workspace-Id": workspaceId } : {}),
+        ...(actor ? { "X-OpenClass-Actor": actor } : {}),
+        ...extraHeaders,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(30_000),
@@ -531,23 +584,54 @@ export class OpenClass {
       { reason: input.reason },
     );
   }
-  projects(): Promise<Project[]> {
-    return this.request("/api/v1/projects");
+  projects(options?: OpenClassRequestOptions): Promise<Project[]> {
+    return this.request("/api/v1/projects", undefined, "GET", options);
   }
-  createProject(input: { name: string; description?: string }): Promise<Project> {
-    return this.request("/api/v1/projects", {
-      name: input.name,
-      description: input.description ?? "",
-    });
+  createProject(
+    input: { name: string; description?: string; workspaceId?: string },
+    options?: OpenClassRequestOptions,
+  ): Promise<Project> {
+    const resolvedOptions =
+      input.workspaceId !== undefined
+        ? { ...options, workspaceId: options?.workspaceId ?? input.workspaceId }
+        : options;
+    return this.request(
+      "/api/v1/projects",
+      {
+        name: input.name,
+        description: input.description ?? "",
+      },
+      "POST",
+      resolvedOptions,
+    );
   }
-  project(project: string): Promise<Project> {
-    return this.request(`/api/v1/projects/${encodeURIComponent(project)}`);
+  project(project: string, options?: OpenClassRequestOptions): Promise<Project> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(project)}`,
+      undefined,
+      "GET",
+      options,
+    );
+  }
+  claimProject(project: string, options?: OpenClassRequestOptions): Promise<Project> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(project)}/claim`,
+      {},
+      "POST",
+      options,
+    );
   }
   updateProject(
     project: string,
     changes: { name?: string; description?: string; status?: "active" | "archived" },
+    options?: OpenClassRequestOptions,
   ): Promise<Project> {
-    return this.request(`/api/v1/projects/${encodeURIComponent(project)}`, changes, "PATCH");
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(project)}`,
+      changes,
+      "PATCH",
+      options,
+    );
   }
   projectSummary(project: string): Promise<ProjectSummary> {
     return this.request(`/api/v1/projects/${encodeURIComponent(project)}/summary`);
@@ -1382,6 +1466,7 @@ export class ControlApiError extends Error {
 export interface ControlRequestInit extends Omit<RequestInit, "body"> {
   token?: string;
   idempotencyKey?: string;
+  workspaceId?: string;
   body?: BodyInit | Record<string, unknown> | unknown[] | null;
 }
 
@@ -1389,6 +1474,7 @@ export interface OpenClassControlClientOptions {
   baseUrl?: string;
   baseURL?: string;
   token?: string;
+  workspaceId?: string;
   fetcher?: typeof fetch;
 }
 
@@ -1414,6 +1500,7 @@ export interface ControlApiKey {
 export class OpenClassControlClient {
   private readonly baseUrl: string;
   private readonly defaultToken?: string;
+  private readonly defaultWorkspaceId?: string;
   private readonly fetcher: typeof fetch;
 
   constructor(
@@ -1427,6 +1514,7 @@ export class OpenClassControlClient {
       const rawBase = optionsOrBaseUrl.baseUrl ?? optionsOrBaseUrl.baseURL ?? "/control";
       this.baseUrl = rawBase.replace(/\/$/, "") || "/control";
       this.defaultToken = optionsOrBaseUrl.token;
+      this.defaultWorkspaceId = optionsOrBaseUrl.workspaceId;
       this.fetcher =
         optionsOrBaseUrl.fetcher ?? fetcher ?? ((...args) => globalThis.fetch(...args));
     }
@@ -1454,11 +1542,13 @@ export class OpenClassControlClient {
     const {
       token: initToken,
       idempotencyKey,
+      workspaceId: initWorkspaceId,
       body,
       headers: initHeaders,
       ...restInit
     } = init ?? {};
     const resolvedToken = initToken ?? this.defaultToken;
+    const resolvedWorkspaceId = initWorkspaceId ?? this.defaultWorkspaceId;
     const hasBody = body !== undefined && body !== null;
     const serializedBody = !hasBody
       ? undefined
@@ -1475,6 +1565,7 @@ export class OpenClassControlClient {
       ...(hasBody ? { "content-type": "application/json" } : {}),
       ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {}),
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+      ...(resolvedWorkspaceId ? { "X-OpenClass-Workspace-Id": resolvedWorkspaceId } : {}),
     };
     if (initHeaders) {
       if (initHeaders instanceof Headers) {

@@ -1,0 +1,92 @@
+{
+  "preview_url": "http://127.0.0.1:4179/",
+  "source_app": "apps/portal",
+  "captured_at": "2026-10-15T09:13:20Z",
+  "artifacts": [
+    {
+      "file": "landing-desktop-1440-full.png",
+      "viewport": { "width": 1440, "height": 900 },
+      "full_page": true,
+      "reduced_motion": false,
+      "horizontal_overflow": false,
+      "description": "Full-page desktop capture of the OpenClass landing experience"
+    },
+    {
+      "file": "landing-desktop-hero.png",
+      "viewport": { "width": 1440, "height": 900 },
+      "full_page": false,
+      "reduced_motion": false,
+      "description": "Above-the-fold desktop hero composition and primary CTAs"
+    },
+    {
+      "file": "landing-stage-known-billing-0900.png",
+      "viewport": { "width": 1440, "height": 900 },
+      "selector": "#open-world-loop",
+      "scenario": "known_billing",
+      "verified_values": {
+        "top_class": "billing",
+        "top_probability": "0.900",
+        "unknown_probability": "0.050",
+        "top_margin": "0.850"
+      }
+    },
+    {
+      "file": "landing-stage-review-compliance-0410.png",
+      "viewport": { "width": 1440, "height": 900 },
+      "selector": "#open-world-loop",
+      "scenario": "review_compliance",
+      "verified_values": {
+        "top_class": "billing",
+        "top_probability": "0.410",
+        "second_class": "technical",
+        "second_probability": "0.270",
+        "unknown_probability": "0.220",
+        "top_margin": "0.140"
+      }
+    },
+    {
+      "file": "landing-stage-unknown-cancel-step5.png",
+      "viewport": { "width": 1440, "height": 900 },
+      "selector": "#open-world-loop",
+      "scenario": "unknown_cancel",
+      "step": 5,
+      "description": "Step 5 (05 / GOVERN · Replay & Review Gate) showing HELD AT REPLAY & HUMAN GATE before promoting Ontology v2 (0a83f9d9)"
+    },
+    {
+      "file": "landing-desktop-reduced-motion.png",
+      "viewport": { "width": 1440, "height": 900 },
+      "selector": "#open-world-loop",
+      "reduced_motion": true,
+      "description": "Desktop interactive stage under prefers-reduced-motion: reduce (auto-trace paused, animations disabled)"
+    },
+    {
+      "file": "landing-tablet-834-full.png",
+      "viewport": { "width": 834, "height": 1112 },
+      "full_page": true,
+      "reduced_motion": false,
+      "horizontal_overflow": false,
+      "description": "Full-page tablet responsive layout at 834x1112"
+    },
+    {
+      "file": "landing-mobile-390-full.png",
+      "viewport": { "width": 390, "height": 844 },
+      "full_page": true,
+      "reduced_motion": true,
+      "horizontal_overflow": false,
+      "description": "Full-page mobile responsive layout at 390x844 with prefers-reduced-motion: reduce"
+    },
+    {
+      "file": "landing-mobile-stage-390.png",
+      "viewport": { "width": 390, "height": 844 },
+      "selector": "#open-world-loop",
+      "reduced_motion": true,
+      "description": "Focused mobile capture of #open-world-loop at 390x844"
+    },
+    {
+      "file": "landing-motion-interactions.webm",
+      "viewport": { "width": 1440, "height": 900 },
+      "type": "video/webm",
+      "description": "Interactive motion recording of preset switching, 5-step scrubber, Play/Pause toggle, and keyboard focus"
+    }
+  ]
+}

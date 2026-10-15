@@ -15,7 +15,13 @@ from openclass_core.project_evolution import (
     ChoiceTeacher,
     ProjectEvolutionService,
 )
-from openclass_core.projects import ProjectService as ProjectDomainService
+from openclass_core.projects import (
+    ProjectService as ProjectDomainService,
+)
+from openclass_core.projects import (
+    reset_current_workspace_id,
+    set_current_workspace_id,
+)
 from openclass_core.providers import DecisionProvider, ProviderError, SupervisorProvider
 from openclass_core.repositories import ConflictError, NotFoundError
 from openclass_core.service import ClassificationService
@@ -104,6 +110,8 @@ def create_app(
         lifespan=lifespan,
         description="Genesis API: local, text-only classification with persistent UNKNOWN.",
     )
+    app.state.project_repository = project_repository
+    app.state.decision_provider = default_decision_provider
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -188,7 +196,11 @@ def create_app(
                     "X-Correlation-ID": correlation_id,
                 },
             )
-        response = await call_next(request)
+        ws_token = set_current_workspace_id(workspace_id)
+        try:
+            response = await call_next(request)
+        finally:
+            reset_current_workspace_id(ws_token)
         response.headers["X-Correlation-ID"] = correlation_id
         if workspace_id:
             response.headers["X-OpenClass-Workspace-Id"] = workspace_id

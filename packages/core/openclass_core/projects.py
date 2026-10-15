@@ -7,6 +7,7 @@ authentication exists.
 """
 
 import json
+from contextvars import ContextVar, Token
 from datetime import UTC, datetime
 from enum import StrEnum
 from hashlib import sha256
@@ -30,6 +31,21 @@ from .evidence import (
 from .models import Model
 from .repositories import ConflictError
 
+CURRENT_WORKSPACE_ID: ContextVar[str | None] = ContextVar("current_workspace_id", default=None)
+
+
+def get_current_workspace_id() -> str | None:
+    return CURRENT_WORKSPACE_ID.get()
+
+
+def set_current_workspace_id(workspace_id: str | None) -> Token[str | None]:
+    cleaned = (workspace_id or "").strip() or None
+    return CURRENT_WORKSPACE_ID.set(cleaned)
+
+
+def reset_current_workspace_id(token: Token[str | None]) -> None:
+    CURRENT_WORKSPACE_ID.reset(token)
+
 
 def now() -> datetime:
     return datetime.now(UTC)
@@ -47,6 +63,7 @@ class Project(Model):
     description: str = Field(default="", max_length=2000)
     status: ProjectStatus = ProjectStatus.ACTIVE
     owner_id: str | None = Field(default=None, max_length=80)
+    workspace_id: str | None = Field(default=None, max_length=120)
     created_at: datetime = Field(default_factory=now)
     updated_at: datetime = Field(default_factory=now)
 
@@ -74,6 +91,7 @@ class RawEvent(Model):
 AuditEventType = Literal[
     "project.created",
     "project.updated",
+    "project_updated",
     "evidence.created",
     "evidence.triaged",
     "evidence.resolved",
@@ -114,7 +132,7 @@ AuditEventType = Literal[
     "quality.alert",
 ]
 
-DecisionRunStatus = Literal["completed", "paused", "resumed", "cancelled", "failed"]
+DecisionRunStatus = Literal["completed", "paused", "resuming", "resumed", "cancelled", "failed"]
 
 
 class ProjectAuditEvent(Model):
@@ -268,6 +286,9 @@ class DecisionRunCheckpoint(Model):
     pinned_service_hash: str | None = None
     pending_operation: dict[str, Any] | None = None
     latency_ms: float = 0.0
+    claim_token: str | None = None
+    claimed_by: str | None = None
+    claimed_at: datetime | None = None
     resumed_by: str | None = None
     resumed_at: datetime | None = None
     resume_rationale: str | None = None
@@ -319,6 +340,9 @@ class DecisionRun(Model):
     pinned_version_number: int = 1
     pinned_service_hash: str | None = None
     pending_operation: dict[str, Any] | None = None
+    claim_token: str | None = None
+    claimed_by: str | None = None
+    claimed_at: datetime | None = None
     resumed_by: str | None = None
     resumed_at: datetime | None = None
     resume_rationale: str | None = None
@@ -358,10 +382,16 @@ class ProjectUpdate(Model):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, min_length=0, max_length=2000)
     status: ProjectStatus | None = None
+    workspace_id: str | None = Field(default=None, min_length=1, max_length=120)
 
     @model_validator(mode="after")
     def has_changes(self) -> "ProjectUpdate":
-        if self.name is None and self.description is None and self.status is None:
+        if (
+            self.name is None
+            and self.description is None
+            and self.status is None
+            and self.workspace_id is None
+        ):
             raise ValueError("update must change at least one field")
         return self
 
@@ -546,10 +576,17 @@ class ProjectService:
         self.actor = actor
         self.clock = clock
 
-    async def create(self, name: str, description: str = "") -> Project:
+    async def create(
+        self,
+        name: str,
+        description: str = "",
+        *,
+        workspace_id: str | None = None,
+    ) -> Project:
         if not name.strip():
             raise ValueError("project name is required")
         timestamp = self.clock()
+        effective_workspace_id = (workspace_id or "").strip() or get_current_workspace_id()
         base = slugify(name)
         slug = base
         counter = 2
@@ -560,6 +597,7 @@ class ProjectService:
             slug=slug,
             name=name.strip(),
             description=description.strip(),
+            workspace_id=effective_workspace_id,
             created_at=timestamp,
             updated_at=timestamp,
         )
@@ -569,7 +607,11 @@ class ProjectService:
                 project_id=project.id,
                 event_type="project.created",
                 actor=self.actor,
-                payload={"name": project.name, "slug": project.slug},
+                payload={
+                    "name": project.name,
+                    "slug": project.slug,
+                    "workspace_id": project.workspace_id,
+                },
                 created_at=timestamp,
             ),
         )
@@ -578,11 +620,71 @@ class ProjectService:
     async def get(self, identifier: str) -> Project:
         return await self.repository.get_project(identifier)
 
-    async def list_projects(self) -> list[Project]:
-        return await self.repository.list_projects()
+    async def list_projects(self, *, include_unassigned: bool = False) -> list[Project]:
+        try:
+            items = await self.repository.list_projects(
+                include_unassigned=include_unassigned  # type: ignore[call-arg]
+            )
+        except TypeError:
+            items = await self.repository.list_projects()
+        ws_id = get_current_workspace_id()
+        if ws_id is not None:
+            return [
+                p
+                for p in items
+                if p.workspace_id == ws_id or (include_unassigned and p.workspace_id is None)
+            ]
+        return [p for p in items if p.workspace_id is None]
+
+    async def claim_unassigned(
+        self,
+        identifier: str,
+        *,
+        workspace_id: str | None = None,
+        actor: str = "operator",
+    ) -> Project:
+        effective_ws = (workspace_id or "").strip() or get_current_workspace_id()
+        if not effective_ws:
+            raise ValueError("workspace_id is required to claim an unassigned project")
+        effective_actor = (actor or "").strip() or self.actor
+        timestamp = self.clock()
+        if hasattr(self.repository, "claim_unassigned_project"):
+            claimed_project: Project = await self.repository.claim_unassigned_project(
+                identifier,
+                effective_ws,
+                actor=effective_actor,
+                timestamp=timestamp,
+            )
+            return claimed_project
+        project = await self.repository.get_project(identifier)
+        if project.workspace_id is not None and project.workspace_id != effective_ws:
+            raise ConflictError(f"Project '{identifier}' is already assigned to another workspace")
+        if project.workspace_id == effective_ws:
+            return project
+        claimed = project.model_copy(update={"workspace_id": effective_ws, "updated_at": timestamp})
+        await self.repository.update_project(
+            claimed,
+            ProjectAuditEvent(
+                project_id=claimed.id,
+                event_type="project_updated",
+                actor=effective_actor,
+                payload={"claimed_workspace_id": effective_ws, "actor": effective_actor},
+                created_at=timestamp,
+            ),
+        )
+        return claimed
 
     async def update(self, identifier: str, update: ProjectUpdate) -> Project:
-        project = await self.repository.get_project(identifier)
+        if update.workspace_id is not None:
+            project = await self.claim_unassigned(
+                identifier,
+                workspace_id=update.workspace_id,
+                actor=self.actor,
+            )
+            if update.name is None and update.description is None and update.status is None:
+                return project
+        else:
+            project = await self.repository.get_project(identifier)
         changed: dict[str, Any] = {}
         updates: dict[str, Any] = {}
         if update.name is not None and update.name.strip() != project.name:

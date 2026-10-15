@@ -83,3 +83,126 @@ def test_projects_are_isolated_from_classifier_state(client: TestClient) -> None
         for path in client.get("/openapi.json").json()["paths"]
         if "classifiers" in path
     )
+
+
+def test_workspace_isolation_across_projects_and_resources(client: TestClient) -> None:
+    alpha_headers = {"X-OpenClass-Workspace-Id": "ws-alpha"}
+    beta_headers = {"X-OpenClass-Workspace-Id": "ws-beta"}
+
+    alpha_resp = client.post(
+        "/api/v1/projects",
+        headers=alpha_headers,
+        json={"name": "Alpha Hub", "description": "Alpha workspace project"},
+    )
+    assert alpha_resp.status_code == 201
+    alpha_project = alpha_resp.json()
+    assert alpha_project["workspace_id"] == "ws-alpha"
+    alpha_slug = alpha_project["slug"]
+
+    beta_resp = client.post(
+        "/api/v1/projects",
+        headers=beta_headers,
+        json={"name": "Beta Hub", "description": "Beta workspace project"},
+    )
+    assert beta_resp.status_code == 201
+    beta_project = beta_resp.json()
+    assert beta_project["workspace_id"] == "ws-beta"
+    beta_slug = beta_project["slug"]
+
+    # Listing is strictly scoped to the caller's workspace
+    alpha_list = client.get("/api/v1/projects", headers=alpha_headers).json()
+    assert [p["slug"] for p in alpha_list] == [alpha_slug]
+
+    beta_list = client.get("/api/v1/projects", headers=beta_headers).json()
+    assert [p["slug"] for p in beta_list] == [beta_slug]
+
+    # Cross-workspace read/write/resource endpoints return 404 Not Found
+    assert client.get(f"/api/v1/projects/{alpha_slug}", headers=beta_headers).status_code == 404
+    assert (
+        client.patch(
+            f"/api/v1/projects/{alpha_slug}",
+            headers=beta_headers,
+            json={"name": "Hijacked Alpha"},
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get(f"/api/v1/projects/{alpha_slug}/summary", headers=beta_headers).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/api/v1/projects/{alpha_slug}/events",
+            headers=beta_headers,
+            json={"content": "Cross-workspace event injection"},
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/api/v1/projects/{alpha_slug}/decision-services",
+            headers=beta_headers,
+            json={
+                "name": "Cross-workspace router",
+                "instructions": "Should not be created",
+                "choices": [{"key": "A", "label": "A"}],
+            },
+        ).status_code
+        == 404
+    )
+
+    # Owner workspace still has full access
+    assert client.get(f"/api/v1/projects/{alpha_slug}", headers=alpha_headers).status_code == 200
+
+
+def test_legacy_unassigned_project_discovery_and_explicit_claiming(client: TestClient) -> None:
+    alpha_headers = {"X-OpenClass-Workspace-Id": "ws-alpha"}
+    beta_headers = {"X-OpenClass-Workspace-Id": "ws-beta"}
+
+    # Create a legacy project without a workspace header (workspace_id = None)
+    legacy_resp = client.post("/api/v1/projects", json={"name": "Legacy Unassigned"})
+    assert legacy_resp.status_code == 201
+    legacy_project = legacy_resp.json()
+    assert legacy_project["workspace_id"] is None
+    legacy_slug = legacy_project["slug"]
+
+    # Un-headered listing sees unassigned projects
+    unheadered_list = client.get("/api/v1/projects").json()
+    assert [p["slug"] for p in unheadered_list] == [legacy_slug]
+
+    # Workspace-scoped listing hides unassigned projects by default
+    assert client.get("/api/v1/projects", headers=alpha_headers).json() == []
+
+    # Opt-in discovery via include_unassigned=true exposes legacy unassigned projects
+    with_unassigned = client.get(
+        "/api/v1/projects?include_unassigned=true", headers=alpha_headers
+    ).json()
+    assert [p["slug"] for p in with_unassigned] == [legacy_slug]
+
+    # Direct access from ws-alpha is blocked until claimed
+    assert client.get(f"/api/v1/projects/{legacy_slug}", headers=alpha_headers).status_code == 404
+
+    # Claiming the legacy unassigned project into ws-alpha succeeds
+    claimed_resp = client.post(
+        f"/api/v1/projects/{legacy_slug}/claim",
+        headers=alpha_headers,
+        json={},
+    )
+    assert claimed_resp.status_code == 200, claimed_resp.text
+    claimed_project = claimed_resp.json()
+    assert claimed_project["workspace_id"] == "ws-alpha"
+
+    # Now ws-alpha sees it in standard listing and direct GET
+    assert [p["slug"] for p in client.get("/api/v1/projects", headers=alpha_headers).json()] == [
+        legacy_slug
+    ]
+    assert client.get(f"/api/v1/projects/{legacy_slug}", headers=alpha_headers).status_code == 200
+
+    # Another workspace attempting to claim the already-claimed project gets 409 Conflict
+    competing_claim = client.post(
+        f"/api/v1/projects/{legacy_slug}/claim",
+        headers=beta_headers,
+        json={},
+    )
+    assert competing_claim.status_code == 409
+    assert client.get(f"/api/v1/projects/{legacy_slug}", headers=beta_headers).status_code == 404

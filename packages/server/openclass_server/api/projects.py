@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Query, Response
+from fastapi import APIRouter, Body, Header, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 from openclass_core.analytics import ProjectAnalytics, summarize_project_runs
 from openclass_core.projects import (
@@ -18,6 +18,7 @@ from openclass_core.projects import (
 from openclass_core.projects import ProjectService as ProjectDomainService
 
 from openclass_server.api.schemas import (
+    ClaimProjectRequest,
     CreateProject,
     ProjectSummaryResponse,
     RawEventBatchCreate,
@@ -64,18 +65,52 @@ def projects_router(
         return await projects.create(body.name, body.description)
 
     @router.get("/api/v1/projects", response_model=list[Project])
-    async def list_projects() -> list[Project]:
-        return await projects.list_projects()
+    async def list_projects(
+        include_unassigned: Annotated[bool, Query()] = False,
+    ) -> list[Project]:
+        return await projects.list_projects(include_unassigned=include_unassigned)
 
     @router.get("/api/v1/projects/{identifier}", response_model=Project)
     async def get_project(identifier: str) -> Project:
         return await projects.get(identifier)
 
+    @router.post("/api/v1/projects/{identifier}/claim", response_model=Project)
+    async def claim_project(
+        identifier: str,
+        request: Request,
+        body: Annotated[ClaimProjectRequest | None, Body()] = None,
+    ) -> Project:
+        if body is not None:
+            reject_credentials(body.model_dump(mode="json"), config)
+        explicit_ws = (
+            body.workspace_id.strip() if body is not None and body.workspace_id else None
+        ) or getattr(request.state, "workspace_id", None)
+        if not explicit_ws:
+            raise HTTPException(
+                status_code=422,
+                detail="Target workspace_id is required to claim an unassigned project",
+            )
+        actor = (
+            (body.actor.strip() if body is not None and body.actor else None)
+            or getattr(request.state, "actor", None)
+            or "operator"
+        )
+        return await projects.claim_unassigned(
+            identifier,
+            workspace_id=explicit_ws,
+            actor=actor,
+        )
+
     @router.patch("/api/v1/projects/{identifier}", response_model=Project)
     async def update_project(identifier: str, body: UpdateProject) -> Project:
         reject_credentials(body.model_dump(mode="json"), config)
         status = ProjectStatus(body.status) if body.status is not None else None
-        update = ProjectUpdate(name=body.name, description=body.description, status=status)
+        update = ProjectUpdate(
+            name=body.name,
+            description=body.description,
+            status=status,
+            workspace_id=body.workspace_id,
+        )
         return await projects.update(identifier, update)
 
     @router.get("/api/v1/projects/{identifier}/summary", response_model=ProjectSummaryResponse)

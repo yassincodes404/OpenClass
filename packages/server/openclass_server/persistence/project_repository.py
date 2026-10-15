@@ -4,8 +4,9 @@ Lookup accepts identifier or slug; every stored mutation writes its audit event
 in the same transaction so the audit trail cannot drift from project state.
 """
 
+import asyncio
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from datetime import date as date_type
 from typing import Any
 from uuid import UUID, uuid4
@@ -28,13 +29,18 @@ from openclass_core.projects import (
     Project,
     ProjectAuditEvent,
     RawEvent,
+    get_current_workspace_id,
 )
 from openclass_core.repositories import ConflictError, NotFoundError
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from openclass_server.persistence.mappers import audit_event_row, raw_event_row
+from openclass_server.persistence.mappers import (
+    _project_from_row,
+    audit_event_row,
+    raw_event_row,
+)
 from openclass_server.persistence.tables import (
     AuditEventRow,
     DecisionRunCheckpointRow,
@@ -52,8 +58,29 @@ from openclass_server.persistence.tables import (
 class SQLProjectRepository:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
         self.sessions = sessions
+        self._session_factory = sessions
+        self._claim_lock = asyncio.Lock()
+
+    def _effective_workspace_id(self, explicit_workspace_id: str | None = None) -> str | None:
+        cleaned = (explicit_workspace_id or "").strip()
+        if cleaned:
+            return cleaned
+        return get_current_workspace_id()
+
+    @staticmethod
+    def _row_workspace_id(row: ProjectRow) -> str | None:
+        if row.workspace_id is not None:
+            return row.workspace_id
+        if isinstance(row.payload, dict):
+            val = row.payload.get("workspace_id")
+            if isinstance(val, str) and val.strip():
+                return val.strip()
+        return None
 
     async def create_project(self, project: Project, audit_event: ProjectAuditEvent) -> None:
+        workspace_id = project.workspace_id or self._effective_workspace_id()
+        payload = project.model_dump(mode="json")
+        payload["workspace_id"] = workspace_id
         try:
             async with self.sessions.begin() as session:
                 session.add(
@@ -61,12 +88,13 @@ class SQLProjectRepository:
                         id=str(project.id),
                         slug=project.slug,
                         owner_id=project.owner_id,
+                        workspace_id=workspace_id,
                         status=project.status.value,
                         name=project.name,
                         description=project.description,
                         created_at=project.created_at,
                         updated_at=project.updated_at,
-                        payload=project.model_dump(mode="json"),
+                        payload=payload,
                     )
                 )
                 await session.flush()
@@ -75,6 +103,7 @@ class SQLProjectRepository:
             raise ConflictError("Project slug or identifier already exists") from exc
 
     async def get_project(self, identifier: str) -> Project:
+        ws_id = self._effective_workspace_id()
         async with self.sessions() as session:
             row = await session.scalar(
                 select(ProjectRow).where(
@@ -85,13 +114,35 @@ class SQLProjectRepository:
                 )
             )
             if row is None:
-                raise NotFoundError("Project not found")
-            return Project.model_validate(row.payload)
+                raise NotFoundError(f"Project '{identifier}' was not found")
+            row_ws = self._row_workspace_id(row)
+            if ws_id is not None:
+                if row_ws != ws_id:
+                    raise NotFoundError(f"Project '{identifier}' was not found")
+            else:
+                if row_ws is not None:
+                    raise NotFoundError(f"Project '{identifier}' was not found")
+            return _project_from_row(row)
 
-    async def list_projects(self) -> list[Project]:
+    async def list_projects(self, *, include_unassigned: bool = False) -> list[Project]:
+        ws_id = self._effective_workspace_id()
         async with self.sessions() as session:
-            rows = await session.scalars(select(ProjectRow).order_by(ProjectRow.created_at.desc()))
-            return [Project.model_validate(row.payload) for row in rows]
+            stmt = select(ProjectRow)
+            if ws_id is not None:
+                if include_unassigned:
+                    stmt = stmt.where(
+                        or_(
+                            ProjectRow.workspace_id == ws_id,
+                            ProjectRow.workspace_id.is_(None),
+                        )
+                    )
+                else:
+                    stmt = stmt.where(ProjectRow.workspace_id == ws_id)
+            else:
+                stmt = stmt.where(ProjectRow.workspace_id.is_(None))
+            stmt = stmt.order_by(ProjectRow.created_at.desc())
+            rows = await session.scalars(stmt)
+            return [_project_from_row(row) for row in rows]
 
     async def slug_exists(self, slug: str) -> bool:
         async with self.sessions() as session:
@@ -101,21 +152,98 @@ class SQLProjectRepository:
             )
 
     async def update_project(self, project: Project, audit_event: ProjectAuditEvent) -> None:
+        ws_id = self._effective_workspace_id()
         try:
             async with self.sessions.begin() as session:
                 row = await session.scalar(
                     select(ProjectRow).where(ProjectRow.id == str(project.id))
                 )
                 if row is None:
-                    raise NotFoundError("Project not found")
+                    raise NotFoundError(f"Project '{project.id}' was not found")
+                row_ws = self._row_workspace_id(row)
+                if ws_id is not None:
+                    if row_ws != ws_id:
+                        raise NotFoundError(f"Project '{project.id}' was not found")
+                else:
+                    if row_ws is not None:
+                        raise NotFoundError(f"Project '{project.id}' was not found")
+                effective_ws = project.workspace_id if project.workspace_id is not None else row_ws
+                payload = project.model_dump(mode="json")
+                payload["workspace_id"] = effective_ws
                 row.name = project.name
                 row.description = project.description
                 row.status = project.status.value
+                row.workspace_id = effective_ws
                 row.updated_at = project.updated_at
-                row.payload = project.model_dump(mode="json")
+                row.payload = payload
                 session.add(self._event(audit_event))
         except IntegrityError as exc:
             raise ConflictError("Project update conflicts with existing state") from exc
+
+    async def claim_unassigned_project(
+        self,
+        identifier: str,
+        workspace_id: str | None = None,
+        *,
+        actor: str = "operator",
+        timestamp: datetime | None = None,
+    ) -> Project:
+        target_ws = self._effective_workspace_id(workspace_id)
+        if not target_ws:
+            raise ValueError("workspace_id is required to claim an unassigned project")
+        now_ts = timestamp or datetime.now(UTC)
+        async with self.sessions.begin() as session:
+            row = await session.scalar(
+                select(ProjectRow).where(
+                    or_(
+                        ProjectRow.id == identifier,
+                        ProjectRow.slug == identifier,
+                    )
+                )
+            )
+            if row is None:
+                raise NotFoundError(f"Project '{identifier}' was not found")
+            row_ws = self._row_workspace_id(row)
+            if row_ws is not None and row_ws != target_ws:
+                raise ConflictError(
+                    f"Project '{identifier}' is already assigned to another workspace"
+                )
+            if row_ws == target_ws:
+                return _project_from_row(row)
+            updated_project = _project_from_row(row).model_copy(
+                update={"workspace_id": target_ws, "updated_at": now_ts}
+            )
+            payload = updated_project.model_dump(mode="json")
+            payload["workspace_id"] = target_ws
+            stmt = (
+                sa.update(ProjectRow)
+                .where(
+                    ProjectRow.id == row.id,
+                    or_(
+                        ProjectRow.workspace_id.is_(None),
+                        ProjectRow.workspace_id == target_ws,
+                    ),
+                )
+                .values(
+                    workspace_id=target_ws,
+                    updated_at=now_ts,
+                    payload=payload,
+                )
+            )
+            result = await session.execute(stmt)
+            if int(getattr(result, "rowcount", 0) or 0) != 1:
+                raise ConflictError(
+                    f"Project '{identifier}' is already assigned to another workspace"
+                )
+            audit_event = ProjectAuditEvent(
+                project_id=updated_project.id,
+                event_type="project_updated",
+                actor=actor,
+                payload={"claimed_workspace_id": target_ws, "actor": actor},
+                created_at=now_ts,
+            )
+            session.add(self._event(audit_event))
+            return updated_project
 
     async def audit_events(self, project_id: UUID) -> list[ProjectAuditEvent]:
         async with self.sessions() as session:
@@ -385,6 +513,9 @@ class SQLProjectRepository:
                         pinned_service_hash=run.pinned_service_hash or run.service_hash,
                         pending_operation=run.pending_operation,
                         latency_ms=run.latency_ms,
+                        claim_token=run.claim_token,
+                        claimed_by=run.claimed_by,
+                        claimed_at=run.claimed_at,
                         resumed_by=run.resumed_by,
                         resumed_at=run.resumed_at,
                         resume_rationale=run.resume_rationale,
@@ -476,6 +607,9 @@ class SQLProjectRepository:
                 "pinned_version_number": int(cp.pinned_version_number),
                 "pinned_service_hash": cp.pinned_service_hash,
                 "pending_operation": cp.pending_operation,
+                "claim_token": cp.claim_token,
+                "claimed_by": cp.claimed_by,
+                "claimed_at": cp.claimed_at,
                 "resumed_by": cp.resumed_by,
                 "resumed_at": cp.resumed_at,
                 "resume_rationale": cp.resume_rationale,
@@ -559,106 +693,296 @@ class SQLProjectRepository:
                 }
             )
 
+    async def claim_decision_run_for_resume(
+        self,
+        project_id: UUID | str,
+        run_id: UUID | str,
+        *,
+        operator: str,
+        claim_token: str,
+        stale_claim_timeout_seconds: float = 300.0,
+        force_recover_stale_claim: bool = False,
+    ) -> None:
+        pid = str(project_id)
+        rid = str(run_id)
+        async with self._claim_lock:
+            async with self._session_factory() as session:
+                now_ts = datetime.now(UTC)
+                stale_cutoff = (
+                    now_ts
+                    if force_recover_stale_claim
+                    else (now_ts - timedelta(seconds=stale_claim_timeout_seconds))
+                )
+                resuming_cond = (
+                    DecisionRunCheckpointRow.run_status == "resuming"
+                    if force_recover_stale_claim
+                    else sa.and_(
+                        DecisionRunCheckpointRow.run_status == "resuming",
+                        DecisionRunCheckpointRow.claimed_at.is_not(None),
+                        DecisionRunCheckpointRow.claimed_at <= stale_cutoff,
+                    )
+                )
+                stmt = (
+                    sa.update(DecisionRunCheckpointRow)
+                    .where(
+                        DecisionRunCheckpointRow.run_id == rid,
+                        DecisionRunCheckpointRow.project_id == pid,
+                        or_(
+                            DecisionRunCheckpointRow.run_status == "paused",
+                            resuming_cond,
+                        ),
+                    )
+                    .values(
+                        run_status="resuming",
+                        claim_token=claim_token,
+                        claimed_by=operator,
+                        claimed_at=now_ts,
+                        updated_at=now_ts,
+                    )
+                )
+                result = await session.execute(stmt)
+                if int(getattr(result, "rowcount", 0) or 0) != 1:
+                    cp = await session.scalar(
+                        select(DecisionRunCheckpointRow).where(
+                            DecisionRunCheckpointRow.run_id == rid,
+                            DecisionRunCheckpointRow.project_id == pid,
+                        )
+                    )
+                    if cp is None:
+                        raise NotFoundError("Decision run checkpoint not found")
+                    if cp.run_status == "cancelled":
+                        raise ConflictError("Decision run is already cancelled")
+                    if cp.run_status == "resuming":
+                        raise ConflictError("Decision run is already being resumed")
+                    if cp.run_status == "completed":
+                        if cp.resumed_at is not None:
+                            raise ConflictError("Decision run has already been resumed")
+                        raise ConflictError(
+                            f"Decision run cannot be resumed from supervision outcome "
+                            f"'{cp.supervision_outcome}'"
+                        )
+                    raise ConflictError(
+                        f"Decision run cannot be resumed (status is '{cp.run_status}')"
+                    )
+                await session.commit()
+
+    async def release_decision_run_claim(
+        self,
+        project_id: UUID | str,
+        run_id: UUID | str,
+        *,
+        claim_token: str,
+    ) -> None:
+        pid = str(project_id)
+        rid = str(run_id)
+        now_ts = datetime.now(UTC)
+        async with self._claim_lock:
+            async with self._session_factory() as session:
+                stmt = (
+                    sa.update(DecisionRunCheckpointRow)
+                    .where(
+                        DecisionRunCheckpointRow.run_id == rid,
+                        DecisionRunCheckpointRow.project_id == pid,
+                        DecisionRunCheckpointRow.run_status == "resuming",
+                        DecisionRunCheckpointRow.claim_token == claim_token,
+                    )
+                    .values(
+                        run_status="paused",
+                        claim_token=None,
+                        claimed_by=None,
+                        claimed_at=None,
+                        updated_at=now_ts,
+                    )
+                )
+                await session.execute(stmt)
+                await session.commit()
+
+    async def recover_stale_decision_run_checkpoint(
+        self,
+        project_id: UUID | str,
+        run_id: UUID | str,
+        *,
+        operator: str = "operator",
+        rationale: str = "",
+        stale_after_seconds: float = 0.0,
+    ) -> DecisionRun:
+        pid = str(project_id)
+        rid = str(run_id)
+        now_ts = datetime.now(UTC)
+        stale_cutoff = now_ts - timedelta(seconds=max(0.0, stale_after_seconds))
+        async with self._claim_lock:
+            async with self.sessions.begin() as session:
+                run_row = await session.scalar(
+                    select(DecisionRunRow).where(
+                        DecisionRunRow.project_id == pid,
+                        DecisionRunRow.id == rid,
+                    )
+                )
+                if run_row is None:
+                    raise NotFoundError("Decision run not found")
+                cp = await session.scalar(
+                    select(DecisionRunCheckpointRow)
+                    .where(
+                        DecisionRunCheckpointRow.run_id == rid,
+                        DecisionRunCheckpointRow.project_id == pid,
+                    )
+                    .with_for_update()
+                )
+                if cp is None:
+                    raise NotFoundError("Decision run checkpoint not found")
+                if cp.run_status != "resuming":
+                    raise ConflictError(
+                        f"Decision run cannot be recovered from status '{cp.run_status}'"
+                    )
+                if stale_after_seconds > 0 and cp.claimed_at is not None:
+                    claimed_utc = (
+                        cp.claimed_at.replace(tzinfo=UTC)
+                        if cp.claimed_at.tzinfo is None
+                        else cp.claimed_at.astimezone(UTC)
+                    )
+                    if claimed_utc > stale_cutoff:
+                        raise ConflictError("Decision run resume claim is not yet stale")
+                cp.run_status = "paused"
+                cp.claim_token = None
+                cp.claimed_by = None
+                cp.claimed_at = None
+                cp.updated_at = now_ts
+                recovered_audit = ProjectAuditEvent(
+                    project_id=UUID(pid),
+                    event_type="decision_run_paused",
+                    actor=operator,
+                    payload={
+                        "run_id": rid,
+                        "decision_service_id": cp.decision_service_id,
+                        "current_node_key": cp.current_node_key,
+                        "next_node_key": cp.next_node_key,
+                        "recovered_from_resuming": True,
+                        "operator": operator,
+                        "rationale": rationale,
+                    },
+                    created_at=now_ts,
+                )
+                session.add(self._event(recovered_audit))
+                base_run = DecisionRun.model_validate(run_row.payload)
+                return self._apply_checkpoint(base_run, cp)
+
     async def save_resumed_decision_run(
         self,
         run: DecisionRun,
         *,
         operator: str,
-        rationale: str,
+        rationale: str | None = None,
+        claim_token: str | None = None,
     ) -> DecisionRun:
         now_ts = run.resumed_at or datetime.now(UTC)
-        async with self.sessions.begin() as session:
-            cp = await session.scalar(
-                select(DecisionRunCheckpointRow)
-                .where(
-                    DecisionRunCheckpointRow.run_id == str(run.id),
-                    DecisionRunCheckpointRow.project_id == str(run.project_id),
-                )
-                .with_for_update()
-            )
-            if cp is not None:
-                if cp.run_status == "cancelled":
-                    raise ConflictError("Decision run is already cancelled")
-                if cp.resumed_at is not None and cp.run_status == "completed":
-                    raise ConflictError("Decision run has already been resumed")
-                cp.run_status = run.run_status
-                cp.current_node_key = run.current_node_key
-                cp.next_node_key = run.next_node_key
-                cp.selected_choice = run.selected_choice
-                cp.supervision_outcome = run.supervision_outcome
-                cp.supervision_reason = run.supervision_reason
-                cp.completed_steps = list(run.completed_steps or run.steps)
-                cp.state_snapshot = dict(run.state_snapshot)
-                cp.pending_operation = run.pending_operation
-                cp.latency_ms = float(run.latency_ms)
-                cp.resumed_by = operator
-                cp.resumed_at = now_ts
-                cp.resume_rationale = rationale
-                cp.updated_at = now_ts
-            else:
-                pinned_vid = run.pinned_version_id or run.decision_service_version_id
-                session.add(
-                    DecisionRunCheckpointRow(
-                        run_id=str(run.id),
-                        project_id=str(run.project_id),
-                        decision_service_id=str(run.decision_service_id),
-                        run_status=run.run_status,
-                        current_node_key=run.current_node_key,
-                        next_node_key=run.next_node_key,
-                        selected_choice=run.selected_choice,
-                        supervision_outcome=run.supervision_outcome,
-                        supervision_reason=run.supervision_reason,
-                        completed_steps=list(run.completed_steps or run.steps),
-                        state_snapshot=dict(run.state_snapshot),
-                        pinned_version_id=str(pinned_vid) if pinned_vid is not None else None,
-                        pinned_version_number=run.pinned_version_number,
-                        pinned_service_hash=run.pinned_service_hash or run.service_hash,
-                        pending_operation=run.pending_operation,
-                        latency_ms=float(run.latency_ms),
-                        resumed_by=operator,
-                        resumed_at=now_ts,
-                        resume_rationale=rationale,
-                        updated_at=now_ts,
+        async with self._claim_lock:
+            async with self.sessions.begin() as session:
+                cp = await session.scalar(
+                    select(DecisionRunCheckpointRow)
+                    .where(
+                        DecisionRunCheckpointRow.run_id == str(run.id),
+                        DecisionRunCheckpointRow.project_id == str(run.project_id),
                     )
+                    .with_for_update()
                 )
+                if cp is not None:
+                    if cp.run_status == "cancelled":
+                        raise ConflictError("Decision run is already cancelled")
+                    if claim_token is not None:
+                        if cp.run_status != "resuming" or cp.claim_token != claim_token:
+                            raise ConflictError("Decision run resume claim is no longer valid")
+                    elif cp.resumed_at is not None and cp.run_status == "completed":
+                        raise ConflictError("Decision run has already been resumed")
+                    cp.run_status = run.run_status
+                    cp.current_node_key = run.current_node_key
+                    cp.next_node_key = run.next_node_key
+                    cp.selected_choice = run.selected_choice
+                    cp.supervision_outcome = run.supervision_outcome
+                    cp.supervision_reason = run.supervision_reason
+                    cp.completed_steps = list(run.completed_steps or run.steps)
+                    cp.state_snapshot = dict(run.state_snapshot)
+                    cp.pending_operation = run.pending_operation
+                    cp.latency_ms = float(run.latency_ms)
+                    cp.claim_token = None
+                    cp.claimed_by = None
+                    cp.claimed_at = None
+                    cp.resumed_by = operator
+                    cp.resumed_at = now_ts
+                    cp.resume_rationale = rationale
+                    cp.updated_at = now_ts
+                else:
+                    pinned_vid = run.pinned_version_id or run.decision_service_version_id
+                    session.add(
+                        DecisionRunCheckpointRow(
+                            run_id=str(run.id),
+                            project_id=str(run.project_id),
+                            decision_service_id=str(run.decision_service_id),
+                            run_status=run.run_status,
+                            current_node_key=run.current_node_key,
+                            next_node_key=run.next_node_key,
+                            selected_choice=run.selected_choice,
+                            supervision_outcome=run.supervision_outcome,
+                            supervision_reason=run.supervision_reason,
+                            completed_steps=list(run.completed_steps or run.steps),
+                            state_snapshot=dict(run.state_snapshot),
+                            pinned_version_id=str(pinned_vid) if pinned_vid is not None else None,
+                            pinned_version_number=run.pinned_version_number,
+                            pinned_service_hash=run.pinned_service_hash or run.service_hash,
+                            pending_operation=run.pending_operation,
+                            latency_ms=float(run.latency_ms),
+                            claim_token=None,
+                            claimed_by=None,
+                            claimed_at=None,
+                            resumed_by=operator,
+                            resumed_at=now_ts,
+                            resume_rationale=rationale,
+                            updated_at=now_ts,
+                        )
+                    )
 
-            resumed_audit = ProjectAuditEvent(
-                project_id=run.project_id,
-                event_type="decision_run_resumed",
-                actor=operator,
-                payload={
-                    "run_id": str(run.id),
-                    "decision_service_id": str(run.decision_service_id),
-                    "selected_choice": run.selected_choice,
-                    "supervision_outcome": run.supervision_outcome,
-                    "run_status": run.run_status,
-                    "current_node_key": run.current_node_key,
-                    "next_node_key": run.next_node_key,
-                    "steps_count": len(run.steps),
-                    "rationale": rationale,
-                },
-                created_at=now_ts,
-            )
-            session.add(self._event(resumed_audit))
-
-            if run.run_status == "paused":
-                paused_audit = ProjectAuditEvent(
+                resumed_audit = ProjectAuditEvent(
                     project_id=run.project_id,
-                    event_type="decision_run_paused",
-                    actor="system",
+                    event_type="decision_run_resumed",
+                    actor=operator,
                     payload={
                         "run_id": str(run.id),
                         "decision_service_id": str(run.decision_service_id),
-                        "current_node_key": run.current_node_key,
-                        "next_node_key": run.next_node_key,
                         "selected_choice": run.selected_choice,
                         "supervision_outcome": run.supervision_outcome,
+                        "run_status": run.run_status,
+                        "current_node_key": run.current_node_key,
+                        "next_node_key": run.next_node_key,
+                        "steps_count": len(run.steps),
+                        "rationale": rationale,
                     },
                     created_at=now_ts,
                 )
-                session.add(self._event(paused_audit))
+                session.add(self._event(resumed_audit))
 
-        return run
+                if run.run_status == "paused":
+                    paused_audit = ProjectAuditEvent(
+                        project_id=run.project_id,
+                        event_type="decision_run_paused",
+                        actor="system",
+                        payload={
+                            "run_id": str(run.id),
+                            "decision_service_id": str(run.decision_service_id),
+                            "current_node_key": run.current_node_key,
+                            "next_node_key": run.next_node_key,
+                            "selected_choice": run.selected_choice,
+                            "supervision_outcome": run.supervision_outcome,
+                        },
+                        created_at=now_ts,
+                    )
+                    session.add(self._event(paused_audit))
+
+        return run.model_copy(
+            update={
+                "claim_token": None,
+                "claimed_by": None,
+                "claimed_at": None,
+            }
+        )
 
     async def mark_decision_run_failed(
         self,
@@ -669,30 +993,34 @@ class SQLProjectRepository:
         failure_reason: str,
     ) -> None:
         now_ts = datetime.now(UTC)
-        async with self.sessions.begin() as session:
-            cp = await session.scalar(
-                select(DecisionRunCheckpointRow)
-                .where(
-                    DecisionRunCheckpointRow.run_id == str(run_id),
-                    DecisionRunCheckpointRow.project_id == str(project_id),
+        async with self._claim_lock:
+            async with self.sessions.begin() as session:
+                cp = await session.scalar(
+                    select(DecisionRunCheckpointRow)
+                    .where(
+                        DecisionRunCheckpointRow.run_id == str(run_id),
+                        DecisionRunCheckpointRow.project_id == str(project_id),
+                    )
+                    .with_for_update()
                 )
-                .with_for_update()
-            )
-            if cp is not None:
-                cp.run_status = "failed"
-                cp.failure_reason = failure_reason
-                cp.updated_at = now_ts
-            failed_audit = ProjectAuditEvent(
-                project_id=project_id,
-                event_type="decision_run_failed",
-                actor=operator,
-                payload={
-                    "run_id": str(run_id),
-                    "failure_reason": failure_reason,
-                },
-                created_at=now_ts,
-            )
-            session.add(self._event(failed_audit))
+                if cp is not None:
+                    cp.run_status = "failed"
+                    cp.claim_token = None
+                    cp.claimed_by = None
+                    cp.claimed_at = None
+                    cp.failure_reason = failure_reason
+                    cp.updated_at = now_ts
+                failed_audit = ProjectAuditEvent(
+                    project_id=project_id,
+                    event_type="decision_run_failed",
+                    actor=operator,
+                    payload={
+                        "run_id": str(run_id),
+                        "failure_reason": failure_reason,
+                    },
+                    created_at=now_ts,
+                )
+                session.add(self._event(failed_audit))
 
     async def cancel_decision_run_checkpoint(
         self,
@@ -703,53 +1031,61 @@ class SQLProjectRepository:
         reason: str,
     ) -> DecisionRun:
         now_ts = datetime.now(UTC)
-        async with self.sessions.begin() as session:
-            run_row = await session.scalar(
-                select(DecisionRunRow).where(
-                    DecisionRunRow.project_id == str(project_id),
-                    DecisionRunRow.id == str(run_id),
+        async with self._claim_lock:
+            async with self.sessions.begin() as session:
+                run_row = await session.scalar(
+                    select(DecisionRunRow).where(
+                        DecisionRunRow.project_id == str(project_id),
+                        DecisionRunRow.id == str(run_id),
+                    )
                 )
-            )
-            if run_row is None:
-                raise NotFoundError("Decision run not found")
-            cp = await session.scalar(
-                select(DecisionRunCheckpointRow)
-                .where(
-                    DecisionRunCheckpointRow.run_id == str(run_id),
-                    DecisionRunCheckpointRow.project_id == str(project_id),
+                if run_row is None:
+                    raise NotFoundError("Decision run not found")
+                cp = await session.scalar(
+                    select(DecisionRunCheckpointRow)
+                    .where(
+                        DecisionRunCheckpointRow.run_id == str(run_id),
+                        DecisionRunCheckpointRow.project_id == str(project_id),
+                    )
+                    .with_for_update()
                 )
-                .with_for_update()
-            )
-            if cp is not None:
-                if cp.run_status == "cancelled":
-                    raise ConflictError("Decision run is already cancelled")
-                if cp.resumed_at is not None or (
-                    cp.run_status == "completed" and cp.supervision_outcome == "TRUSTED"
-                ):
-                    raise ConflictError("Cannot cancel a completed decision run")
-                cp.run_status = "cancelled"
-                cp.cancelled_by = operator
-                cp.cancelled_at = now_ts
-                cp.cancel_reason = reason
-                cp.pending_operation = None
-                cp.next_node_key = None
-                cp.state_snapshot = {**dict(cp.state_snapshot or {}), "status": "cancelled"}
-                cp.updated_at = now_ts
+                if cp is not None:
+                    if cp.run_status == "cancelled":
+                        raise ConflictError("Decision run is already cancelled")
+                    if cp.run_status == "completed":
+                        raise ConflictError("Cannot cancel a completed decision run")
+                    if cp.run_status == "resuming":
+                        raise ConflictError("Cannot cancel a decision run while it is resuming")
+                    if cp.run_status != "paused":
+                        raise ConflictError(
+                            f"Cannot cancel a decision run with status '{cp.run_status}'"
+                        )
+                    cp.run_status = "cancelled"
+                    cp.claim_token = None
+                    cp.claimed_by = None
+                    cp.claimed_at = None
+                    cp.cancelled_by = operator
+                    cp.cancelled_at = now_ts
+                    cp.cancel_reason = reason
+                    cp.pending_operation = None
+                    cp.next_node_key = None
+                    cp.state_snapshot = {**dict(cp.state_snapshot or {}), "status": "cancelled"}
+                    cp.updated_at = now_ts
 
-            cancelled_audit = ProjectAuditEvent(
-                project_id=project_id,
-                event_type="decision_run_cancelled",
-                actor=operator,
-                payload={
-                    "run_id": str(run_id),
-                    "cancelled_by": operator,
-                    "reason": reason,
-                },
-                created_at=now_ts,
-            )
-            session.add(self._event(cancelled_audit))
-            base_run = DecisionRun.model_validate(run_row.payload)
-            return self._apply_checkpoint(base_run, cp)
+                cancelled_audit = ProjectAuditEvent(
+                    project_id=project_id,
+                    event_type="decision_run_cancelled",
+                    actor=operator,
+                    payload={
+                        "run_id": str(run_id),
+                        "cancelled_by": operator,
+                        "reason": reason,
+                    },
+                    created_at=now_ts,
+                )
+                session.add(self._event(cancelled_audit))
+                base_run = DecisionRun.model_validate(run_row.payload)
+                return self._apply_checkpoint(base_run, cp)
 
     async def _roll_up_usage(self, session: AsyncSession, run: DecisionRun, *, error: bool) -> None:
         usage_date = (
@@ -1275,13 +1611,17 @@ class SQLProjectRepository:
 
 
 async def project_exists(sessions: async_sessionmaker[AsyncSession], identifier: str) -> bool:
+    ws_id = get_current_workspace_id()
     async with sessions() as session:
-        row = await session.scalar(
-            select(ProjectRow).where(
-                or_(
-                    ProjectRow.id == identifier,
-                    ProjectRow.slug == identifier,
-                )
+        stmt = select(ProjectRow).where(
+            or_(
+                ProjectRow.id == identifier,
+                ProjectRow.slug == identifier,
             )
         )
+        if ws_id is not None:
+            stmt = stmt.where(ProjectRow.workspace_id == ws_id)
+        else:
+            stmt = stmt.where(ProjectRow.workspace_id.is_(None))
+        row = await session.scalar(stmt)
         return row is not None

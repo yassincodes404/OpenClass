@@ -10,7 +10,7 @@ import { ApiKeyService, type ApiKeyScope } from "./api-key.service.js";
 import { AuditService } from "./audit.service.js";
 import type { Principal } from "./auth.js";
 import { CONTROL_DB } from "./db.js";
-import { EngineClient, type EngineOntologyClass } from "./engine.js";
+import { EngineClient, type EngineOntologyClass, type EngineProject } from "./engine.js";
 import { IdempotencyService } from "./idempotency.service.js";
 import { ROLE_RANK, type Role } from "./workspace.service.js";
 
@@ -20,6 +20,7 @@ export type ControlProject = {
   engine_project_id: string;
   slug: string;
   name: string;
+  description?: string;
   created_at: Date;
   redaction_enabled?: boolean;
   retention_days?: number;
@@ -67,7 +68,10 @@ export class ProjectService {
       const replayed = await this.idempotency.replay<ControlProject>(workspaceId, idempotencyKey);
       if (replayed) return replayed;
     }
-    const engineProject = await this.engine.createProject(name, description);
+    const engineProject = await this.engine.createProject(name, description, {
+      workspaceId,
+      actor: principal.subject,
+    });
     const base = this.slugify(name);
     try {
       const slug = await this.uniqueSlug(workspaceId, base);
@@ -88,7 +92,12 @@ export class ProjectService {
       return project;
     } catch (error) {
       await this.engine
-        .request("PATCH", `/api/v1/projects/${engineProject.id}`, { status: "archived" })
+        .request(
+          "PATCH",
+          `/api/v1/projects/${engineProject.id}`,
+          { status: "archived" },
+          { workspaceId, actor: principal.subject },
+        )
         .catch(() => undefined);
       throw error;
     }
@@ -115,6 +124,19 @@ export class ProjectService {
         if (Array.isArray(engineProjects)) {
           for (const ep of engineProjects) {
             if (!ep?.id || !ep?.slug) continue;
+            if (ep.workspace_id !== workspaceId) continue;
+            const claimed = await this.db.query(
+              "SELECT workspace_id FROM control_projects WHERE engine_project_id = $1 OR slug = $2",
+              [ep.id, ep.slug],
+            );
+            if (
+              claimed.rows?.some(
+                (row: { workspace_id?: string }) =>
+                  row.workspace_id && row.workspace_id !== workspaceId,
+              )
+            ) {
+              continue;
+            }
             const existing = rows.find(
               (row) => row.engine_project_id === ep.id || row.slug === ep.slug,
             );
@@ -287,12 +309,15 @@ export class ProjectService {
     if (taken.rowCount)
       throw new BadRequestException("Classifier slug already exists in this project");
 
-    const engineClassifier = await this.engine.createClassifier({
-      slug,
-      name: input.name.trim(),
-      description: input.description,
-      classes: input.classes,
-    });
+    const engineClassifier = await this.engine.createClassifier(
+      {
+        slug,
+        name: input.name.trim(),
+        description: input.description,
+        classes: input.classes,
+      },
+      { workspaceId, actor: principal.subject },
+    );
     const result = await this.db.query(
       "INSERT INTO control_classifiers (project_id, engine_classifier_id, slug, name)" +
         " VALUES ($1, $2, $3, $4) RETURNING id, project_id, engine_classifier_id, slug, name, created_at",
@@ -325,7 +350,10 @@ export class ProjectService {
     );
     return Promise.all(
       (mappings.rows as ControlClassifier[]).map(async (row) => {
-        const ontology = await this.engine.getOntology(row.engine_classifier_id);
+        const ontology = await this.engine.getOntology(row.engine_classifier_id, {
+          workspaceId,
+          actor: principal.subject,
+        });
         return {
           ...row,
           active_ontology_version_id: ontology.id,
@@ -349,7 +377,10 @@ export class ProjectService {
     );
     if (!mapping.rowCount) throw new NotFoundException("Classifier not found");
     const row = mapping.rows[0] as ControlClassifier;
-    const ontology = await this.engine.getOntology(row.engine_classifier_id);
+    const ontology = await this.engine.getOntology(row.engine_classifier_id, {
+      workspaceId,
+      actor: principal.subject,
+    });
     return { ...row, active_ontology_version_id: ontology.id, classes: ontology.classes };
   }
 
@@ -398,6 +429,15 @@ export class ProjectService {
     return revoked;
   }
 
+  async resolveEngineProjectId(
+    principal: Principal | { sub: string; email?: string },
+    workspaceId: string,
+    projectId: string,
+  ): Promise<string> {
+    const project = await this.get(principal, workspaceId, projectId);
+    return project.engine_project_id;
+  }
+
   private async byId(
     workspaceId: string,
     projectId: string,
@@ -420,15 +460,25 @@ export class ProjectService {
     workspaceId: string,
     actor?: string,
   ): Promise<ControlProject> {
-    let synced: { id: string } | undefined;
+    let synced: EngineProject | undefined;
+    const identifier = row.slug || row.id;
     if (typeof this.engine?.getProject === "function") {
-      synced = await this.engine
-        .getProject(row.slug || row.id, { workspaceId, actor })
-        .catch(() => undefined);
+      try {
+        const existing = await this.engine.getProject(identifier, { workspaceId, actor });
+        if (existing && (!existing.workspace_id || existing.workspace_id === workspaceId)) {
+          synced = existing;
+        }
+      } catch (err) {
+        if (err instanceof NotFoundException && typeof this.engine?.claimProject === "function") {
+          synced = await this.engine
+            .claimProject(identifier, { workspaceId, actor })
+            .catch(() => undefined);
+        }
+      }
     }
     if (!synced && typeof this.engine?.createProject === "function") {
       synced = await this.engine
-        .createProject(row.name || row.slug, "", { workspaceId, actor })
+        .createProject(row.name || row.slug, row.description ?? "", { workspaceId, actor })
         .catch(() => undefined);
     }
     if (synced?.id) {

@@ -1,8 +1,18 @@
 """Shared snapshot-to-row mapping; no transactions or domain policy."""
 
-from openclass_core.projects import ProjectAuditEvent, RawEvent
+from openclass_core.projects import Project, ProjectAuditEvent, RawEvent
 
-from .tables import AuditEventRow, RawEventRow
+from .tables import AuditEventRow, ProjectRow, RawEventRow
+
+
+def _project_from_row(row: ProjectRow) -> Project:
+    payload = dict(row.payload) if isinstance(row.payload, dict) else {}
+    workspace_id = row.workspace_id if row.workspace_id is not None else payload.get("workspace_id")
+    payload["workspace_id"] = workspace_id
+    return Project.model_validate(payload)
+
+
+project_from_row = _project_from_row
 
 
 def audit_event_row(event: ProjectAuditEvent) -> AuditEventRow:

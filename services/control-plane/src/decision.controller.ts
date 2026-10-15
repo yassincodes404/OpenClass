@@ -174,7 +174,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId, request);
-    return this.engine.listDecisionServices(project.engine_project_id);
+    return this.engine.listDecisionServices(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("decision-services")
@@ -191,7 +194,10 @@ export class DecisionController {
       );
     }
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
-    const created = await this.engine.createDecisionService(project.engine_project_id, input);
+    const created = await this.engine.createDecisionService(project.engine_project_id, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,
@@ -210,7 +216,10 @@ export class DecisionController {
     @Param("serviceId") serviceId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId, request);
-    return this.engine.getDecisionService(project.engine_project_id, serviceId);
+    return this.engine.getDecisionService(project.engine_project_id, serviceId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("decision-services/:serviceId/runs")
@@ -235,7 +244,10 @@ export class DecisionController {
     if (!decision.allowed) {
       throw new HttpException(`Rate limit exceeded; retry in ${decision.retryAfterSeconds}s`, 429);
     }
-    const runs = await this.engine.runDecisions(project.engine_project_id, serviceId, input);
+    const runs = await this.engine.runDecisions(project.engine_project_id, serviceId, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     for (const run of runs) {
       await this.audit.record({
         workspaceId,
@@ -263,7 +275,10 @@ export class DecisionController {
       throw new BadRequestException("limit must be 1–100");
     const project = await this.requireMember(request.principal, workspaceId, projectId);
     const offset = cursor ? Number(Buffer.from(cursor, "base64").toString("utf8")) || 0 : 0;
-    const runs = await this.engine.listRuns(project.engine_project_id, 200, offset);
+    const runs = await this.engine.listRuns(project.engine_project_id, 200, offset, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     const filtered = result ? runs.filter((run) => this.runResult(run) === result) : runs;
     const items = filtered.slice(0, limit);
     return {
@@ -280,7 +295,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.listDatasets(project.engine_project_id);
+    return this.engine.listDatasets(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("eval-datasets")
@@ -292,7 +310,10 @@ export class DecisionController {
   ) {
     const input = parseBody(datasetSchema, body);
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
-    return this.engine.createDataset(project.engine_project_id, input);
+    return this.engine.createDataset(project.engine_project_id, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("eval-datasets/:datasetId")
@@ -303,7 +324,10 @@ export class DecisionController {
     @Param("datasetId") datasetId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.datasetDetail(project.engine_project_id, datasetId);
+    return this.engine.datasetDetail(project.engine_project_id, datasetId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("eval-datasets/:datasetId/examples")
@@ -316,7 +340,10 @@ export class DecisionController {
   ) {
     const input = parseBody(exampleSchema, body);
     const project = await this.requireRole(request.principal, workspaceId, projectId, "reviewer");
-    return this.engine.addExample(project.engine_project_id, datasetId, input);
+    return this.engine.addExample(project.engine_project_id, datasetId, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("eval-datasets/:datasetId/seal")
@@ -328,7 +355,10 @@ export class DecisionController {
     @Param("datasetId") datasetId: string,
   ) {
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
-    const result = await this.engine.sealDataset(project.engine_project_id, datasetId);
+    const result = await this.engine.sealDataset(project.engine_project_id, datasetId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,
@@ -346,7 +376,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.listEvaluations(project.engine_project_id);
+    return this.engine.listEvaluations(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("evaluations")
@@ -358,7 +391,10 @@ export class DecisionController {
   ) {
     const input = parseBody(evaluationSchema, body);
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
-    const result = await this.engine.runEvaluation(project.engine_project_id, input);
+    const result = await this.engine.runEvaluation(project.engine_project_id, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,
@@ -377,7 +413,10 @@ export class DecisionController {
     @Param("evaluationId") evaluationId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.evaluationDetail(project.engine_project_id, evaluationId);
+    return this.engine.evaluationDetail(project.engine_project_id, evaluationId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("analytics/summary")
@@ -387,7 +426,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.analyticsSummary(project.engine_project_id);
+    return this.engine.analyticsSummary(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("alerts/rules")
@@ -397,7 +439,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.listAlertRules(project.engine_project_id);
+    return this.engine.listAlertRules(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("alerts/rules")
@@ -409,7 +454,10 @@ export class DecisionController {
   ) {
     const input = parseBody(alertRuleSchema, body);
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
-    return this.engine.createAlertRule(project.engine_project_id, input);
+    return this.engine.createAlertRule(project.engine_project_id, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("alerts/evaluate")
@@ -420,7 +468,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.evaluateAlerts(project.engine_project_id);
+    return this.engine.evaluateAlerts(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("ops/events")
@@ -431,7 +482,10 @@ export class DecisionController {
     @Query("after") after?: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.opsEvents(project.engine_project_id, after);
+    return this.engine.opsEvents(project.engine_project_id, after, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("integrations")
@@ -441,7 +495,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.listIntegrations(project.engine_project_id);
+    return this.engine.listIntegrations(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("integrations")
@@ -453,7 +510,10 @@ export class DecisionController {
   ) {
     const input = parseBody(integrationSchema, body);
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
-    const created = await this.engine.createIntegration(project.engine_project_id, input);
+    const created = await this.engine.createIntegration(project.engine_project_id, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,
@@ -471,7 +531,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.listAdapters(project.engine_project_id);
+    return this.engine.listAdapters(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("integrations/routes")
@@ -481,7 +544,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.listRoutes(project.engine_project_id);
+    return this.engine.listRoutes(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("integrations/routes")
@@ -495,11 +561,19 @@ export class DecisionController {
     if (input.integration_id === undefined)
       throw new BadRequestException("integration_id is required");
     const project = await this.requireRole(request.principal, workspaceId, projectId, "admin");
-    return this.engine.createRoute(project.engine_project_id, input.integration_id, {
-      match_choice: input.match_choice,
-      action: input.action,
-      action_value: input.action_value,
-    });
+    return this.engine.createRoute(
+      project.engine_project_id,
+      input.integration_id,
+      {
+        match_choice: input.match_choice,
+        action: input.action,
+        action_value: input.action_value,
+      },
+      {
+        workspaceId,
+        actor: request.principal.subject,
+      },
+    );
   }
 
   @Get("integrations/outcomes")
@@ -509,7 +583,10 @@ export class DecisionController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.routingOutcomes(project.engine_project_id);
+    return this.engine.routingOutcomes(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("runs/:runId")
@@ -520,7 +597,10 @@ export class DecisionController {
     @Param("runId") runId: string,
   ) {
     const project = await this.requireMember(request.principal, workspaceId, projectId);
-    return this.engine.getRun(project.engine_project_id, runId);
+    return this.engine.getRun(project.engine_project_id, runId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   private runResult(run: EngineDecisionRun): string {

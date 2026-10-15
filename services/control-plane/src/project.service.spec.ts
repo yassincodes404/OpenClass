@@ -109,7 +109,10 @@ describe("ProjectService", () => {
       "desc",
     );
     expect(created).toMatchObject({ slug: "acme-support", engine_project_id: "engine-p1" });
-    expect(engine.createProject).toHaveBeenCalledWith("Acme Support", "desc");
+    expect(engine.createProject).toHaveBeenCalledWith("Acme Support", "desc", {
+      workspaceId: "w1",
+      actor: "owner-sub",
+    });
     expect(inserts[0]).toContain("w1");
   });
 
@@ -345,6 +348,7 @@ describe("ProjectService", () => {
           slug: "support-triage",
           name: "Support Triage",
           description: "Seeded in engine",
+          workspace_id: "w1",
         },
       ]),
     });
@@ -364,6 +368,145 @@ describe("ProjectService", () => {
       slug: "support-triage",
       name: "Support Triage",
     });
+  });
+
+  it("refuses to import engine projects belonging to another workspace or legacy unassigned (null workspace_id)", async () => {
+    const insertedParams: unknown[][] = [];
+    const pool = fakePool(async (text, params) => {
+      if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
+      if (text.startsWith("INSERT INTO control_projects")) {
+        insertedParams.push(params ?? []);
+        return {
+          rows: [
+            {
+              id: `cp-${insertedParams.length}`,
+              workspace_id: params?.[0],
+              engine_project_id: params?.[1],
+              slug: params?.[2],
+              name: params?.[3],
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const engine = fakeEngine({
+      listProjects: vi.fn(async () => [
+        {
+          id: "eng-own",
+          slug: "alpha-project",
+          name: "Alpha Project",
+          description: "Owned by ws-1",
+          workspace_id: "ws-1",
+        },
+        {
+          id: "eng-other",
+          slug: "beta-project",
+          name: "Beta Project",
+          description: "Owned by other-workspace",
+          workspace_id: "other-workspace",
+        },
+        {
+          id: "eng-legacy",
+          slug: "legacy-project",
+          name: "Legacy Project",
+          description: "Legacy unassigned",
+          workspace_id: null,
+        },
+        {
+          id: "eng-undefined",
+          slug: "undefined-project",
+          name: "Undefined Project",
+          description: "Missing workspace_id",
+        },
+      ]),
+    });
+
+    const projects = await serviceWith(pool, engine).service.list(owner, "ws-1");
+    expect(insertedParams).toHaveLength(1);
+    expect(insertedParams[0]).toEqual(["ws-1", "eng-own", "alpha-project", "Alpha Project"]);
+    expect(projects).toHaveLength(1);
+    expect(projects[0]).toMatchObject({
+      workspace_id: "ws-1",
+      engine_project_id: "eng-own",
+      slug: "alpha-project",
+    });
+  });
+
+  it("isolates two workspaces (ws-alpha and ws-beta) so listing never leaks or imports each other's projects", async () => {
+    const controlProjects: Row[] = [];
+    const pool = fakePool(async (text, params) => {
+      if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
+      if (text.startsWith("SELECT workspace_id FROM control_projects WHERE engine_project_id")) {
+        const matches = controlProjects.filter(
+          (row) => row.engine_project_id === params?.[0] || row.slug === params?.[1],
+        );
+        return { rows: matches, rowCount: matches.length };
+      }
+      if (text.includes("FROM control_projects WHERE workspace_id = $1")) {
+        const wsRows = controlProjects.filter((row) => row.workspace_id === params?.[0]);
+        return { rows: wsRows, rowCount: wsRows.length };
+      }
+      if (text.startsWith("INSERT INTO control_projects")) {
+        const row = {
+          id: `cp-${controlProjects.length + 1}`,
+          workspace_id: params?.[0],
+          engine_project_id: params?.[1],
+          slug: params?.[2],
+          name: params?.[3],
+          created_at: new Date(),
+        };
+        controlProjects.push(row);
+        return { rows: [row], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const engineStore: Array<{
+      id: string;
+      slug: string;
+      name: string;
+      description: string;
+      workspace_id: string | null;
+    }> = [
+      {
+        id: "eng-alpha",
+        slug: "alpha-ops",
+        name: "Alpha Ops",
+        description: "",
+        workspace_id: "ws-alpha",
+      },
+      {
+        id: "eng-beta",
+        slug: "beta-ops",
+        name: "Beta Ops",
+        description: "",
+        workspace_id: "ws-beta",
+      },
+      {
+        id: "eng-unassigned",
+        slug: "legacy-seed",
+        name: "Legacy Seed",
+        description: "",
+        workspace_id: null,
+      },
+    ];
+
+    const engine = fakeEngine({
+      listProjects: vi.fn(async () => [...engineStore]),
+    });
+
+    const { service } = serviceWith(pool, engine);
+    const alphaList = await service.list(owner, "ws-alpha");
+    const betaList = await service.list(owner, "ws-beta");
+
+    expect(alphaList.map((p) => p.slug)).toEqual(["alpha-ops"]);
+    expect(betaList.map((p) => p.slug)).toEqual(["beta-ops"]);
+    expect(alphaList.every((p) => p.workspace_id === "ws-alpha")).toBe(true);
+    expect(betaList.every((p) => p.workspace_id === "ws-beta")).toBe(true);
   });
 
   it("looks up a project by control id, engine_project_id, or slug and lazily syncs null engine_project_id", async () => {
@@ -415,5 +558,87 @@ describe("ProjectService", () => {
     });
     expect(updatedParams).toEqual([["cp-1", "w1", "eng-lazy-1"]]);
     expect(found.engine_project_id).toBe("eng-lazy-1");
+  });
+
+  it("syncMissingEngineProject does not link another workspace's engine project and tries claimProject on 404 before creating", async () => {
+    const updatedParams: unknown[][] = [];
+    const pool = fakePool(async (text, params) => {
+      if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
+      if (
+        text.includes("FROM control_projects") &&
+        text.includes("(id::text = $1 OR engine_project_id = $1 OR slug = $1)")
+      ) {
+        return {
+          rows: [
+            {
+              id: "cp-1",
+              workspace_id: "ws-alpha",
+              engine_project_id: null,
+              slug: "shared-slug",
+              name: "Shared Slug",
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      if (text.startsWith("UPDATE control_projects SET engine_project_id =")) {
+        updatedParams.push(params ?? []);
+        return { rows: [], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const engineOtherWorkspace = fakeEngine({
+      getProject: vi.fn(async () => ({
+        id: "eng-owned-by-beta",
+        slug: "shared-slug",
+        name: "Shared Slug",
+        description: "",
+        workspace_id: "ws-beta",
+      })),
+      createProject: vi.fn(async () => ({
+        id: "eng-fresh-alpha",
+        slug: "shared-slug-2",
+        name: "Shared Slug",
+        description: "",
+        workspace_id: "ws-alpha",
+      })),
+    });
+
+    const syncedFresh = await serviceWith(pool, engineOtherWorkspace).service.get(
+      owner,
+      "ws-alpha",
+      "shared-slug",
+    );
+    expect(engineOtherWorkspace.createProject).toHaveBeenCalledWith("Shared Slug", "", {
+      workspaceId: "ws-alpha",
+      actor: "owner-sub",
+    });
+    expect(syncedFresh.engine_project_id).toBe("eng-fresh-alpha");
+
+    const engineClaimable = fakeEngine({
+      getProject: vi.fn(async () => {
+        throw new NotFoundException("Project not found");
+      }),
+      claimProject: vi.fn(async () => ({
+        id: "eng-claimed-alpha",
+        slug: "shared-slug",
+        name: "Shared Slug",
+        description: "",
+        workspace_id: "ws-alpha",
+      })),
+    });
+
+    const syncedClaimed = await serviceWith(pool, engineClaimable).service.get(
+      owner,
+      "ws-alpha",
+      "shared-slug",
+    );
+    expect(engineClaimable.claimProject).toHaveBeenCalledWith("shared-slug", {
+      workspaceId: "ws-alpha",
+      actor: "owner-sub",
+    });
+    expect(syncedClaimed.engine_project_id).toBe("eng-claimed-alpha");
   });
 });
