@@ -12,11 +12,17 @@ export class SafeExceptionFilter implements ExceptionFilter {
     }>();
     const status = error instanceof HttpException ? error.getStatus() : 500;
     const id = requestContext.getStore()?.correlationId ?? null;
+    // Server-side diagnostics get the error class name only: a fixed code
+    // identifier, never a message that could carry SQL or request internals.
+    const rawName = error instanceof Error ? error.constructor?.name : undefined;
+    const errorName =
+      typeof rawName === "string" && /^[A-Za-z0-9_]{1,60}$/.test(rawName) ? rawName : "Unknown";
     this.logger.warn({
       event: "control.request_failed",
       code: status >= 500 ? "request_failed" : "request_rejected",
       status,
       correlation_id: id,
+      ...(status >= 500 ? { error_name: errorName } : {}),
     });
     response.status(status).json({
       statusCode: status,

@@ -200,6 +200,21 @@ try {
 } catch (error) {
   if (!lifecycle.exitCode) console.error(error.message);
   process.exitCode = lifecycle.exitCode ?? 1;
+  if (started) {
+    // Failure evidence: bounded service logs from the still-running stack,
+    // before teardown. Service logs never contain secrets; the env file and
+    // manifest are never printed.
+    try {
+      await lifecycle.run("docker", [...compose, "logs", "--no-color", "--tail=400"], {
+        cwd: root,
+        env,
+        cleanup: true,
+        timeout: 60000,
+      });
+    } catch {
+      console.error("Could not capture stack logs after failure");
+    }
+  }
 } finally {
   await releasePorts();
   // Signal handlers only cancel the active child. Cleanup occurs here exactly

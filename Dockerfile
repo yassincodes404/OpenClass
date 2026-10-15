@@ -26,6 +26,9 @@ ENV PATH="/app/.venv/bin:$PATH"
 FROM base AS test
 RUN uv sync --frozen --all-packages
 COPY tests tests
+# tests/unit/test_boundaries.py reads the portal source to enforce the SDK
+# boundary; the suite runs from /app, so the same relative layout is required.
+COPY apps/portal/src apps/portal/src
 USER openclass
 CMD ["pytest", "-q", "-p", "no:cacheprovider", "--tb=short"]
 
