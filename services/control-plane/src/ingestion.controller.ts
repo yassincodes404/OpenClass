@@ -21,8 +21,10 @@ import { IngestionGuard, IngestionService, type Caller } from "./ingestion.servi
 export type RequestWithCaller = {
   principal: Principal;
   keyPrefix?: string;
+  keyId?: string;
   keyProjectId?: string;
   keyScopes?: ApiKeyScope[];
+  keyRequiredScope?: ApiKeyScope;
 };
 
 const ingestSchema = z.object({

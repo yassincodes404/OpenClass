@@ -11,7 +11,6 @@ import { AuditService } from "./audit.service.js";
 import type { Principal } from "./auth.js";
 import { CONTROL_DB } from "./db.js";
 import { EngineClient, type EngineOntologyClass, type EngineProject } from "./engine.js";
-import { IdempotencyService } from "./idempotency.service.js";
 import { ROLE_RANK, type Role } from "./workspace.service.js";
 
 export type ControlProject = {
@@ -53,7 +52,6 @@ export class ProjectService {
     private readonly engine: EngineClient,
     private readonly apiKeys: ApiKeyService,
     private readonly audit: AuditService,
-    private readonly idempotency: IdempotencyService,
   ) {}
 
   async create(
@@ -61,46 +59,31 @@ export class ProjectService {
     workspaceId: string,
     name: string,
     description: string,
-    idempotencyKey?: string,
   ): Promise<ControlProject> {
     await this.requireRole(principal, workspaceId, "admin");
-    if (idempotencyKey) {
-      const replayed = await this.idempotency.replay<ControlProject>(workspaceId, idempotencyKey);
-      if (replayed) return replayed;
-    }
     const engineProject = await this.engine.createProject(name, description, {
       workspaceId,
       actor: principal.subject,
     });
     const base = this.slugify(name);
-    try {
-      const slug = await this.uniqueSlug(workspaceId, base);
-      const result = await this.db.query(
-        "INSERT INTO control_projects (workspace_id, engine_project_id, slug, name)" +
-          " VALUES ($1, $2, $3, $4) RETURNING id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days",
-        [workspaceId, engineProject.id, slug, name.trim()],
-      );
-      const project = result.rows[0] as ControlProject;
-      await this.audit.record({
-        workspaceId,
-        projectId: project.id,
-        actor: principal.subject,
-        action: "project.created",
-        target: `project:${project.slug}`,
-      });
-      if (idempotencyKey) await this.idempotency.remember(workspaceId, idempotencyKey, project);
-      return project;
-    } catch (error) {
-      await this.engine
-        .request(
-          "PATCH",
-          `/api/v1/projects/${engineProject.id}`,
-          { status: "archived" },
-          { workspaceId, actor: principal.subject },
-        )
-        .catch(() => undefined);
-      throw error;
-    }
+    // The request interceptor commits the mapping, audit, and receipt together.
+    // Never archive a successful remote creation on a local failure: a retry
+    // must reconcile with the engine's idempotent response, not an archived id.
+    const slug = await this.uniqueSlug(workspaceId, base);
+    const result = await this.db.query(
+      "INSERT INTO control_projects (workspace_id, engine_project_id, slug, name)" +
+        " VALUES ($1, $2, $3, $4) RETURNING id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days",
+      [workspaceId, engineProject.id, slug, name.trim()],
+    );
+    const project = result.rows[0] as ControlProject;
+    await this.audit.record({
+      workspaceId,
+      projectId: project.id,
+      actor: principal.subject,
+      action: "project.created",
+      target: `project:${project.slug}`,
+    });
+    return project;
   }
 
   async list(

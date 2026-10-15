@@ -8,7 +8,7 @@ import {
 import type { Pool, PoolClient, QueryResult } from "pg";
 import type { Principal } from "./auth.js";
 import { AuditService } from "./audit.service.js";
-import { CONTROL_DB } from "./db.js";
+import { CONTROL_DB, controlTransaction } from "./db.js";
 
 export type Role = "owner" | "admin" | "reviewer" | "analyst" | "developer" | "viewer";
 export type MemberRow = { subject: string; role: Role; created_at: Date };
@@ -45,9 +45,7 @@ export class WorkspaceService {
 
   async create(principal: Principal, name: string): Promise<WorkspaceRow> {
     const base = this.slugify(name);
-    const client = await this.db.connect();
-    try {
-      await client.query("BEGIN");
+    return controlTransaction(this.db, async (client) => {
       const slug = await this.uniqueSlug(client, base);
       const workspace = await client.query(
         "INSERT INTO control_workspaces (slug, name) VALUES ($1, $2) RETURNING id, slug, name",
@@ -57,7 +55,6 @@ export class WorkspaceService {
         "INSERT INTO control_workspace_memberships (workspace_id, subject, role) VALUES ($1, $2, 'owner')",
         [workspace.rows[0].id, principal.subject],
       );
-      await client.query("COMMIT");
       const row = { ...workspace.rows[0], role: "owner" } as WorkspaceRow;
       await this.audit.record({
         workspaceId: row.id,
@@ -66,12 +63,7 @@ export class WorkspaceService {
         target: `workspace:${row.slug}`,
       });
       return row;
-    } catch (error) {
-      await client.query("ROLLBACK");
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
   }
 
   async members(principal: Principal, workspaceId: string): Promise<MemberRow[]> {

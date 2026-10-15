@@ -3,7 +3,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   Param,
   Post,
@@ -14,6 +13,7 @@ import { z } from "zod";
 import { API_KEY_SCOPES } from "./api-key.service.js";
 import { KeycloakGuard, type Principal } from "./auth.js";
 import { ProjectService } from "./project.service.js";
+import { SecretMutationResponse } from "./mutation-metadata.js";
 
 type RequestWithPrincipal = { principal: Principal };
 
@@ -66,16 +66,9 @@ export class ProjectController {
     @Req() request: RequestWithPrincipal,
     @Param("workspaceId") workspaceId: string,
     @Body() body: unknown,
-    @Headers("idempotency-key") idempotencyKey?: string,
   ) {
     const input = parseBody(createProjectSchema, body);
-    return this.projects.create(
-      request.principal,
-      workspaceId,
-      input.name,
-      input.description,
-      idempotencyKey?.slice(0, 200),
-    );
+    return this.projects.create(request.principal, workspaceId, input.name, input.description);
   }
 
   @Get(":projectId")
@@ -124,6 +117,7 @@ export class ProjectController {
   }
 
   @Post(":projectId/keys")
+  @SecretMutationResponse()
   createKey(
     @Req() request: RequestWithPrincipal,
     @Param("workspaceId") workspaceId: string,

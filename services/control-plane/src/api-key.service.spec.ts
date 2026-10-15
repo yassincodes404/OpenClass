@@ -46,12 +46,23 @@ describe("ApiKeyService", () => {
   it("verifies an active key with the required scope", async () => {
     const pool = fakePool(async () => ({
       rows: [
-        { workspace_id: "w1", project_id: "p1", scopes: ["ingest", "read"], revoked_at: null },
+        {
+          id: "k1",
+          workspace_id: "w1",
+          project_id: "p1",
+          scopes: ["ingest", "read"],
+          revoked_at: null,
+        },
       ],
       rowCount: 1,
     }));
     const verified = await new ApiKeyService(pool).verify("oc_dev_x", "ingest");
-    expect(verified).toEqual({ workspaceId: "w1", projectId: "p1", scopes: ["ingest", "read"] });
+    expect(verified).toEqual({
+      keyId: "k1",
+      workspaceId: "w1",
+      projectId: "p1",
+      scopes: ["ingest", "read"],
+    });
   });
 
   it("rejects a key that lacks the required scope", async () => {

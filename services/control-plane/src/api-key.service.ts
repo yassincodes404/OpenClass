@@ -16,7 +16,12 @@ export type ApiKeyRow = {
   revoked_at: Date | null;
 };
 
-export type VerifiedKey = { workspaceId: string; projectId: string; scopes: ApiKeyScope[] };
+export type VerifiedKey = {
+  keyId: string;
+  workspaceId: string;
+  projectId: string;
+  scopes: ApiKeyScope[];
+};
 
 export function hashKey(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -65,16 +70,27 @@ export class ApiKeyService {
   /** Verify a raw key for engine-proxy use. Never returns the hash. */
   async verify(raw: string, requiredScope?: ApiKeyScope): Promise<VerifiedKey> {
     const result = await this.db.query(
-      "SELECT workspace_id, project_id, scopes, revoked_at FROM control_api_keys WHERE key_hash = $1",
+      "SELECT id, workspace_id, project_id, scopes, revoked_at FROM control_api_keys WHERE key_hash = $1",
       [hashKey(raw)],
     );
     const row = result.rows[0] as
-      | { workspace_id: string; project_id: string; scopes: ApiKeyScope[]; revoked_at: Date | null }
+      | {
+          id: string;
+          workspace_id: string;
+          project_id: string;
+          scopes: ApiKeyScope[];
+          revoked_at: Date | null;
+        }
       | undefined;
     if (!row || row.revoked_at) throw new ForbiddenException("API key is invalid or revoked");
     if (requiredScope && !row.scopes.includes(requiredScope)) {
       throw new ForbiddenException(`API key is missing the '${requiredScope}' scope`);
     }
-    return { workspaceId: row.workspace_id, projectId: row.project_id, scopes: row.scopes };
+    return {
+      keyId: row.id,
+      workspaceId: row.workspace_id,
+      projectId: row.project_id,
+      scopes: row.scopes,
+    };
   }
 }
