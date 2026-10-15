@@ -77,7 +77,11 @@ export class UnknownController {
     @Query("q") q?: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.listUnknowns(project.engine_project_id, { state, category, query: q });
+    return this.engine.listUnknowns(
+      project.engine_project_id,
+      { state, category, query: q },
+      { workspaceId, actor: request.principal.subject },
+    );
   }
 
   @Get("stats")
@@ -87,7 +91,10 @@ export class UnknownController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.unknownStats(project.engine_project_id);
+    return this.engine.unknownStats(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("cluster")
@@ -102,7 +109,10 @@ export class UnknownController {
         ? (body as { threshold: number }).threshold
         : undefined;
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
-    const result = await this.engine.runClustering(project.engine_project_id, threshold);
+    const result = await this.engine.runClustering(project.engine_project_id, threshold, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,
@@ -120,7 +130,10 @@ export class UnknownController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.listClusters(project.engine_project_id);
+    return this.engine.listClusters(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("clusters/:clusterId")
@@ -131,7 +144,10 @@ export class UnknownController {
     @Param("clusterId") clusterId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.clusterDetail(project.engine_project_id, clusterId);
+    return this.engine.clusterDetail(project.engine_project_id, clusterId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("clusters/:clusterId/discover")
@@ -142,7 +158,10 @@ export class UnknownController {
     @Param("clusterId") clusterId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "admin");
-    const candidate = await this.engine.discoverCluster(project.engine_project_id, clusterId);
+    const candidate = await this.engine.discoverCluster(project.engine_project_id, clusterId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,
@@ -160,7 +179,10 @@ export class UnknownController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.listCandidates(project.engine_project_id);
+    return this.engine.listCandidates(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("candidates/:candidateId")
@@ -171,7 +193,10 @@ export class UnknownController {
     @Param("candidateId") candidateId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.candidateDetail(project.engine_project_id, candidateId);
+    return this.engine.candidateDetail(project.engine_project_id, candidateId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("candidates/:candidateId/promote")
@@ -184,11 +209,19 @@ export class UnknownController {
   ) {
     const input = parseBody(promoteSchema, body);
     const project = await this.gate(request.principal, workspaceId, projectId, "admin");
-    const result = await this.engine.promoteCandidate(project.engine_project_id, candidateId, {
-      evaluation_id: input.evaluation_id,
-      reviewer: input.reviewer,
-      rationale: input.rationale,
-    });
+    const result = await this.engine.promoteCandidate(
+      project.engine_project_id,
+      candidateId,
+      {
+        evaluation_id: input.evaluation_id,
+        reviewer: input.reviewer,
+        rationale: input.rationale,
+      },
+      {
+        workspaceId,
+        actor: request.principal.subject,
+      },
+    );
     await this.audit.record({
       workspaceId,
       projectId,
@@ -206,7 +239,10 @@ export class UnknownController {
     @Param("projectId") projectId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.ontology(project.engine_project_id);
+    return this.engine.ontology(project.engine_project_id, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get("ontology/diff")
@@ -220,7 +256,10 @@ export class UnknownController {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
     const fromVersion = Number(from ?? 1);
     const toVersion = Number(to ?? 2);
-    return this.engine.ontologyDiff(project.engine_project_id, fromVersion, toVersion);
+    return this.engine.ontologyDiff(project.engine_project_id, fromVersion, toVersion, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post("ontology/rollback")
@@ -236,6 +275,10 @@ export class UnknownController {
       project.engine_project_id,
       input.from_version,
       input.rationale,
+      {
+        workspaceId,
+        actor: request.principal.subject,
+      },
     );
     await this.audit.record({
       workspaceId,
@@ -257,9 +300,18 @@ export class UnknownController {
   ) {
     const input = parseBody(collectSchema, body);
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
-    return this.engine.candidateAction(project.engine_project_id, candidateId, "collect", {
-      unknown_ids: input.unknown_ids,
-    });
+    return this.engine.candidateAction(
+      project.engine_project_id,
+      candidateId,
+      "collect",
+      {
+        unknown_ids: input.unknown_ids,
+      },
+      {
+        workspaceId,
+        actor: request.principal.subject,
+      },
+    );
   }
 
   @Post("candidates/:candidateId/request-review")
@@ -270,7 +322,16 @@ export class UnknownController {
     @Param("candidateId") candidateId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
-    return this.engine.candidateAction(project.engine_project_id, candidateId, "request-review");
+    return this.engine.candidateAction(
+      project.engine_project_id,
+      candidateId,
+      "request-review",
+      undefined,
+      {
+        workspaceId,
+        actor: request.principal.subject,
+      },
+    );
   }
 
   @Post("candidates/:candidateId/review")
@@ -288,6 +349,10 @@ export class UnknownController {
       candidateId,
       "review",
       input,
+      {
+        workspaceId,
+        actor: request.principal.subject,
+      },
     );
     await this.audit.record({
       workspaceId,
@@ -314,6 +379,10 @@ export class UnknownController {
       candidateId,
       "reject",
       input,
+      {
+        workspaceId,
+        actor: request.principal.subject,
+      },
     );
     await this.audit.record({
       workspaceId,
@@ -333,7 +402,10 @@ export class UnknownController {
     @Param("candidateId") candidateId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.candidateHistory(project.engine_project_id, candidateId);
+    return this.engine.candidateHistory(project.engine_project_id, candidateId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Get(":runId")
@@ -344,7 +416,10 @@ export class UnknownController {
     @Param("runId") runId: string,
   ) {
     const project = await this.gate(request.principal, workspaceId, projectId, "viewer");
-    return this.engine.unknownDetail(project.engine_project_id, runId);
+    return this.engine.unknownDetail(project.engine_project_id, runId, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
   }
 
   @Post(":runId/triage")
@@ -358,7 +433,10 @@ export class UnknownController {
   ) {
     const input = parseBody(triageSchema, body);
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
-    const result = await this.engine.triageUnknown(project.engine_project_id, runId, input);
+    const result = await this.engine.triageUnknown(project.engine_project_id, runId, input, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,
@@ -380,7 +458,10 @@ export class UnknownController {
   ) {
     const input = parseBody(transitionSchema, body);
     const project = await this.gate(request.principal, workspaceId, projectId, "reviewer");
-    const result = await this.engine.transitionUnknown(project.engine_project_id, runId, input.to);
+    const result = await this.engine.transitionUnknown(project.engine_project_id, runId, input.to, {
+      workspaceId,
+      actor: request.principal.subject,
+    });
     await this.audit.record({
       workspaceId,
       projectId,

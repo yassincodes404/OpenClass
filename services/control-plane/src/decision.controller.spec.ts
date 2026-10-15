@@ -73,7 +73,10 @@ describe("DecisionController", () => {
     const { controller, engine, audit } = controllerWith(memberPool("owner"), fakeEngine());
     const created = await controller.createService({ principal }, "w1", "p1", validService);
     expect(created.nodes[0].choices.map((c) => c.key)).toContain("UNKNOWN");
-    expect(engine.createDecisionService).toHaveBeenCalled();
+    expect(engine.createDecisionService).toHaveBeenCalledWith("e1", expect.any(Object), {
+      workspaceId: "w1",
+      actor: "owner-sub",
+    });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: "decision_service.created" }),
     );

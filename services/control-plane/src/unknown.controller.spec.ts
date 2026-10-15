@@ -48,8 +48,15 @@ describe("UnknownController", () => {
     const { controller, engine } = controllerWith(poolWith("viewer"), engineWith());
     await controller.list({ principal }, "w1", "p1", undefined, undefined, undefined);
     await controller.stats({ principal }, "w1", "p1");
-    expect(engine.listUnknowns).toHaveBeenCalledTimes(1);
-    expect(engine.unknownStats).toHaveBeenCalledTimes(1);
+    expect(engine.listUnknowns).toHaveBeenCalledWith(
+      "e1",
+      { cursor: undefined, limit: undefined, status: undefined },
+      { workspaceId: "w1", actor: "user-sub" },
+    );
+    expect(engine.unknownStats).toHaveBeenCalledWith("e1", {
+      workspaceId: "w1",
+      actor: "user-sub",
+    });
   });
 
   it("viewer cannot triage (403)", async () => {

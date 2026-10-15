@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Single source of truth for the Alembic revision readiness requires. Update this
 # constant (and only it) whenever a new migration becomes the expected head.
-EXPECTED_SCHEMA_REVISION = "0026_decision_run_checkpoints"
+EXPECTED_SCHEMA_REVISION = "0027_workspace_isolation_and_checkpoint_claims"
 
 
 class Settings(BaseSettings):
@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     discovery_timeout_seconds: float = Field(default=30, gt=0, le=120)
     provider_timeout_seconds: float = Field(default=20, gt=0, le=60, allow_inf_nan=False)
     provider_max_retries: int = Field(default=0, ge=0, le=2)
+    decision_run_resume_claim_ttl_seconds: float = Field(default=300.0, gt=0.0, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def configured_provider(self) -> "Settings":

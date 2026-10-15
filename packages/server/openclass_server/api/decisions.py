@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import time
 from typing import Annotated, Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Body, HTTPException, Query, Request
 from openclass_core.decision_executor import DecisionExecutor
 from openclass_core.evidence import FeedbackAction
 from openclass_core.projects import (
@@ -37,6 +37,13 @@ class ResumeDecisionRunRequest(BaseModel):
     rationale: str = Field(default="", max_length=2000)
     strict_version_check: bool = False
     use_pinned_version: bool = True
+    force_recover_stale_claim: bool = False
+
+
+class RecoverDecisionRunCheckpointRequest(BaseModel):
+    operator: str = Field(default="operator", min_length=1, max_length=200)
+    rationale: str = Field(default="", max_length=2000)
+    stale_after_seconds: float = Field(default=0.0, ge=0.0, allow_inf_nan=False)
 
 
 class CancelDecisionRunRequest(BaseModel):
@@ -278,25 +285,6 @@ def decisions_router(
                 detail=f"Invalid approved_choice '{body.approved_choice}' for service",
             )
 
-        if run.resumed_at is not None and run.run_status == "completed":
-            raise HTTPException(
-                status_code=409,
-                detail="Decision run has already been resumed",
-            )
-
-        if run.run_status != "paused" and run.supervision_outcome not in {
-            "REVIEW",
-            "ESCALATE",
-            "UNKNOWN",
-        }:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    f"Decision run cannot be resumed from supervision outcome "
-                    f"'{run.supervision_outcome}'"
-                ),
-            )
-
         if body.strict_version_check and pinned_hash and current_hash != pinned_hash:
             raise HTTPException(
                 status_code=409,
@@ -314,12 +302,48 @@ def decisions_router(
                     detail=f"Unsupported provider override: {execution_service.provider_override}",
                 ) from err
         else:
-            exec_provider = default_decision_provider
+            exec_provider = (
+                getattr(request.app.state, "decision_provider", None) or default_decision_provider
+            )
 
+        claim_token = str(uuid4())
+        if project_repository is not None and hasattr(
+            project_repository, "claim_decision_run_for_resume"
+        ):
+            await project_repository.claim_decision_run_for_resume(
+                str(service.project_id),
+                str(run.id),
+                operator=body.operator,
+                claim_token=claim_token,
+                stale_claim_timeout_seconds=config.decision_run_resume_claim_ttl_seconds,
+                force_recover_stale_claim=body.force_recover_stale_claim,
+            )
+        else:
+            if run.resumed_at is not None and run.run_status == "completed":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Decision run has already been resumed",
+                )
+            if run.run_status != "paused" and run.supervision_outcome not in {
+                "REVIEW",
+                "ESCALATE",
+                "UNKNOWN",
+            }:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"Decision run cannot be resumed from supervision outcome "
+                        f"'{run.supervision_outcome}'"
+                    ),
+                )
+
+        run_for_executor = (
+            run.model_copy(update={"run_status": "paused"}) if run.run_status == "resuming" else run
+        )
         executor = DecisionExecutor(exec_provider)
         try:
             resumed_run = await executor.resume(
-                run,
+                run_for_executor,
                 execution_service,
                 approved_choice=body.approved_choice,
                 operator=body.operator,
@@ -336,6 +360,16 @@ def decisions_router(
                     failure_reason="Decision provider failed during resume",
                 )
             raise
+        except Exception:
+            if project_repository is not None and hasattr(
+                project_repository, "release_decision_run_claim"
+            ):
+                await project_repository.release_decision_run_claim(
+                    str(service.project_id),
+                    str(run.id),
+                    claim_token=claim_token,
+                )
+            raise
 
         if project_repository is not None and hasattr(
             project_repository, "save_resumed_decision_run"
@@ -344,6 +378,7 @@ def decisions_router(
                 resumed_run,
                 operator=body.operator,
                 rationale=body.rationale,
+                claim_token=claim_token,
             )
 
         if body.approved_choice is not None:
@@ -399,6 +434,36 @@ def decisions_router(
             "pending_operation": resumed_run.pending_operation,
         }
 
+    @router.post("/api/v1/projects/{identifier}/runs/{run_id}/recover-checkpoint")
+    async def recover_decision_run_checkpoint(
+        identifier: str,
+        run_id: UUID,
+        request: Request,
+        body: Annotated[RecoverDecisionRunCheckpointRequest | None, Body()] = None,
+    ) -> dict[str, Any]:
+        _require_operator_permission(request)
+        project = await projects.get(identifier)
+        operator = body.operator if body is not None else "operator"
+        rationale = body.rationale if body is not None else ""
+        stale_after = body.stale_after_seconds if body is not None else 0.0
+        if project_repository is None or not hasattr(
+            project_repository, "recover_stale_decision_run_checkpoint"
+        ):
+            raise HTTPException(
+                status_code=501, detail="Checkpoint recovery is not supported by repository"
+            )
+        recovered: DecisionRun = await project_repository.recover_stale_decision_run_checkpoint(
+            str(project.id),
+            str(run_id),
+            operator=operator,
+            rationale=rationale,
+            stale_after_seconds=stale_after,
+        )
+        payload: dict[str, Any] = recovered.model_dump(mode="json")
+        payload["run_id"] = str(recovered.id)
+        payload["status"] = recovered.run_status
+        return payload
+
     @router.post("/api/v1/projects/{identifier}/runs/{run_id}/cancel")
     async def cancel_decision_run(
         identifier: str,
@@ -410,10 +475,17 @@ def decisions_router(
         run = await projects.get_decision_run(identifier=identifier, run_id=run_id)
         if run.run_status == "cancelled" or run.state_snapshot.get("status") == "cancelled":
             raise HTTPException(status_code=409, detail="Decision run is already cancelled")
-        if run.resumed_at is not None or (
-            run.run_status == "completed" and run.supervision_outcome == "TRUSTED"
-        ):
+        if run.run_status == "completed":
             raise HTTPException(status_code=409, detail="Cannot cancel a completed decision run")
+        if run.run_status == "resuming":
+            raise HTTPException(
+                status_code=409, detail="Cannot cancel a decision run while it is resuming"
+            )
+        if run.run_status != "paused":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot cancel a decision run with status '{run.run_status}'",
+            )
 
         if project_repository is not None and hasattr(
             project_repository, "cancel_decision_run_checkpoint"

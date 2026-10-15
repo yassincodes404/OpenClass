@@ -74,12 +74,23 @@ class UpdateProject(Model):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     status: Literal["active", "archived"] | None = None
+    workspace_id: str | None = Field(default=None, min_length=1, max_length=120)
 
     @model_validator(mode="after")
     def has_changes(self) -> "UpdateProject":
-        if self.name is None and self.description is None and self.status is None:
+        if (
+            self.name is None
+            and self.description is None
+            and self.status is None
+            and self.workspace_id is None
+        ):
             raise ValueError("update must change at least one field")
         return self
+
+
+class ClaimProjectRequest(Model):
+    workspace_id: str | None = Field(default=None, min_length=1, max_length=120)
+    actor: str = Field(default="operator", min_length=1, max_length=80)
 
 
 class ProjectSummaryResponse(Model):

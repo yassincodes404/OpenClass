@@ -105,6 +105,7 @@ export class IngestionService {
         ...(body.metadata ? { metadata: body.metadata } : {}),
       },
       idempotencyKey,
+      { workspaceId, actor: caller.principal.subject },
     );
     const payload = { ...(result.body as { id: string; deduped?: boolean }) };
     if (!payload.deduped) {
@@ -152,6 +153,7 @@ export class IngestionService {
         project.engine_project_id,
         { items: valid, source_type: sourceType },
         idempotencyKey,
+        { workspaceId, actor: caller.principal.subject },
       );
       const body = result.body as {
         items?: Array<{
@@ -200,7 +202,10 @@ export class IngestionService {
     const limit = Math.min(Math.max(options.limit ?? 25, 1), 100);
     const offset = options.cursor ? this.decodeCursor(options.cursor) : 0;
     // Local-scale search: fetch a bounded window from the engine, then filter.
-    const window = await this.engine.listEvents(project.engine_project_id, 200, offset);
+    const window = await this.engine.listEvents(project.engine_project_id, 200, offset, {
+      workspaceId,
+      actor: caller.principal.subject,
+    });
     let filtered = window;
     if (options.q) {
       const needle = options.q.toLowerCase();
@@ -231,7 +236,10 @@ export class IngestionService {
     await this.authorize(caller, workspaceId, projectId, "viewer", "read");
     const project = await this.byId(workspaceId, projectId);
     try {
-      return await this.engine.getEvent(project.engine_project_id, eventId);
+      return await this.engine.getEvent(project.engine_project_id, eventId, {
+        workspaceId,
+        actor: caller.principal.subject,
+      });
     } catch {
       throw new NotFoundException("Observation not found");
     }
@@ -263,7 +271,7 @@ export class IngestionService {
     let total = 0;
     for (const row of projects.rows as Array<{ engine_project_id: string }>) {
       const summary = await this.engine
-        .projectSummary(row.engine_project_id)
+        .projectSummary(row.engine_project_id, { workspaceId })
         .catch(() => ({ events: 0 }));
       total += summary.events ?? 0;
     }

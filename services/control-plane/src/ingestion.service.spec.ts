@@ -104,6 +104,7 @@ describe("IngestionService", () => {
       "e1",
       expect.objectContaining({ content: "I was charged twice" }),
       "key-1",
+      { workspaceId: WORKSPACE, actor: "owner-sub" },
     );
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({ action: "observation.ingested", target: "event:evt-1" }),

@@ -953,3 +953,60 @@ test("OpenClassControlClient typed project, decision, unknown, evaluation, and o
   assert.ok(seen.includes("POST /control/workspaces/ws-1/projects/p-1/runs/r-1/resume"));
   assert.ok(seen.includes("POST /control/workspaces/ws-1/projects/p-1/runs/r-1/cancel"));
 });
+
+test("OpenClassClient forwards X-OpenClass-Workspace-Id header and supports workspace_id on Project", async () => {
+  const seenHeaders: Array<{ url: string; workspaceId: string | null }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const h = new Headers(init?.headers);
+    seenHeaders.push({
+      url: String(url),
+      workspaceId: h.get("X-OpenClass-Workspace-Id"),
+    });
+    if (String(url).endsWith("/projects") && init?.method === "POST") {
+      return Response.json({
+        id: "p-ws-1",
+        slug: "acme",
+        name: "Acme",
+        description: "",
+        status: "active",
+        owner_id: null,
+        workspace_id: h.get("X-OpenClass-Workspace-Id"),
+        created_at: "2026-10-15T00:00:00Z",
+        updated_at: "2026-10-15T00:00:00Z",
+      });
+    }
+    if (String(url).endsWith("/claim") && init?.method === "POST") {
+      return Response.json({
+        id: "p-ws-1",
+        slug: "acme",
+        name: "Acme",
+        description: "",
+        status: "active",
+        owner_id: null,
+        workspace_id: h.get("X-OpenClass-Workspace-Id"),
+        created_at: "2026-10-15T00:00:00Z",
+        updated_at: "2026-10-15T00:00:00Z",
+      });
+    }
+    return Response.json([]);
+  };
+
+  const client = new OpenClassClient({
+    baseURL: "http://example.internal",
+    workspaceId: "ws-default",
+    fetcher,
+  });
+
+  await client.projects();
+  const created = await client.createProject({ name: "Acme" }, { workspaceId: "ws-override" });
+  assert.equal(created.workspace_id, "ws-override");
+
+  const claimed = await client.claimProject("acme", { workspaceId: "ws-claimed" });
+  assert.equal(claimed.workspace_id, "ws-claimed");
+
+  assert.deepEqual(seenHeaders, [
+    { url: "http://example.internal/api/v1/projects", workspaceId: "ws-default" },
+    { url: "http://example.internal/api/v1/projects", workspaceId: "ws-override" },
+    { url: "http://example.internal/api/v1/projects/acme/claim", workspaceId: "ws-claimed" },
+  ]);
+});
