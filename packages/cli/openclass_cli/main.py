@@ -71,6 +71,24 @@ def main() -> None:
     promote_cmd.add_argument("--rationale", required=True)
     ops_cmd = commands.add_parser("ops-summary", help="Fetch operations summary for a project")
     ops_cmd.add_argument("project")
+    resume = commands.add_parser("run-resume", help="Resume an inspected checkpoint generation")
+    resume.add_argument("project")
+    resume.add_argument("run_id")
+    resume.add_argument("--approved-choice")
+    resume.add_argument("--expected-checkpoint-revision", type=int, required=True)
+    resume.add_argument("--expected-node-key")
+    resume.add_argument("--operator", default="operator")
+    resume.add_argument("--rationale", default="")
+    recover = commands.add_parser("run-recover", help="Recover an expired checkpoint lease")
+    recover.add_argument("project")
+    recover.add_argument("run_id")
+    recover.add_argument("--operator", default="operator")
+    recover.add_argument("--rationale", default="")
+    cancel = commands.add_parser("run-cancel", help="Cancel a paused decision run")
+    cancel.add_argument("project")
+    cancel.add_argument("run_id")
+    cancel.add_argument("--operator", default="operator")
+    cancel.add_argument("--reason", required=True)
     commands.add_parser("doctor", help="Check API, database and migration readiness")
     args = parser.parse_args()
     if not args.command:
@@ -135,6 +153,27 @@ def main() -> None:
                     )
                 case "ops-summary":
                     output = client.operations_summary(args.project)
+                case "run-resume":
+                    output = client.resume_decision_run(
+                        args.project,
+                        args.run_id,
+                        approved_choice=args.approved_choice,
+                        expected_checkpoint_revision=args.expected_checkpoint_revision,
+                        expected_node_key=args.expected_node_key,
+                        operator=args.operator,
+                        rationale=args.rationale,
+                    )
+                case "run-recover":
+                    output = client.recover_decision_run_checkpoint(
+                        args.project,
+                        args.run_id,
+                        operator=args.operator,
+                        rationale=args.rationale,
+                    )
+                case "run-cancel":
+                    output = client.cancel_decision_run(
+                        args.project, args.run_id, operator=args.operator, reason=args.reason
+                    )
                 case "doctor":
                     output = client.health()
                 case _:

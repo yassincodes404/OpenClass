@@ -108,6 +108,7 @@ AuditEventType = Literal[
     "decision_service.created",
     "decision_service.updated",
     "decision_run_paused",
+    "decision_run_claimed",
     "decision_run_resumed",
     "decision_run_cancelled",
     "decision_run_failed",
@@ -289,6 +290,7 @@ class DecisionRunCheckpoint(Model):
     claim_token: str | None = None
     claimed_by: str | None = None
     claimed_at: datetime | None = None
+    checkpoint_revision: int = Field(default=1, ge=1)
     resumed_by: str | None = None
     resumed_at: datetime | None = None
     resume_rationale: str | None = None
@@ -343,6 +345,7 @@ class DecisionRun(Model):
     claim_token: str | None = None
     claimed_by: str | None = None
     claimed_at: datetime | None = None
+    checkpoint_revision: int = Field(default=1, ge=1)
     resumed_by: str | None = None
     resumed_at: datetime | None = None
     resume_rationale: str | None = None

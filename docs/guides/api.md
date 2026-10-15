@@ -20,6 +20,64 @@ The no-key `mock` provider is simulated; `real_inference: false` and
 `GET /api/v1/projects/{project}/summary` counts persisted project runs whose
 selected choice is `UNKNOWN`; it does not treat those observations as new classes.
 
+### Checkpoint concurrency and recovery
+
+`GET .../runs/{run_id}` includes `checkpoint_revision`, `current_node_key`,
+`run_status`, and claim timestamps. Submit the inspected revision and node when
+approving a pause:
+
+```json
+{
+  "approved_choice": "BILLING",
+  "expected_checkpoint_revision": 1,
+  "expected_node_key": "triage-router",
+  "rationale": "Reviewed the captured evidence"
+}
+```
+
+`POST .../runs/{run_id}/resume` atomically compares the expected generation and
+paused node. A concurrent advance returns 409 rather than replaying an older
+checkpoint. Omitted expectations use the snapshot read by that HTTP request;
+clients should provide them to protect approvals delayed outside the server.
+Approval choices belong to the actual paused node, not any node in the graph.
+Pinned service snapshots remain the default. Strict version checking can reject
+changed service configurations.
+
+`POST .../runs/{run_id}/recover-checkpoint` with `{}` only recovers an expired
+lease. `stale_after_seconds` can increase, but cannot shorten, the configured
+`OPENCLASS_DECISION_RUN_RESUME_CLAIM_TTL_SECONDS` (default 300 seconds).
+Healthy resume execution renews its lease. Crashed workers eventually stop
+renewing, allowing another process to recover or resume their checkpoint.
+Expiry and renewal use the database clock. Replicas must use the same configured
+lease TTL. Request cancellation stops local execution and renewal but leaves
+the claim in place: an interrupted remote call may still be running, so a
+disconnect never blindly releases its checkpoint for immediate retry.
+`POST .../runs/{run_id}/cancel` cancels a paused run, including a later pause
+after an earlier resume; completed and actively resuming runs return 409.
+
+Explicit `force: true` recovery (or `force_recover_stale_claim: true` on resume)
+requires a verified internal authentication token, a trusted privileged
+role/scope and actor, and a meaningful rationale. An unauthenticated
+`X-OpenClass-Role: admin` header is not authority, even in local mode.
+Deployments must keep the internal token private to the authenticated gateway.
+Forced recovery is exceptional: an upstream operation already sent may still
+finish. Database fencing prevents a superseded attempt from committing its
+result or lifecycle writes; it does **not** provide exactly-once remote effects.
+Use destination idempotency and reconciliation before retrying external actions.
+Losing a lease stops further local graph execution, but cannot unsend a request.
+Claim acquisition appends `decision_run_claimed` with actor, revision, node,
+force-recovery flag and rationale. Resume, later pauses, cancellation and failure
+retain their lifecycle events. Winning resume/cancel feedback and correction
+evidence commit with the corresponding fenced checkpoint mutation. Resume
+responses include `checkpoint_revision`, including single-node completions.
+
+The Python SDK exposes `resume_decision_run`, `recover_decision_run_checkpoint`,
+and `cancel_decision_run`. TypeScript `resumeDecisionRun` accepts
+`expectedCheckpointRevision` / `expectedNodeKey` (or snake_case equivalents).
+The CLI provides `run-resume` with a required inspected revision, `run-recover`
+for normal expiry recovery, and `run-cancel`. These clients do not grant force
+privilege themselves.
+
 ## Classifier API
 
 | Method | Route                                                      | Behavior                                          |

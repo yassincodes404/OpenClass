@@ -113,6 +113,7 @@ def test_resume_checkpointed_run_records_feedback_and_completes(mock_client: Tes
     assert payload == {
         "run_id": run["id"],
         "status": "completed",
+        "checkpoint_revision": 3,
         "selected_choice": "BILLING",
         "supervision_outcome": "TRUSTED",
         "resumed_by": "ops-lead",
@@ -410,14 +411,17 @@ def test_concurrent_resume_requests_allow_only_one_winner_and_single_downstream_
     from openclass_server.main import create_app
     from openclass_server.settings import Settings
 
-    class SlowCountingDecisionProvider:
+    class GatedCountingDecisionProvider:
         def __init__(self, inner: DecisionProvider) -> None:
             self._inner = inner
             self.call_count = 0
+            self.entered = asyncio.Event()
+            self.release = asyncio.Event()
 
         async def choice(self, request: ChoiceRequest) -> ChoiceResult:
             self.call_count += 1
-            await asyncio.sleep(0.05)
+            self.entered.set()
+            await self.release.wait()
             return await self._inner.choice(request)
 
     app = create_app(Settings(database_url=database_url, decision_provider="mock"))
@@ -430,8 +434,8 @@ def test_concurrent_resume_requests_allow_only_one_winner_and_single_downstream_
         assert run["run_status"] == "paused"
         run_id = run["id"]
 
-        slow_provider = SlowCountingDecisionProvider(app.state.decision_provider)
-        app.state.decision_provider = slow_provider
+        gated_provider = GatedCountingDecisionProvider(app.state.decision_provider)
+        app.state.decision_provider = gated_provider
 
         async def _fire_concurrent_resumes() -> tuple[httpx.Response, httpx.Response]:
             transport = httpx.ASGITransport(app=app)
@@ -443,19 +447,28 @@ def test_concurrent_resume_requests_allow_only_one_winner_and_single_downstream_
                     "operator": "concurrent-op",
                     "rationale": "Concurrent approval race test",
                 }
-                return await asyncio.gather(
+                first = asyncio.create_task(
                     async_client.post(
                         f"/api/v1/projects/{slug}/runs/{run_id}/resume", json=req_body
-                    ),
-                    async_client.post(
-                        f"/api/v1/projects/{slug}/runs/{run_id}/resume", json=req_body
-                    ),
+                    )
                 )
+                try:
+                    await asyncio.wait_for(gated_provider.entered.wait(), timeout=5)
+                    second = await asyncio.wait_for(
+                        async_client.post(
+                            f"/api/v1/projects/{slug}/runs/{run_id}/resume", json=req_body
+                        ),
+                        timeout=5,
+                    )
+                finally:
+                    gated_provider.release.set()
+                    winner = await asyncio.wait_for(first, timeout=5)
+                return winner, second
 
         resp_a, resp_b = asyncio.run(_fire_concurrent_resumes())
         statuses = sorted([resp_a.status_code, resp_b.status_code])
         assert statuses == [200, 409], (resp_a.text, resp_b.text)
-        assert slow_provider.call_count == 1
+        assert gated_provider.call_count == 1
 
 
 def test_crash_recovery_for_stuck_resuming_checkpoint_across_restarts(
@@ -502,12 +515,28 @@ def test_crash_recovery_for_stuck_resuming_checkpoint_across_restarts(
         )
         assert blocked.status_code == 409
 
-    # Simulate server restart with short claim TTL or explicit checkpoint recovery
+        # A stopped heartbeat ages durably; do not depend on scheduler timing.
+        from datetime import UTC, datetime, timedelta
+
+        import sqlalchemy as sa
+        from openclass_server.persistence.tables import DecisionRunCheckpointRow
+
+        async def expire_crashed_claim() -> None:
+            async with repo.sessions.begin() as session:
+                await session.execute(
+                    sa.update(DecisionRunCheckpointRow)
+                    .where(DecisionRunCheckpointRow.run_id == run_id)
+                    .values(claimed_at=datetime.now(UTC) - timedelta(seconds=301))
+                )
+
+        asyncio.run(expire_crashed_claim())
+
+    # Restart with the same lease policy and recover the expired durable claim.
     app2 = create_app(
         Settings(
             database_url=database_url,
             decision_provider="mock",
-            decision_run_resume_claim_ttl_seconds=0.001,
+            decision_run_resume_claim_ttl_seconds=300.0,
         )
     )
     with TestClient(app2) as client2:
@@ -665,3 +694,533 @@ def test_multi_pause_graph_can_be_cancelled_after_first_resume_pauses_at_stage_t
         json={"approved_choice": "WIRE_REVERSAL", "operator": "finance-director"},
     )
     assert resume_after_cancel.status_code == 409
+
+
+def test_stale_checkpoint_race_delayed_before_claim_across_multi_pause_stages(
+    database_url: str,
+) -> None:
+    """Defect 1 regression: Request B reads stage-1 checkpoint before claiming,
+    Request A advances the run to stage-2 (also paused), and Request B must fail
+    atomically at claim time with 409 Conflict instead of re-executing stage-1->stage-2."""
+    import asyncio
+    from uuid import uuid4
+
+    import httpx
+    from openclass_core.models import ChoiceRequest, ChoiceResult
+    from openclass_core.providers import DecisionProvider
+    from openclass_server.main import create_app
+    from openclass_server.settings import Settings
+
+    stage2_calls = 0
+
+    class StageCountingProvider:
+        def __init__(self, inner: DecisionProvider) -> None:
+            self._inner = inner
+
+        async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+            nonlocal stage2_calls
+            class_names = {c.canonical_name.upper() for c in request.ontology.classes}
+            if "WIRE_REVERSAL" in class_names:
+                stage2_calls += 1
+            return await self._inner.choice(request)
+
+    app_a = create_app(Settings(database_url=database_url, decision_provider="mock"))
+    app_b = create_app(Settings(database_url=database_url, decision_provider="mock"))
+
+    async def _scenario() -> None:
+        async with (
+            app_a.router.lifespan_context(app_a),
+            app_b.router.lifespan_context(app_b),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app_a), base_url="http://testserver"
+            ) as async_a,
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app_b), base_url="http://testserver"
+            ) as async_b,
+        ):
+            proj_resp = await async_a.post(
+                "/api/v1/projects",
+                json={"name": f"MultiStage CAS Race {uuid4().hex[:8]}"},
+            )
+            assert proj_resp.status_code == 201, proj_resp.text
+            slug = proj_resp.json()["slug"]
+
+            service_resp = await async_a.post(
+                f"/api/v1/projects/{slug}/decision-services",
+                json={
+                    "name": "Three-Stage CAS Graph",
+                    "instructions": "Three stage workflow with human gates at stage 1 and stage 2.",
+                    "nodes": [
+                        {
+                            "name": "stage-1-intake",
+                            "instructions": "Classify intake request",
+                            "pause_on_review": True,
+                            "choices": [
+                                {"key": "ESCALATE_FINANCE", "label": "Escalate to Finance"},
+                                {"key": "ARCHIVE", "label": "Archive"},
+                            ],
+                        },
+                        {
+                            "name": "stage-2-finance",
+                            "instructions": "Determine finance action",
+                            "pause_on_review": True,
+                            "choices": [
+                                {"key": "WIRE_REVERSAL", "label": "Wire Reversal"},
+                                {"key": "CREDIT_MEMO", "label": "Credit Memo"},
+                            ],
+                        },
+                        {
+                            "name": "stage-3-compliance",
+                            "instructions": "Final compliance sign-off",
+                            "pause_on_review": False,
+                            "choices": [
+                                {"key": "CLEARED", "label": "Cleared"},
+                                {"key": "BLOCKED", "label": "Blocked"},
+                            ],
+                        },
+                    ],
+                    "transitions": [
+                        {
+                            "from_node_key": "stage-1-intake",
+                            "choice_key": "ESCALATE_FINANCE",
+                            "to_node_key": "stage-2-finance",
+                            "require_approval": True,
+                        },
+                        {
+                            "from_node_key": "stage-2-finance",
+                            "choice_key": "WIRE_REVERSAL",
+                            "to_node_key": "stage-3-compliance",
+                            "require_approval": True,
+                        },
+                    ],
+                },
+            )
+            assert service_resp.status_code == 201, service_resp.text
+            service = service_resp.json()
+
+            run_resp = await async_a.post(
+                f"/api/v1/projects/{slug}/decision-services/{service['id']}/runs",
+                json={"content": "The weather on Mars is lovely this time of year"},
+            )
+            assert run_resp.status_code == 201, run_resp.text
+            initial_run = run_resp.json()[0]
+            run_id = initial_run["id"]
+            assert initial_run["run_status"] == "paused"
+            assert initial_run["current_node_key"] == "stage-1-intake"
+            assert initial_run["checkpoint_revision"] == 1
+
+            app_a.state.decision_provider = StageCountingProvider(app_a.state.decision_provider)
+            app_b.state.decision_provider = StageCountingProvider(app_b.state.decision_provider)
+
+            repo_b = app_b.state.project_repository
+            orig_claim_b = repo_b.claim_decision_run_for_resume
+
+            b_ready_to_claim = asyncio.Event()
+            release_b = asyncio.Event()
+            intercepted = False
+
+            async def delayed_claim_b(*args: Any, **kwargs: Any) -> Any:
+                nonlocal intercepted
+                if not intercepted:
+                    intercepted = True
+                    b_ready_to_claim.set()
+                    await release_b.wait()
+                return await orig_claim_b(*args, **kwargs)
+
+            repo_b.claim_decision_run_for_resume = delayed_claim_b
+            try:
+                task_b = asyncio.create_task(
+                    async_b.post(
+                        f"/api/v1/projects/{slug}/runs/{run_id}/resume",
+                        json={
+                            "approved_choice": "ESCALATE_FINANCE",
+                            "operator": "operator-b-stale",
+                            "rationale": "Delayed stage-1 approval from stale reader B",
+                        },
+                    )
+                )
+                await asyncio.wait_for(b_ready_to_claim.wait(), timeout=5.0)
+
+                # While Request B is paused right before claiming (holding stage-1 snapshot),
+                # Request A claims stage-1, executes stage-2-finance, and pauses at stage-2!
+                resp_a = await async_a.post(
+                    f"/api/v1/projects/{slug}/runs/{run_id}/resume",
+                    json={
+                        "approved_choice": "ESCALATE_FINANCE",
+                        "operator": "operator-a-winner",
+                        "rationale": "Stage-1 approval by winner A",
+                    },
+                )
+                release_b.set()
+                resp_b = await asyncio.wait_for(task_b, timeout=5.0)
+
+                # Also verify a subsequent stale stage-1 approval request is rejected with 409
+                resp_c = await async_b.post(
+                    f"/api/v1/projects/{slug}/runs/{run_id}/resume",
+                    json={
+                        "approved_choice": "ESCALATE_FINANCE",
+                        "operator": "operator-c-stale",
+                        "rationale": "Late stage-1 approval after run moved to stage-2",
+                    },
+                )
+            finally:
+                repo_b.claim_decision_run_for_resume = orig_claim_b
+
+            assert resp_a.status_code == 200, resp_a.text
+            assert resp_b.status_code == 409, resp_b.text
+            assert "changed concurrently" in resp_b.json()["detail"]
+            assert resp_c.status_code == 409, resp_c.text
+
+            # Downstream stage-2-finance provider was invoked strictly ONCE
+            assert stage2_calls == 1
+
+            persisted = (await async_a.get(f"/api/v1/projects/{slug}/runs/{run_id}")).json()
+            assert persisted["run_status"] == "paused"
+            assert persisted["current_node_key"] == "stage-2-finance"
+            assert persisted["resumed_by"] == "operator-a-winner"
+            assert persisted["checkpoint_revision"] == 3
+            assert len(persisted["steps"]) == 2
+
+    asyncio.run(_scenario())
+
+
+def test_active_worker_recovery_enforces_lease_timeout_and_fences_superseded_worker(
+    database_url: str,
+) -> None:
+    """Defect 2 regression:
+    1. /recover-checkpoint enforces the configured lease timeout by default and rejects
+       recovery of an active in-flight worker (even if stale_after_seconds=0.0 is passed).
+    2. Force recovery requires privileged admin role/scope and non-empty rationale.
+    3. When a privileged admin force-recovers a wedged worker and Worker B takes over,
+       the superseded Worker A is fenced on both save_resumed_decision_run and
+       mark_decision_run_failed, preventing duplicate feedback/audit or state corruption."""
+    import asyncio
+    from uuid import uuid4
+
+    import httpx
+    from openclass_core.models import ChoiceRequest, ChoiceResult
+    from openclass_core.providers import DecisionProvider, ProviderError
+    from openclass_server.main import create_app
+    from openclass_server.settings import Settings
+
+    app_a = create_app(
+        Settings(
+            database_url=database_url,
+            decision_provider="mock",
+            decision_run_resume_claim_ttl_seconds=300.0,
+            internal_token="checkpoint-test-internal-token",
+            auth_required=True,
+        )
+    )
+    app_b = create_app(
+        Settings(
+            database_url=database_url,
+            decision_provider="mock",
+            decision_run_resume_claim_ttl_seconds=300.0,
+            internal_token="checkpoint-test-internal-token",
+            auth_required=True,
+        )
+    )
+
+    class GatedProvider:
+        def __init__(
+            self,
+            inner: DecisionProvider,
+            entered: asyncio.Event,
+            release: asyncio.Event,
+            *,
+            fail_on_release: bool = False,
+        ) -> None:
+            self._inner = inner
+            self.entered = entered
+            self.release = release
+            self.fail_on_release = fail_on_release
+            self.call_count = 0
+
+        async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+            self.call_count += 1
+            self.entered.set()
+            await self.release.wait()
+            if self.fail_on_release:
+                raise ProviderError("Simulated provider failure in superseded worker")
+            return await self._inner.choice(request)
+
+    class CountingProvider:
+        def __init__(self, inner: DecisionProvider) -> None:
+            self._inner = inner
+            self.call_count = 0
+
+        async def choice(self, request: ChoiceRequest) -> ChoiceResult:
+            self.call_count += 1
+            return await self._inner.choice(request)
+
+    async def _scenario() -> None:
+        worker_headers = {
+            "X-OpenClass-Internal-Token": "checkpoint-test-internal-token",
+            "X-OpenClass-Actor": "regular-worker",
+        }
+        async with (
+            app_a.router.lifespan_context(app_a),
+            app_b.router.lifespan_context(app_b),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app_a),
+                base_url="http://testserver",
+                headers=worker_headers,
+            ) as async_a,
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app_b),
+                base_url="http://testserver",
+                headers=worker_headers,
+            ) as async_b,
+        ):
+            proj_resp = await async_a.post(
+                "/api/v1/projects",
+                json={"name": f"Lease Fencing Corp {uuid4().hex[:8]}"},
+            )
+            assert proj_resp.status_code == 201, proj_resp.text
+            slug = proj_resp.json()["slug"]
+
+            svc_resp = await async_a.post(
+                f"/api/v1/projects/{slug}/decision-services",
+                json={
+                    "name": "Two-Stage Support Graph",
+                    "instructions": "Route and resolve customer tickets across two stages.",
+                    "nodes": [
+                        {
+                            "name": "triage-router",
+                            "instructions": "Route ticket to department",
+                            "pause_on_review": True,
+                            "choices": [
+                                {"key": "BILLING", "label": "Billing Department"},
+                                {"key": "DELIVERY", "label": "Delivery Department"},
+                            ],
+                        },
+                        {
+                            "name": "billing-specialist",
+                            "instructions": "Select billing resolution action",
+                            "pause_on_review": False,
+                            "choices": [
+                                {"key": "REFUND", "label": "Issue Refund"},
+                                {"key": "INVOICE", "label": "Resend Invoice"},
+                            ],
+                        },
+                    ],
+                    "transitions": [
+                        {
+                            "from_node_key": "triage-router",
+                            "choice_key": "BILLING",
+                            "to_node_key": "billing-specialist",
+                            "require_approval": True,
+                        }
+                    ],
+                },
+            )
+            assert svc_resp.status_code == 201, svc_resp.text
+            service = svc_resp.json()
+
+            async def _create_paused_run(tag: str) -> str:
+                r = await async_a.post(
+                    f"/api/v1/projects/{slug}/decision-services/{service['id']}/runs",
+                    json={"content": f"The weather on Mars is lovely this time of year ({tag})"},
+                )
+                assert r.status_code == 201, r.text
+                run_obj = r.json()[0]
+                assert run_obj["run_status"] == "paused"
+                return str(run_obj["id"])
+
+            run_1 = await _create_paused_run("part-a-lease-protection")
+            run_2 = await _create_paused_run("part-b-fenced-success")
+            run_3 = await _create_paused_run("part-c-fenced-error")
+
+            base_provider_a = app_a.state.decision_provider
+            base_provider_b = app_b.state.decision_provider
+
+            # ── Part A: Active worker is protected by configured lease timeout ──
+            entered_a = asyncio.Event()
+            release_a = asyncio.Event()
+            gated_a = GatedProvider(base_provider_a, entered_a, release_a)
+            counting_b = CountingProvider(base_provider_b)
+            app_a.state.decision_provider = gated_a
+            app_b.state.decision_provider = counting_b
+
+            worker_a_task = asyncio.create_task(
+                async_a.post(
+                    f"/api/v1/projects/{slug}/runs/{run_1}/resume",
+                    json={
+                        "approved_choice": "BILLING",
+                        "operator": "worker-a",
+                        "rationale": "Active worker A resume",
+                    },
+                )
+            )
+            await asyncio.wait_for(entered_a.wait(), timeout=5.0)
+
+            # 1. Default /recover-checkpoint with {} must fail with 409 (lease not expired)
+            rec_default = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_1}/recover-checkpoint",
+                json={},
+            )
+            assert rec_default.status_code == 409, rec_default.text
+            assert "not yet stale" in rec_default.json()["detail"]
+
+            # 2. /recover-checkpoint with stale_after_seconds=0.0 (no force) fails with 409
+            rec_zero = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_1}/recover-checkpoint",
+                json={"stale_after_seconds": 0.0, "operator": "impatient-op"},
+            )
+            assert rec_zero.status_code == 409, rec_zero.text
+
+            # 3. Unprivileged force=True on /recover-checkpoint must fail with 403 Forbidden
+            rec_unpriv = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_1}/recover-checkpoint",
+                json={
+                    "force": True,
+                    "operator": "regular-op",
+                    "rationale": "Trying force recovery without admin role",
+                },
+            )
+            assert rec_unpriv.status_code == 403, rec_unpriv.text
+
+            # 4. Unprivileged force_recover_stale_claim=True on /resume fails with 403
+            res_unpriv = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_1}/resume",
+                json={
+                    "approved_choice": "BILLING",
+                    "operator": "regular-op",
+                    "rationale": "Trying force resume without admin role",
+                    "force_recover_stale_claim": True,
+                },
+            )
+            assert res_unpriv.status_code == 403, res_unpriv.text
+
+            # 5. Concurrent normal /resume on app_b must fail with 409 Conflict
+            res_conflict = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_1}/resume",
+                json={"approved_choice": "BILLING", "operator": "worker-b"},
+            )
+            assert res_conflict.status_code == 409, res_conflict.text
+
+            release_a.set()
+            resp_a = await asyncio.wait_for(worker_a_task, timeout=5.0)
+            assert resp_a.status_code == 200, resp_a.text
+            assert gated_a.call_count == 1
+            assert counting_b.call_count == 0
+
+            # ── Part B: Privileged force recovery + fencing superseded worker on completion ──
+            entered_b_part = asyncio.Event()
+            release_b_part = asyncio.Event()
+            gated_a_2 = GatedProvider(base_provider_a, entered_b_part, release_b_part)
+            counting_b_2 = CountingProvider(base_provider_b)
+            app_a.state.decision_provider = gated_a_2
+            app_b.state.decision_provider = counting_b_2
+
+            worker_a_task_2 = asyncio.create_task(
+                async_a.post(
+                    f"/api/v1/projects/{slug}/runs/{run_2}/resume",
+                    json={
+                        "approved_choice": "BILLING",
+                        "operator": "worker-a-wedged",
+                        "rationale": "Worker A initial resume",
+                    },
+                )
+            )
+            await asyncio.wait_for(entered_b_part.wait(), timeout=5.0)
+
+            # Privileged admin force-recovers the checkpoint on app_b
+            rec_admin = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_2}/recover-checkpoint",
+                headers={"X-OpenClass-Role": "admin", "X-OpenClass-Actor": "sre-admin"},
+                json={
+                    "operator": "sre-admin",
+                    "rationale": "Worker A wedged in upstream provider call",
+                    "force": True,
+                },
+            )
+            assert rec_admin.status_code == 200, rec_admin.text
+            rec_body = rec_admin.json()
+            assert rec_body["run_status"] == "paused"
+            assert rec_body["checkpoint_revision"] == 3
+
+            # Worker B claims and completes the run on app_b
+            resp_b = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_2}/resume",
+                headers={"X-OpenClass-Actor": "worker-b-takeover"},
+                json={
+                    "approved_choice": "BILLING",
+                    "operator": "worker-b-takeover",
+                    "rationale": "Completed by Worker B after force recovery",
+                },
+            )
+            assert resp_b.status_code == 200, resp_b.text
+
+            # Now release superseded Worker A -> must be fenced with 409 Conflict
+            release_b_part.set()
+            resp_a_2 = await asyncio.wait_for(worker_a_task_2, timeout=5.0)
+            assert resp_a_2.status_code == 409, resp_a_2.text
+            assert "claim is no longer valid" in resp_a_2.json()["detail"]
+
+            persisted_2 = (await async_b.get(f"/api/v1/projects/{slug}/runs/{run_2}")).json()
+            assert persisted_2["resumed_by"] == "worker-b-takeover"
+            assert persisted_2["resume_rationale"] == "Completed by Worker B after force recovery"
+            assert persisted_2["checkpoint_revision"] == 5
+            assert len(persisted_2["steps"]) == 2
+
+            audit_2 = [
+                ev
+                for ev in (await async_b.get(f"/api/v1/projects/{slug}/audit")).json()
+                if ev["payload"].get("run_id") == run_2
+                or ev["payload"].get("decision_run_id") == run_2
+            ]
+            resumed_events_2 = [ev for ev in audit_2 if ev["event_type"] == "decision_run_resumed"]
+            feedback_events_2 = [ev for ev in audit_2 if ev["event_type"] == "feedback.submitted"]
+            assert len(resumed_events_2) == 1
+            assert resumed_events_2[0]["actor"] == "worker-b-takeover"
+            assert len(feedback_events_2) == 1
+
+            # ── Part C: Superseded worker failing with ProviderError is fenced ──
+            entered_c_part = asyncio.Event()
+            release_c_part = asyncio.Event()
+            gated_a_3 = GatedProvider(
+                base_provider_a, entered_c_part, release_c_part, fail_on_release=True
+            )
+            counting_b_3 = CountingProvider(base_provider_b)
+            app_a.state.decision_provider = gated_a_3
+            app_b.state.decision_provider = counting_b_3
+
+            worker_a_task_3 = asyncio.create_task(
+                async_a.post(
+                    f"/api/v1/projects/{slug}/runs/{run_3}/resume",
+                    json={
+                        "approved_choice": "BILLING",
+                        "operator": "worker-a-failing",
+                        "rationale": "Worker A resume that will fail after preemption",
+                    },
+                )
+            )
+            await asyncio.wait_for(entered_c_part.wait(), timeout=5.0)
+
+            # Privileged admin takes over via force_recover_stale_claim=True on /resume
+            resp_b_3 = await async_b.post(
+                f"/api/v1/projects/{slug}/runs/{run_3}/resume",
+                headers={"X-OpenClass-Role": "admin", "X-OpenClass-Actor": "worker-b-admin"},
+                json={
+                    "approved_choice": "BILLING",
+                    "operator": "worker-b-admin",
+                    "rationale": "Force takeover by admin Worker B",
+                    "force_recover_stale_claim": True,
+                },
+            )
+            assert resp_b_3.status_code == 200, resp_b_3.text
+
+            # Release Worker A -> mark_decision_run_failed is fenced with 409 Conflict
+            release_c_part.set()
+            resp_a_3 = await asyncio.wait_for(worker_a_task_3, timeout=5.0)
+            assert resp_a_3.status_code == 409, resp_a_3.text
+
+            persisted_3 = (await async_b.get(f"/api/v1/projects/{slug}/runs/{run_3}")).json()
+            assert persisted_3["run_status"] != "failed"
+            assert persisted_3["failure_reason"] is None
+            assert persisted_3["resumed_by"] == "worker-b-admin"
+            assert len(persisted_3["steps"]) == 2
+
+    asyncio.run(_scenario())

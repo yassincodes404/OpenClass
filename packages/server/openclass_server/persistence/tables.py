@@ -202,6 +202,7 @@ class DecisionRunCheckpointRow(Base):
     claim_token: Mapped[str | None] = mapped_column(String(120), nullable=True)
     claimed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
     claimed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    checkpoint_revision: Mapped[int] = mapped_column(Integer, default=1)
     resumed_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
     resumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resume_rationale: Mapped[str | None] = mapped_column(Text, nullable=True)
