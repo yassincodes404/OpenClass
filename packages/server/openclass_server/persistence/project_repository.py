@@ -6,6 +6,7 @@ in the same transaction so the audit trail cannot drift from project state.
 
 import asyncio
 import json
+import math
 from datetime import UTC, datetime, timedelta
 from datetime import date as date_type
 from typing import Any
@@ -18,6 +19,7 @@ from openclass_core.evidence import (
     EvidenceStatus,
     EvidenceTriggerType,
     EvolutionSummary,
+    FeedbackAction,
     RunFeedback,
 )
 from openclass_core.project_evolution import ChoiceCandidate, service_hash
@@ -516,6 +518,7 @@ class SQLProjectRepository:
                         claim_token=run.claim_token,
                         claimed_by=run.claimed_by,
                         claimed_at=run.claimed_at,
+                        checkpoint_revision=run.checkpoint_revision,
                         resumed_by=run.resumed_by,
                         resumed_at=run.resumed_at,
                         resume_rationale=run.resume_rationale,
@@ -540,6 +543,7 @@ class SQLProjectRepository:
                             "supervision_outcome": run.supervision_outcome,
                             "pinned_version_number": run.pinned_version_number,
                             "pinned_service_hash": run.pinned_service_hash or run.service_hash,
+                            "checkpoint_revision": run.checkpoint_revision,
                         },
                         created_at=run.created_at,
                     )
@@ -585,6 +589,9 @@ class SQLProjectRepository:
             else run.unknown_probability
         )
         pinned_vid = UUID(cp.pinned_version_id) if cp.pinned_version_id else run.pinned_version_id
+        claimed_at = cp.claimed_at
+        if claimed_at is not None and claimed_at.tzinfo is None:
+            claimed_at = claimed_at.replace(tzinfo=UTC)
         return run.model_copy(
             update={
                 "decision_node_id": node_id,
@@ -609,7 +616,8 @@ class SQLProjectRepository:
                 "pending_operation": cp.pending_operation,
                 "claim_token": cp.claim_token,
                 "claimed_by": cp.claimed_by,
-                "claimed_at": cp.claimed_at,
+                "claimed_at": claimed_at,
+                "checkpoint_revision": int(getattr(cp, "checkpoint_revision", 1) or 1),
                 "resumed_by": cp.resumed_by,
                 "resumed_at": cp.resumed_at,
                 "resume_rationale": cp.resume_rationale,
@@ -693,6 +701,48 @@ class SQLProjectRepository:
                 }
             )
 
+    @staticmethod
+    def _database_now(session: AsyncSession) -> Any:
+        if session.get_bind().dialect.name == "sqlite":
+            return sa.type_coerce(
+                func.strftime("%Y-%m-%d %H:%M:%f", "now"), sa.DateTime(timezone=True)
+            )
+        return func.clock_timestamp()
+
+    @staticmethod
+    def _live_claim_condition(session: AsyncSession, ttl_seconds: float) -> Any:
+        if not math.isfinite(ttl_seconds) or ttl_seconds <= 0:
+            raise ValueError("Checkpoint claim TTL must be finite and positive")
+        # Evaluate expiry at the database write, not at a Python read before a
+        # potentially blocking row lock. SQLite julianday retains subsecond TTLs.
+        if session.get_bind().dialect.name == "sqlite":
+            return func.julianday(DecisionRunCheckpointRow.claimed_at) > (
+                func.julianday("now") - ttl_seconds / 86400.0
+            )
+        return DecisionRunCheckpointRow.claimed_at > (
+            func.clock_timestamp() - timedelta(seconds=ttl_seconds)
+        )
+
+    @staticmethod
+    async def _update_checkpoint(
+        session: AsyncSession,
+        conditions: list[Any],
+        values: dict[str, Any],
+    ) -> DecisionRunCheckpointRow:
+        cp = await session.scalar(
+            sa.update(DecisionRunCheckpointRow)
+            .where(*conditions)
+            .values(**values)
+            .returning(DecisionRunCheckpointRow)
+            .execution_options(synchronize_session=False, populate_existing=True)
+        )
+        if cp is None:
+            raise ConflictError(
+                "Decision run resume claim is no longer valid "
+                "(checkpoint revision or status changed)"
+            )
+        return cp
+
     async def claim_decision_run_for_resume(
         self,
         project_id: UUID | str,
@@ -702,41 +752,55 @@ class SQLProjectRepository:
         claim_token: str,
         stale_claim_timeout_seconds: float = 300.0,
         force_recover_stale_claim: bool = False,
-    ) -> None:
+        expected_checkpoint_revision: int | None = None,
+        expected_node_key: str | None = None,
+        require_expected_node_match: bool = False,
+        rationale: str = "",
+    ) -> DecisionRun:
         pid = str(project_id)
         rid = str(run_id)
         async with self._claim_lock:
             async with self._session_factory() as session:
                 now_ts = datetime.now(UTC)
-                stale_cutoff = (
-                    now_ts
-                    if force_recover_stale_claim
-                    else (now_ts - timedelta(seconds=stale_claim_timeout_seconds))
-                )
                 resuming_cond = (
                     DecisionRunCheckpointRow.run_status == "resuming"
                     if force_recover_stale_claim
                     else sa.and_(
                         DecisionRunCheckpointRow.run_status == "resuming",
                         DecisionRunCheckpointRow.claimed_at.is_not(None),
-                        DecisionRunCheckpointRow.claimed_at <= stale_cutoff,
+                        ~self._live_claim_condition(session, stale_claim_timeout_seconds),
                     )
                 )
+                where_clauses: list[Any] = [
+                    DecisionRunCheckpointRow.run_id == rid,
+                    DecisionRunCheckpointRow.project_id == pid,
+                    or_(
+                        DecisionRunCheckpointRow.run_status == "paused",
+                        resuming_cond,
+                    ),
+                ]
+                if expected_checkpoint_revision is not None:
+                    where_clauses.append(
+                        DecisionRunCheckpointRow.checkpoint_revision
+                        == int(expected_checkpoint_revision)
+                    )
+                if require_expected_node_match:
+                    if expected_node_key is None:
+                        where_clauses.append(DecisionRunCheckpointRow.current_node_key.is_(None))
+                    else:
+                        where_clauses.append(
+                            DecisionRunCheckpointRow.current_node_key == expected_node_key
+                        )
+
                 stmt = (
                     sa.update(DecisionRunCheckpointRow)
-                    .where(
-                        DecisionRunCheckpointRow.run_id == rid,
-                        DecisionRunCheckpointRow.project_id == pid,
-                        or_(
-                            DecisionRunCheckpointRow.run_status == "paused",
-                            resuming_cond,
-                        ),
-                    )
+                    .where(*where_clauses)
                     .values(
                         run_status="resuming",
                         claim_token=claim_token,
                         claimed_by=operator,
-                        claimed_at=now_ts,
+                        claimed_at=self._database_now(session),
+                        checkpoint_revision=DecisionRunCheckpointRow.checkpoint_revision + 1,
                         updated_at=now_ts,
                     )
                 )
@@ -752,6 +816,23 @@ class SQLProjectRepository:
                         raise NotFoundError("Decision run checkpoint not found")
                     if cp.run_status == "cancelled":
                         raise ConflictError("Decision run is already cancelled")
+                    if expected_checkpoint_revision is not None and int(
+                        cp.checkpoint_revision
+                    ) != int(expected_checkpoint_revision):
+                        if cp.run_status == "resuming":
+                            raise ConflictError("Decision run is already being resumed")
+                        if cp.run_status == "completed" and cp.resumed_at is not None:
+                            raise ConflictError("Decision run has already been resumed")
+                        raise ConflictError(
+                            f"Decision run checkpoint changed concurrently "
+                            f"(expected revision {expected_checkpoint_revision}, "
+                            f"current revision {cp.checkpoint_revision})"
+                        )
+                    if require_expected_node_match and cp.current_node_key != expected_node_key:
+                        raise ConflictError(
+                            f"Decision run checkpoint node changed concurrently "
+                            f"(expected '{expected_node_key}', current '{cp.current_node_key}')"
+                        )
                     if cp.run_status == "resuming":
                         raise ConflictError("Decision run is already being resumed")
                     if cp.run_status == "completed":
@@ -764,7 +845,70 @@ class SQLProjectRepository:
                     raise ConflictError(
                         f"Decision run cannot be resumed (status is '{cp.run_status}')"
                     )
+                run_row = await session.scalar(
+                    select(DecisionRunRow).where(
+                        DecisionRunRow.project_id == pid,
+                        DecisionRunRow.id == rid,
+                    )
+                )
+                cp = await session.scalar(
+                    select(DecisionRunCheckpointRow).where(
+                        DecisionRunCheckpointRow.run_id == rid,
+                        DecisionRunCheckpointRow.project_id == pid,
+                    )
+                )
+                if run_row is None or cp is None:
+                    raise NotFoundError("Decision run checkpoint not found")
+                # Capture the immutable generation while the CAS transaction still
+                # owns its write lock. A post-commit reread may belong to a taker.
+                claimed = self._apply_checkpoint(
+                    DecisionRun.model_validate(run_row.payload), cp
+                ).model_copy(deep=True)
+                session.add(
+                    self._event(
+                        ProjectAuditEvent(
+                            project_id=claimed.project_id,
+                            event_type="decision_run_claimed",
+                            actor=operator,
+                            payload={
+                                "run_id": rid,
+                                "checkpoint_revision": claimed.checkpoint_revision,
+                                "current_node_key": claimed.current_node_key,
+                                "force_recovered": force_recover_stale_claim,
+                                "rationale": rationale,
+                            },
+                            created_at=now_ts,
+                        )
+                    )
+                )
                 await session.commit()
+                return claimed
+
+    async def renew_decision_run_claim(
+        self,
+        project_id: UUID | str,
+        run_id: UUID | str,
+        *,
+        claim_token: str,
+        expected_checkpoint_revision: int,
+        stale_claim_timeout_seconds: float = 300.0,
+    ) -> None:
+        async with self.sessions.begin() as session:
+            await self._update_checkpoint(
+                session,
+                [
+                    DecisionRunCheckpointRow.run_id == str(run_id),
+                    DecisionRunCheckpointRow.project_id == str(project_id),
+                    DecisionRunCheckpointRow.run_status == "resuming",
+                    DecisionRunCheckpointRow.claim_token == claim_token,
+                    DecisionRunCheckpointRow.checkpoint_revision == expected_checkpoint_revision,
+                    self._live_claim_condition(session, stale_claim_timeout_seconds),
+                ],
+                {
+                    "claimed_at": self._database_now(session),
+                    "updated_at": self._database_now(session),
+                },
+            )
 
     async def release_decision_run_claim(
         self,
@@ -772,29 +916,39 @@ class SQLProjectRepository:
         run_id: UUID | str,
         *,
         claim_token: str,
+        expected_checkpoint_revision: int | None = None,
+        stale_claim_timeout_seconds: float = 300.0,
     ) -> None:
+        if not claim_token or expected_checkpoint_revision is None:
+            raise ConflictError("Checkpoint claim token and revision are required for release")
         pid = str(project_id)
         rid = str(run_id)
         now_ts = datetime.now(UTC)
         async with self._claim_lock:
             async with self._session_factory() as session:
+                where_clauses: list[Any] = [
+                    DecisionRunCheckpointRow.run_id == rid,
+                    DecisionRunCheckpointRow.project_id == pid,
+                    DecisionRunCheckpointRow.run_status == "resuming",
+                    DecisionRunCheckpointRow.claim_token == claim_token,
+                    DecisionRunCheckpointRow.checkpoint_revision == expected_checkpoint_revision,
+                    self._live_claim_condition(session, stale_claim_timeout_seconds),
+                ]
                 stmt = (
                     sa.update(DecisionRunCheckpointRow)
-                    .where(
-                        DecisionRunCheckpointRow.run_id == rid,
-                        DecisionRunCheckpointRow.project_id == pid,
-                        DecisionRunCheckpointRow.run_status == "resuming",
-                        DecisionRunCheckpointRow.claim_token == claim_token,
-                    )
+                    .where(*where_clauses)
                     .values(
                         run_status="paused",
                         claim_token=None,
                         claimed_by=None,
                         claimed_at=None,
+                        checkpoint_revision=DecisionRunCheckpointRow.checkpoint_revision + 1,
                         updated_at=now_ts,
                     )
                 )
-                await session.execute(stmt)
+                result = await session.execute(stmt)
+                if int(getattr(result, "rowcount", 0) or 0) != 1:
+                    raise ConflictError("Decision run resume claim is no longer valid")
                 await session.commit()
 
     async def recover_stale_decision_run_checkpoint(
@@ -804,12 +958,12 @@ class SQLProjectRepository:
         *,
         operator: str = "operator",
         rationale: str = "",
-        stale_after_seconds: float = 0.0,
+        stale_after_seconds: float = 300.0,
+        force: bool = False,
     ) -> DecisionRun:
         pid = str(project_id)
         rid = str(run_id)
         now_ts = datetime.now(UTC)
-        stale_cutoff = now_ts - timedelta(seconds=max(0.0, stale_after_seconds))
         async with self._claim_lock:
             async with self.sessions.begin() as session:
                 run_row = await session.scalar(
@@ -834,19 +988,34 @@ class SQLProjectRepository:
                     raise ConflictError(
                         f"Decision run cannot be recovered from status '{cp.run_status}'"
                     )
-                if stale_after_seconds > 0 and cp.claimed_at is not None:
-                    claimed_utc = (
-                        cp.claimed_at.replace(tzinfo=UTC)
-                        if cp.claimed_at.tzinfo is None
-                        else cp.claimed_at.astimezone(UTC)
-                    )
-                    if claimed_utc > stale_cutoff:
+                conditions: list[Any] = [
+                    DecisionRunCheckpointRow.run_id == rid,
+                    DecisionRunCheckpointRow.project_id == pid,
+                    DecisionRunCheckpointRow.run_status == "resuming",
+                    DecisionRunCheckpointRow.checkpoint_revision == cp.checkpoint_revision,
+                    DecisionRunCheckpointRow.claim_token == cp.claim_token,
+                ]
+                if not force:
+                    if stale_after_seconds <= 0:
                         raise ConflictError("Decision run resume claim is not yet stale")
-                cp.run_status = "paused"
-                cp.claim_token = None
-                cp.claimed_by = None
-                cp.claimed_at = None
-                cp.updated_at = now_ts
+                    conditions.append(~self._live_claim_condition(session, stale_after_seconds))
+                try:
+                    cp = await self._update_checkpoint(
+                        session,
+                        conditions,
+                        {
+                            "checkpoint_revision": DecisionRunCheckpointRow.checkpoint_revision + 1,
+                            "run_status": "paused",
+                            "claim_token": None,
+                            "claimed_by": None,
+                            "claimed_at": None,
+                            "updated_at": now_ts,
+                        },
+                    )
+                except ConflictError as err:
+                    raise ConflictError(
+                        "Decision run resume claim is not yet stale or was superseded"
+                    ) from err
                 recovered_audit = ProjectAuditEvent(
                     project_id=UUID(pid),
                     event_type="decision_run_paused",
@@ -857,6 +1026,8 @@ class SQLProjectRepository:
                         "current_node_key": cp.current_node_key,
                         "next_node_key": cp.next_node_key,
                         "recovered_from_resuming": True,
+                        "force_recovered": force,
+                        "checkpoint_revision": cp.checkpoint_revision,
                         "operator": operator,
                         "rationale": rationale,
                     },
@@ -873,8 +1044,14 @@ class SQLProjectRepository:
         operator: str,
         rationale: str | None = None,
         claim_token: str | None = None,
+        expected_checkpoint_revision: int | None = None,
+        stale_claim_timeout_seconds: float = 300.0,
+        record_feedback: bool = False,
+        approved_choice: str | None = None,
+        feedback_source_run: DecisionRun | None = None,
     ) -> DecisionRun:
         now_ts = run.resumed_at or datetime.now(UTC)
+        new_revision = int(run.checkpoint_revision or 1) + 1
         async with self._claim_lock:
             async with self.sessions.begin() as session:
                 cp = await session.scalar(
@@ -885,59 +1062,69 @@ class SQLProjectRepository:
                     )
                     .with_for_update()
                 )
-                if cp is not None:
-                    if cp.run_status == "cancelled":
-                        raise ConflictError("Decision run is already cancelled")
-                    if claim_token is not None:
-                        if cp.run_status != "resuming" or cp.claim_token != claim_token:
-                            raise ConflictError("Decision run resume claim is no longer valid")
-                    elif cp.resumed_at is not None and cp.run_status == "completed":
-                        raise ConflictError("Decision run has already been resumed")
-                    cp.run_status = run.run_status
-                    cp.current_node_key = run.current_node_key
-                    cp.next_node_key = run.next_node_key
-                    cp.selected_choice = run.selected_choice
-                    cp.supervision_outcome = run.supervision_outcome
-                    cp.supervision_reason = run.supervision_reason
-                    cp.completed_steps = list(run.completed_steps or run.steps)
-                    cp.state_snapshot = dict(run.state_snapshot)
-                    cp.pending_operation = run.pending_operation
-                    cp.latency_ms = float(run.latency_ms)
-                    cp.claim_token = None
-                    cp.claimed_by = None
-                    cp.claimed_at = None
-                    cp.resumed_by = operator
-                    cp.resumed_at = now_ts
-                    cp.resume_rationale = rationale
-                    cp.updated_at = now_ts
-                else:
-                    pinned_vid = run.pinned_version_id or run.decision_service_version_id
-                    session.add(
-                        DecisionRunCheckpointRow(
-                            run_id=str(run.id),
-                            project_id=str(run.project_id),
-                            decision_service_id=str(run.decision_service_id),
-                            run_status=run.run_status,
-                            current_node_key=run.current_node_key,
-                            next_node_key=run.next_node_key,
-                            selected_choice=run.selected_choice,
-                            supervision_outcome=run.supervision_outcome,
-                            supervision_reason=run.supervision_reason,
-                            completed_steps=list(run.completed_steps or run.steps),
-                            state_snapshot=dict(run.state_snapshot),
-                            pinned_version_id=str(pinned_vid) if pinned_vid is not None else None,
-                            pinned_version_number=run.pinned_version_number,
-                            pinned_service_hash=run.pinned_service_hash or run.service_hash,
-                            pending_operation=run.pending_operation,
-                            latency_ms=float(run.latency_ms),
-                            claim_token=None,
-                            claimed_by=None,
-                            claimed_at=None,
-                            resumed_by=operator,
-                            resumed_at=now_ts,
-                            resume_rationale=rationale,
-                            updated_at=now_ts,
-                        )
+                if cp is None or not claim_token:
+                    raise ConflictError("Decision run resume claim is no longer valid")
+                source_run = feedback_source_run or self._apply_checkpoint(run, cp)
+                if feedback_source_run is not None and (
+                    source_run.id != run.id
+                    or source_run.project_id != run.project_id
+                    or source_run.claim_token != claim_token
+                    or source_run.checkpoint_revision != expected_checkpoint_revision
+                ):
+                    raise ConflictError("Feedback checkpoint generation does not match claim")
+                cp = await self._update_checkpoint(
+                    session,
+                    [
+                        DecisionRunCheckpointRow.run_id == str(run.id),
+                        DecisionRunCheckpointRow.project_id == str(run.project_id),
+                        DecisionRunCheckpointRow.run_status == "resuming",
+                        DecisionRunCheckpointRow.claim_token == claim_token,
+                        DecisionRunCheckpointRow.checkpoint_revision
+                        == (
+                            expected_checkpoint_revision
+                            if expected_checkpoint_revision is not None
+                            else run.checkpoint_revision
+                        ),
+                        self._live_claim_condition(session, stale_claim_timeout_seconds),
+                    ],
+                    {
+                        "checkpoint_revision": DecisionRunCheckpointRow.checkpoint_revision + 1,
+                        "run_status": run.run_status,
+                        "current_node_key": run.current_node_key,
+                        "next_node_key": run.next_node_key,
+                        "selected_choice": run.selected_choice,
+                        "supervision_outcome": run.supervision_outcome,
+                        "supervision_reason": run.supervision_reason,
+                        "completed_steps": list(run.completed_steps or run.steps),
+                        "state_snapshot": dict(run.state_snapshot),
+                        "pending_operation": run.pending_operation,
+                        "latency_ms": float(run.latency_ms),
+                        "claim_token": None,
+                        "claimed_by": None,
+                        "claimed_at": None,
+                        "resumed_by": operator,
+                        "resumed_at": now_ts,
+                        "resume_rationale": rationale,
+                        "updated_at": now_ts,
+                    },
+                )
+                new_revision = cp.checkpoint_revision
+                if record_feedback:
+                    action = (
+                        FeedbackAction.CORRECT
+                        if approved_choice is not None
+                        and approved_choice != source_run.selected_choice
+                        else FeedbackAction.CONFIRM
+                    )
+                    await self._checkpoint_feedback(
+                        session,
+                        source_run,
+                        operator=operator,
+                        action=action,
+                        corrected_choice=approved_choice
+                        if action == FeedbackAction.CORRECT
+                        else None,
+                        note=rationale or f"Resumed by {operator}",
                     )
 
                 resumed_audit = ProjectAuditEvent(
@@ -953,6 +1140,7 @@ class SQLProjectRepository:
                         "current_node_key": run.current_node_key,
                         "next_node_key": run.next_node_key,
                         "steps_count": len(run.steps),
+                        "checkpoint_revision": new_revision,
                         "rationale": rationale,
                     },
                     created_at=now_ts,
@@ -971,6 +1159,7 @@ class SQLProjectRepository:
                             "next_node_key": run.next_node_key,
                             "selected_choice": run.selected_choice,
                             "supervision_outcome": run.supervision_outcome,
+                            "checkpoint_revision": new_revision,
                         },
                         created_at=now_ts,
                     )
@@ -981,6 +1170,7 @@ class SQLProjectRepository:
                 "claim_token": None,
                 "claimed_by": None,
                 "claimed_at": None,
+                "checkpoint_revision": new_revision,
             }
         )
 
@@ -991,25 +1181,38 @@ class SQLProjectRepository:
         *,
         operator: str,
         failure_reason: str,
+        claim_token: str | None = None,
+        expected_checkpoint_revision: int | None = None,
+        stale_claim_timeout_seconds: float = 300.0,
     ) -> None:
         now_ts = datetime.now(UTC)
         async with self._claim_lock:
             async with self.sessions.begin() as session:
-                cp = await session.scalar(
-                    select(DecisionRunCheckpointRow)
-                    .where(
-                        DecisionRunCheckpointRow.run_id == str(run_id),
-                        DecisionRunCheckpointRow.project_id == str(project_id),
+                if not claim_token or expected_checkpoint_revision is None:
+                    raise ConflictError(
+                        "Checkpoint claim token and revision are required for failure"
                     )
-                    .with_for_update()
+                conditions: list[Any] = [
+                    DecisionRunCheckpointRow.run_id == str(run_id),
+                    DecisionRunCheckpointRow.project_id == str(project_id),
+                    DecisionRunCheckpointRow.run_status == "resuming",
+                    DecisionRunCheckpointRow.claim_token == claim_token,
+                    DecisionRunCheckpointRow.checkpoint_revision == expected_checkpoint_revision,
+                    self._live_claim_condition(session, stale_claim_timeout_seconds),
+                ]
+                cp = await self._update_checkpoint(
+                    session,
+                    conditions,
+                    {
+                        "checkpoint_revision": DecisionRunCheckpointRow.checkpoint_revision + 1,
+                        "run_status": "failed",
+                        "claim_token": None,
+                        "claimed_by": None,
+                        "claimed_at": None,
+                        "failure_reason": failure_reason,
+                        "updated_at": now_ts,
+                    },
                 )
-                if cp is not None:
-                    cp.run_status = "failed"
-                    cp.claim_token = None
-                    cp.claimed_by = None
-                    cp.claimed_at = None
-                    cp.failure_reason = failure_reason
-                    cp.updated_at = now_ts
                 failed_audit = ProjectAuditEvent(
                     project_id=project_id,
                     event_type="decision_run_failed",
@@ -1017,6 +1220,7 @@ class SQLProjectRepository:
                     payload={
                         "run_id": str(run_id),
                         "failure_reason": failure_reason,
+                        "checkpoint_revision": cp.checkpoint_revision,
                     },
                     created_at=now_ts,
                 )
@@ -1029,6 +1233,8 @@ class SQLProjectRepository:
         *,
         operator: str,
         reason: str,
+        expected_checkpoint_revision: int | None = None,
+        record_feedback: bool = False,
     ) -> DecisionRun:
         now_ts = datetime.now(UTC)
         async with self._claim_lock:
@@ -1060,17 +1266,39 @@ class SQLProjectRepository:
                         raise ConflictError(
                             f"Cannot cancel a decision run with status '{cp.run_status}'"
                         )
-                    cp.run_status = "cancelled"
-                    cp.claim_token = None
-                    cp.claimed_by = None
-                    cp.claimed_at = None
-                    cp.cancelled_by = operator
-                    cp.cancelled_at = now_ts
-                    cp.cancel_reason = reason
-                    cp.pending_operation = None
-                    cp.next_node_key = None
-                    cp.state_snapshot = {**dict(cp.state_snapshot or {}), "status": "cancelled"}
-                    cp.updated_at = now_ts
+                    cp = await self._update_checkpoint(
+                        session,
+                        [
+                            DecisionRunCheckpointRow.run_id == str(run_id),
+                            DecisionRunCheckpointRow.project_id == str(project_id),
+                            DecisionRunCheckpointRow.run_status == "paused",
+                            DecisionRunCheckpointRow.checkpoint_revision
+                            == (
+                                expected_checkpoint_revision
+                                if expected_checkpoint_revision is not None
+                                else cp.checkpoint_revision
+                            ),
+                        ],
+                        {
+                            "checkpoint_revision": DecisionRunCheckpointRow.checkpoint_revision + 1,
+                            "run_status": "cancelled",
+                            "claim_token": None,
+                            "claimed_by": None,
+                            "claimed_at": None,
+                            "cancelled_by": operator,
+                            "cancelled_at": now_ts,
+                            "cancel_reason": reason,
+                            "pending_operation": None,
+                            "next_node_key": None,
+                            "state_snapshot": {
+                                **dict(cp.state_snapshot or {}),
+                                "status": "cancelled",
+                            },
+                            "updated_at": now_ts,
+                        },
+                    )
+                else:
+                    raise NotFoundError("Decision run checkpoint not found")
 
                 cancelled_audit = ProjectAuditEvent(
                     project_id=project_id,
@@ -1080,12 +1308,128 @@ class SQLProjectRepository:
                         "run_id": str(run_id),
                         "cancelled_by": operator,
                         "reason": reason,
+                        "checkpoint_revision": cp.checkpoint_revision,
                     },
                     created_at=now_ts,
                 )
                 session.add(self._event(cancelled_audit))
                 base_run = DecisionRun.model_validate(run_row.payload)
+                if record_feedback:
+                    await self._checkpoint_feedback(
+                        session,
+                        base_run,
+                        operator=operator,
+                        action=FeedbackAction.NOTE,
+                        note=f"CANCELLED:{operator}:{reason}",
+                    )
                 return self._apply_checkpoint(base_run, cp)
+
+    async def _checkpoint_feedback(
+        self,
+        session: AsyncSession,
+        run: DecisionRun,
+        *,
+        operator: str,
+        action: FeedbackAction,
+        note: str,
+        corrected_choice: str | None = None,
+    ) -> None:
+        """Lifecycle feedback and correction evidence commit with their winning CAS."""
+        feedback = RunFeedback(
+            project_id=run.project_id,
+            decision_run_id=run.id,
+            action=action,
+            corrected_choice=corrected_choice,
+            note=note,
+            actor=operator,
+        )
+        session.add(
+            RunFeedbackRow(
+                id=str(feedback.id),
+                project_id=str(feedback.project_id),
+                decision_run_id=str(feedback.decision_run_id),
+                action=feedback.action.value,
+                corrected_choice=feedback.corrected_choice,
+                note=feedback.note,
+                actor=feedback.actor,
+                created_at=feedback.created_at,
+                payload=feedback.model_dump(mode="json"),
+            )
+        )
+        session.add(
+            self._event(
+                ProjectAuditEvent(
+                    project_id=run.project_id,
+                    event_type="feedback.submitted",
+                    actor=operator,
+                    payload={
+                        "feedback_id": str(feedback.id),
+                        "decision_run_id": str(run.id),
+                        "action": action.value,
+                    },
+                )
+            )
+        )
+        if action != FeedbackAction.CORRECT:
+            return
+        existing = await session.scalar(
+            select(EvidenceItemRow.id).where(
+                EvidenceItemRow.project_id == str(run.project_id),
+                EvidenceItemRow.decision_run_id == str(run.id),
+            )
+        )
+        if existing is not None:
+            return
+        item = EvidenceItem(
+            project_id=run.project_id,
+            raw_event_id=run.raw_event_id,
+            decision_run_id=run.id,
+            decision_service_id=run.decision_service_id,
+            decision_node_id=run.decision_node_id,
+            trigger_type=EvidenceTriggerType.HUMAN_CORRECTION,
+            selected_choice=run.selected_choice,
+            probabilities_snapshot=dict(run.probabilities),
+            unknown_probability=run.unknown_probability,
+            margin=run.margin,
+            supervision_outcome=run.supervision_outcome,
+            supervision_reason=run.supervision_reason,
+            provider=run.provider,
+            model=run.model,
+            execution_mode=run.execution_mode,
+            source="human",
+            human_note=note,
+            corrected_choice=corrected_choice,
+        )
+        session.add(
+            EvidenceItemRow(
+                id=str(item.id),
+                project_id=str(item.project_id),
+                raw_event_id=str(item.raw_event_id),
+                decision_run_id=str(item.decision_run_id),
+                decision_service_id=str(item.decision_service_id),
+                trigger_type=item.trigger_type.value,
+                status=item.status.value,
+                selected_choice=item.selected_choice,
+                supervision_outcome=item.supervision_outcome,
+                source=item.source,
+                created_at=item.created_at,
+                payload=item.model_dump(mode="json"),
+            )
+        )
+        session.add(
+            self._event(
+                ProjectAuditEvent(
+                    project_id=run.project_id,
+                    event_type="evidence.created",
+                    actor=operator,
+                    payload={
+                        "evidence_id": str(item.id),
+                        "decision_run_id": str(run.id),
+                        "trigger_type": item.trigger_type.value,
+                    },
+                )
+            )
+        )
 
     async def _roll_up_usage(self, session: AsyncSession, run: DecisionRun, *, error: bool) -> None:
         usage_date = (

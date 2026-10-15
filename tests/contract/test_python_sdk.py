@@ -19,6 +19,50 @@ def test_sdk_uses_public_protocol() -> None:
         )
 
 
+def test_sdk_checkpoint_generation_recovery_and_cancellation_use_http() -> None:
+    seen: list[tuple[str, dict]] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        assert request.method == "POST"
+        assert request.headers["X-OpenClass-Actor"] == "reviewer"
+        path = request.url.raw_path.decode()
+        assert path.startswith("/api/v1/projects/team%2Fsupport/runs/run%2F1/")
+        seen.append((path.rsplit("/", 1)[-1], json.loads(request.content)))
+        return httpx.Response(200, json={"status": "ok"})
+
+    with OpenClass(
+        transport=httpx.MockTransport(handle), headers={"X-OpenClass-Actor": "reviewer"}
+    ) as client:
+        client.resume_decision_run(
+            "team/support",
+            "run/1",
+            approved_choice="BILLING",
+            expected_checkpoint_revision=3,
+            expected_node_key="billing-review",
+        )
+        client.recover_decision_run_checkpoint("team/support", "run/1")
+        client.cancel_decision_run("team/support", "run/1", reason="Duplicate request")
+
+    assert seen[0] == (
+        "resume",
+        {
+            "approved_choice": "BILLING",
+            "operator": "operator",
+            "rationale": "",
+            "strict_version_check": False,
+            "use_pinned_version": True,
+            "force_recover_stale_claim": False,
+            "expected_checkpoint_revision": 3,
+            "expected_node_key": "billing-review",
+        },
+    )
+    assert seen[1] == (
+        "recover-checkpoint",
+        {"operator": "operator", "rationale": "", "force": False},
+    )
+    assert seen[2] == ("cancel", {"operator": "operator", "reason": "Duplicate request"})
+
+
 def test_sdk_does_not_hide_http_errors() -> None:
     with OpenClass(transport=httpx.MockTransport(lambda _: httpx.Response(503))) as client:
         with pytest.raises(httpx.HTTPStatusError):

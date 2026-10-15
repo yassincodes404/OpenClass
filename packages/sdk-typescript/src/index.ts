@@ -1427,6 +1427,12 @@ export interface ResumeDecisionRunInput {
   strictVersionCheck?: boolean;
   use_pinned_version?: boolean;
   usePinnedVersion?: boolean;
+  expected_checkpoint_revision?: number;
+  expectedCheckpointRevision?: number;
+  expected_node_key?: string;
+  expectedNodeKey?: string;
+  force_recover_stale_claim?: boolean;
+  forceRecoverStaleClaim?: boolean;
 }
 
 export interface CancelDecisionRunInput {
@@ -1444,6 +1450,12 @@ function serializeResumeBody(body?: ResumeDecisionRunInput): Record<string, unkn
   if (strictVersionCheck !== undefined) payload.strict_version_check = strictVersionCheck;
   const usePinnedVersion = body?.use_pinned_version ?? body?.usePinnedVersion;
   if (usePinnedVersion !== undefined) payload.use_pinned_version = usePinnedVersion;
+  const expectedRevision = body?.expected_checkpoint_revision ?? body?.expectedCheckpointRevision;
+  if (expectedRevision !== undefined) payload.expected_checkpoint_revision = expectedRevision;
+  const expectedNode = body?.expected_node_key ?? body?.expectedNodeKey;
+  if (expectedNode !== undefined) payload.expected_node_key = expectedNode;
+  const forceRecover = body?.force_recover_stale_claim ?? body?.forceRecoverStaleClaim;
+  if (forceRecover !== undefined) payload.force_recover_stale_claim = forceRecover;
   return payload;
 }
 

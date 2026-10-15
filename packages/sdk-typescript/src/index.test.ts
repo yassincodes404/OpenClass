@@ -737,6 +737,9 @@ test("OpenClassClient resumeDecisionRun and cancelDecisionRun post checkpoint go
     rationale: "Confirmed billing escalation",
     strictVersionCheck: true,
     usePinnedVersion: true,
+    expectedCheckpointRevision: 3,
+    expectedNodeKey: "billing-review",
+    forceRecoverStaleClaim: false,
   });
   assert.equal(resumed.status, "completed");
   assert.equal(resumed.selected_choice, "BILLING");
@@ -758,6 +761,9 @@ test("OpenClassClient resumeDecisionRun and cancelDecisionRun post checkpoint go
         rationale: "Confirmed billing escalation",
         strict_version_check: true,
         use_pinned_version: true,
+        expected_checkpoint_revision: 3,
+        expected_node_key: "billing-review",
+        force_recover_stale_claim: false,
       },
     },
     {

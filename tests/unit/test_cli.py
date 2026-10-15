@@ -47,6 +47,50 @@ def test_cli_connection_failure_is_actionable(monkeypatch: pytest.MonkeyPatch, c
     assert "openclass serve" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize(
+    ("command", "options", "method", "expected"),
+    [
+        (
+            "run-resume",
+            ["--expected-checkpoint-revision", "3", "--expected-node-key", "billing"],
+            "resume_decision_run",
+            {
+                "approved_choice": None,
+                "expected_checkpoint_revision": 3,
+                "expected_node_key": "billing",
+                "operator": "operator",
+                "rationale": "",
+            },
+        ),
+        (
+            "run-recover",
+            [],
+            "recover_decision_run_checkpoint",
+            {"operator": "operator", "rationale": ""},
+        ),
+        (
+            "run-cancel",
+            ["--reason", "Duplicate request"],
+            "cancel_decision_run",
+            {"operator": "operator", "reason": "Duplicate request"},
+        ),
+    ],
+)
+def test_cli_checkpoint_actions_use_sdk(
+    monkeypatch: pytest.MonkeyPatch, capsys, command, options, method, expected
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["openclass", command, "support", "run-1", *options])
+
+    def action(self, project, run_id, **kwargs):
+        assert (project, run_id) == ("support", "run-1")
+        assert kwargs == expected
+        return {"status": "ok"}
+
+    monkeypatch.setattr(OpenClass, method, action)
+    main()
+    assert json.loads(capsys.readouterr().out) == {"status": "ok"}
+
+
 def test_cli_project_cluster_discover_and_promote_commands(
     monkeypatch: pytest.MonkeyPatch, capsys
 ) -> None:

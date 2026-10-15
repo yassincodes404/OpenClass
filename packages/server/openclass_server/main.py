@@ -166,20 +166,34 @@ def create_app(
     ) -> Response:
         correlation_id = request.headers.get("X-Correlation-ID") or str(uuid4())
         workspace_id = (request.headers.get("X-OpenClass-Workspace-Id") or "").strip() or None
-        actor = (request.headers.get("X-OpenClass-Actor") or "").strip() or None
         request.state.workspace_id = workspace_id
-        request.state.actor = actor
-
-        if config.auth_required and not is_public_engine_path(request.url.path, request.method):
-            provided_token = request.headers.get(
-                "X-OpenClass-Internal-Token"
-            ) or request.headers.get("Authorization")
-            if not verify_internal_token(provided_token, config.internal_token.get_secret_value()):
-                return JSONResponse(
-                    status_code=401,
-                    content={"detail": "Valid internal authentication token is required"},
-                    headers={"X-Correlation-ID": correlation_id},
-                )
+        provided_token = request.headers.get("X-OpenClass-Internal-Token") or request.headers.get(
+            "Authorization"
+        )
+        authenticated = verify_internal_token(
+            provided_token, config.internal_token.get_secret_value()
+        )
+        request.state.internal_authenticated = authenticated
+        # Forwarded identity is authoritative only across the authenticated
+        # control-plane boundary, including when local anonymous access is enabled.
+        if authenticated:
+            request.state.actor = (request.headers.get("X-OpenClass-Actor") or "").strip() or None
+            request.state.trusted_actor = request.state.actor
+            request.state.trusted_role = (
+                (request.headers.get("X-OpenClass-Role") or "").strip().lower()
+            )
+            scopes = request.headers.get("X-OpenClass-Scopes") or ""
+            request.state.trusted_scopes = frozenset(scopes.lower().replace(",", " ").split())
+        if (
+            config.auth_required
+            and not is_public_engine_path(request.url.path, request.method)
+            and not authenticated
+        ):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Valid internal authentication token is required"},
+                headers={"X-Correlation-ID": correlation_id},
+            )
 
         client = request.client.host if request.client else "unknown"
         allowed, retry_after, limit, remaining = limiter.check(

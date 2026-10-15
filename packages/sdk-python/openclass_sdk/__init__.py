@@ -1,5 +1,6 @@
 """Public HTTP client. This package has no core or server dependency."""
 
+from collections.abc import Mapping
 from typing import Any
 from urllib.parse import quote
 
@@ -13,9 +14,10 @@ class OpenClass:
         *,
         timeout: float = 30,
         transport: httpx.BaseTransport | None = None,
+        headers: Mapping[str, str] | None = None,
     ) -> None:
         self._client = httpx.Client(
-            base_url=base_url.rstrip("/"), timeout=timeout, transport=transport
+            base_url=base_url.rstrip("/"), timeout=timeout, transport=transport, headers=headers
         )
 
     def __enter__(self) -> "OpenClass":
@@ -93,6 +95,62 @@ class OpenClass:
 
     def projects(self) -> list[dict[str, Any]]:
         return list(self._request("GET", "/api/v1/projects"))
+
+    def resume_decision_run(
+        self,
+        project: str,
+        run_id: str,
+        *,
+        approved_choice: str | None = None,
+        expected_checkpoint_revision: int | None = None,
+        expected_node_key: str | None = None,
+        operator: str = "operator",
+        rationale: str = "",
+        strict_version_check: bool = False,
+        use_pinned_version: bool = True,
+        force_recover_stale_claim: bool = False,
+    ) -> dict[str, Any]:
+        """Resume only the inspected generation when an expected revision is supplied."""
+        body: dict[str, Any] = {
+            "approved_choice": approved_choice,
+            "operator": operator,
+            "rationale": rationale,
+            "strict_version_check": strict_version_check,
+            "use_pinned_version": use_pinned_version,
+            "force_recover_stale_claim": force_recover_stale_claim,
+        }
+        if expected_checkpoint_revision is not None:
+            body["expected_checkpoint_revision"] = expected_checkpoint_revision
+        if expected_node_key is not None:
+            body["expected_node_key"] = expected_node_key
+        path = f"/api/v1/projects/{quote(project, safe='')}/runs/{quote(run_id, safe='')}/resume"
+        return dict(self._request("POST", path, body))
+
+    def recover_decision_run_checkpoint(
+        self,
+        project: str,
+        run_id: str,
+        *,
+        operator: str = "operator",
+        rationale: str = "",
+        stale_after_seconds: float | None = None,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        """Recover an expired lease; force additionally requires authenticated privilege."""
+        body: dict[str, Any] = {"operator": operator, "rationale": rationale, "force": force}
+        if stale_after_seconds is not None:
+            body["stale_after_seconds"] = stale_after_seconds
+        path = (
+            f"/api/v1/projects/{quote(project, safe='')}/runs/"
+            f"{quote(run_id, safe='')}/recover-checkpoint"
+        )
+        return dict(self._request("POST", path, body))
+
+    def cancel_decision_run(
+        self, project: str, run_id: str, *, reason: str, operator: str = "operator"
+    ) -> dict[str, Any]:
+        path = f"/api/v1/projects/{quote(project, safe='')}/runs/{quote(run_id, safe='')}/cancel"
+        return dict(self._request("POST", path, {"operator": operator, "reason": reason}))
 
     def create_project(self, *, name: str, description: str = "") -> dict[str, Any]:
         return dict(
