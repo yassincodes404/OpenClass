@@ -29,6 +29,8 @@ COPY tests tests
 # tests/unit/test_boundaries.py reads the portal source to enforce the SDK
 # boundary; the suite runs from /app, so the same relative layout is required.
 COPY apps/portal/src apps/portal/src
+# The offline characterization tests snapshot this public protocol document.
+COPY docs/research/jev-characterization.md docs/research/jev-characterization.md
 USER openclass
 CMD ["pytest", "-q", "-p", "no:cacheprovider", "--tb=short"]
 

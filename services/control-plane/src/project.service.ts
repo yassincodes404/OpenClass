@@ -208,7 +208,7 @@ export class ProjectService {
     const result = await this.db.query(
       "SELECT p.id, p.workspace_id, p.engine_project_id, p.slug, p.name, p.created_at, p.redaction_enabled, p.retention_days" +
         " FROM control_projects p JOIN control_workspace_memberships m ON m.workspace_id = p.workspace_id AND m.subject = $2" +
-        " WHERE (p.id::text = $1 OR p.engine_project_id = $1 OR p.slug = $1)",
+        " WHERE (p.id::text = $1 OR p.engine_project_id::text = $1 OR p.slug = $1)",
       [projectId, normalized.subject],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");
@@ -427,7 +427,7 @@ export class ProjectService {
     principal?: Principal,
   ): Promise<ControlProject> {
     const result = await this.db.query(
-      "SELECT id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days FROM control_projects WHERE (id::text = $1 OR engine_project_id = $1 OR slug = $1) AND workspace_id = $2",
+      "SELECT id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days FROM control_projects WHERE (id::text = $1 OR engine_project_id::text = $1 OR slug = $1) AND workspace_id = $2",
       [projectId, workspaceId],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");

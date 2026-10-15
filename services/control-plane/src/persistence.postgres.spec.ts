@@ -18,7 +18,7 @@ import { canonicalJson, IdempotencyService } from "./idempotency.service.js";
 import { IngestionController } from "./ingestion.controller.js";
 import { IngestionGuard, IngestionService } from "./ingestion.service.js";
 import { MutationInterceptor } from "./mutation.interceptor.js";
-import { ProjectController } from "./project.controller.js";
+import { ProjectController, ProjectResolveController } from "./project.controller.js";
 import { ProjectService } from "./project.service.js";
 import { RateLimitService } from "./rate-limit.service.js";
 import { correlationMiddleware, requestContext } from "./request-context.js";
@@ -135,6 +135,7 @@ beforeAll(async () => {
   const ingestion = new IngestionService(pool, engine, new RateLimitService(), audit);
   // Vitest/esbuild does not emit TS design:paramtypes; production tsc does.
   Reflect.defineMetadata("design:paramtypes", [ProjectService], ProjectController);
+  Reflect.defineMetadata("design:paramtypes", [ProjectService], ProjectResolveController);
   Reflect.defineMetadata("design:paramtypes", [WorkspaceService], WorkspaceController);
   Reflect.defineMetadata("design:paramtypes", [IngestionService], IngestionController);
   const guard = {
@@ -145,7 +146,12 @@ beforeAll(async () => {
     },
   };
   const module = await Test.createTestingModule({
-    controllers: [ProjectController, WorkspaceController, IngestionController],
+    controllers: [
+      ProjectController,
+      ProjectResolveController,
+      WorkspaceController,
+      IngestionController,
+    ],
     providers: [
       { provide: ProjectService, useValue: projects },
       { provide: WorkspaceService, useValue: workspaces },
@@ -716,6 +722,65 @@ describe("independent-review regressions on PostgreSQL", () => {
 });
 
 describe("actual controllers with PostgreSQL (engine explicitly simulated)", () => {
+  it.each(["id", "engine_project_id", "slug"] as const)(
+    "resolves projects by %s through both lookup routes without UUID/text errors",
+    async (identifier) => {
+      const created = await post(`/control/workspaces/${workspace}/projects`, randomUUID(), {
+        name: `Lookup ${identifier}`,
+      });
+      expect(created.status).toBe(201);
+      const project = await created.json();
+      for (const route of [
+        `/control/projects/${project[identifier]}`,
+        `/control/workspaces/${workspace}/projects/${project[identifier]}`,
+      ]) {
+        const response = await fetch(`${base}${route}`, {
+          headers: { "x-test-subject": subject },
+        });
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+          id: project.id,
+          workspace_id: workspace,
+          engine_project_id: project.engine_project_id,
+          slug: project.slug,
+        });
+      }
+    },
+  );
+
+  it("returns 404 for missing UUID and non-UUID project identifiers through both lookup routes", async () => {
+    for (const identifier of [randomUUID(), "missing-project-slug"]) {
+      for (const route of [
+        `/control/projects/${identifier}`,
+        `/control/workspaces/${workspace}/projects/${identifier}`,
+      ]) {
+        const response = await fetch(`${base}${route}`, {
+          headers: { "x-test-subject": subject },
+        });
+        expect(response.status).toBe(404);
+      }
+    }
+  });
+
+  it("does not resolve another workspace's project by control id, engine id, or slug", async () => {
+    const created = await post(`/control/workspaces/${workspace}/projects`, randomUUID(), {
+      name: "Private Lookup Project",
+    });
+    expect(created.status).toBe(201);
+    const project = await created.json();
+    for (const identifier of [project.id, project.engine_project_id, project.slug]) {
+      for (const route of [
+        `/control/projects/${identifier}`,
+        `/control/workspaces/${workspace}/projects/${identifier}`,
+      ]) {
+        const response = await fetch(`${base}${route}`, {
+          headers: { "x-test-subject": "non-member-lookup-user" },
+        });
+        expect(response.status).toBe(404);
+      }
+    }
+  });
+
   it("rolls back mapping, audit and receipt after audit failure; retries reconcile the same remote receipt", async () => {
     const key = randomUUID();
     const route = `/control/workspaces/${workspace}/projects`;
