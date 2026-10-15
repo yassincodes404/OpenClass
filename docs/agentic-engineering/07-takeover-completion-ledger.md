@@ -179,6 +179,17 @@ identity, authorization revalidation after reservation waits, and tied audit
 cursors. This delivery closes control-plane slices, not all of the original
 OC-BG-024/026/029/033 criteria.
 
+Landing [PR #61](https://github.com/yassincodes404/OpenClass/pull/61)
+merged as `227169358fe321dfed59be89dd47829be6da8781`.
+All five PR checks passed, including
+[CI](https://github.com/yassincodes404/OpenClass/actions/runs/38796358901)
+and [control-plane PostgreSQL](https://github.com/yassincodes404/OpenClass/actions/runs/38796358843).
+[Main CI](https://github.com/yassincodes404/OpenClass/actions/runs/38797682622)
+also passed. The parent verified that the merged tree exactly matched reviewed
+head `cb9e377`, reran the 22 component tests, and verified all four landing gates.
+The seven screenshots, genuine recording, source hashes, viewport measurements
+and independent review are retained in `artifacts/landing-redesign/`.
+
 ## Continuing work
 
 - Original `OC-BG-018` is verified through PR #59. The first full local run
@@ -187,12 +198,21 @@ OC-BG-024/026/029/033 criteria.
   database skips.
 - Engine persistence and full-stack delivery edits remain preserved in separate
   `D:\Projects 2\OpenClass-workstreams\` worktrees. Engine review accepted four
-  migration/recurrence/latency/cost corrections but reproduced an attachment
-  regression that incorrectly resynchronizes terminal UNKNOWN state. Caller
-  adoption and genuine PostgreSQL execution remain open.
+  migration/recurrence/latency/cost corrections. A subsequently reproduced
+  attachment regression is fixed: all four resolved/dismissed × existing/new-case
+  HTTP combinations preserve ready evidence and terminal UNKNOWN state.
+  Independent probes verified immutable run bytes and persistence after restart.
+  Integrated parent checks pass, including **758 offline Python tests,
+  7 optional skips, 87 PostgreSQL/live cases deselected**, 2743 warnings,
+  238.97 seconds. Package builds pass. Caller adoption, broader original
+  acceptance and genuine PostgreSQL execution remain open.
 - Full-stack review reproduced a broken no-key base quickstart, unreadable
   Keycloak realm permissions on Linux, and missing interruption cleanup.
-  Corrections and hosted authenticated live-browser acceptance remain required.
+  These are corrected and independently re-probed. A later manual-project
+  isolation finding has a red/green Compose-render regression and distinct
+  workspace project/volume defaults. Parent delivery checks pass **29 tests
+  with one Windows-only POSIX assertion skipped**. Linux permissions and hosted
+  authenticated live-browser acceptance remain required.
   Static/unit checks do not prove successful stack startup. The benchmark audit
   reported `historical_files_preserved: 0`; it does not close the original
   frozen-evidence requirement.
@@ -202,7 +222,11 @@ OC-BG-024/026/029/033 criteria.
   viewport captures, readable mobile/tablet cards, exact zero-duration reduced
   motion, and a decodable desktop interaction recording. The
   [artifact manifest](../../artifacts/landing-redesign/README.md) records its
-  scope and limits. Focused PR CI and merge remain required.
+  scope and limits. Focused delivery and main verification are recorded above.
+- Original `OC-BG-027` implementation is now isolated in the frontend workflow
+  worktree. Both frontends remain; supported evidence/graph/evaluation workflows
+  must use SDKs and preserve workspace authorization. Mocked UI checks do not
+  close the separate authenticated cross-child integration requirement.
 - After safely integrating merged main without overlapping saved landing
   edits, `make check` passed (109 control-plane, 22 portal, 18 SDK tests).
   Explicit offline `make test` passed **725 tests, 7 skipped, 58 deselected**,

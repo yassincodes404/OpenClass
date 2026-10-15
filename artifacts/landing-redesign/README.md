@@ -1,6 +1,6 @@
 # Implemented landing redesign verification
 
-Status: local verification and independent code/visual review passed; PR delivery pending.
+Status: delivered in PR #61; independent review, all five PR checks and main CI passed.
 This directory is separate from
 `artifacts/landing-visual-review`, which remains historical baseline evidence.
 
@@ -90,8 +90,9 @@ all 11 Python workspace packages build; Next uses two bounded workers.
 These checks verify landing behavior and layout, not genuine authenticated
 backend workflows, model accuracy, automatic class discovery or release
 readiness. Hosted PostgreSQL/live-stack delivery has separate gates. No physical
-phone or cross-browser matrix is claimed. Required PR checks and merge remain
-open until recorded in the takeover ledger.
+phone or cross-browser matrix is claimed. PR #61 merged as
+`227169358fe321dfed59be89dd47829be6da8781`; main CI `38797682622` passed.
+The takeover ledger records delivery links and post-merge verification.
 
 During the video sampling probe, the local browser logged a media range-cache
 error despite the successful sampled decodes. No independent full sequential

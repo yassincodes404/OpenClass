@@ -20,12 +20,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .mappers import audit_event_row, raw_event_row
-from .tables import ProjectIntegrationRow, RawEventRow, WebhookReceiptRow
+from .tables import ProjectIntegrationRow, ProjectRow, RawEventRow, WebhookReceiptRow
+from .unit_of_work import TransactionSessions
 
 
 class SQLIntegrationRepository:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
-        self.sessions = sessions
+        self.sessions = TransactionSessions(sessions)
 
     async def ingest_webhook(
         self,
@@ -51,6 +52,9 @@ class SQLIntegrationRepository:
 
         try:
             async with self.sessions.begin() as session:
+                await session.scalar(
+                    select(ProjectRow).where(ProjectRow.id == key[0]).with_for_update()
+                )
                 current = await session.scalar(
                     select(ProjectIntegrationRow)
                     .where(
@@ -75,18 +79,23 @@ class SQLIntegrationRepository:
                         RawEventRow.content_hash == event.content_hash,
                     )
                 )
-                row = raw_event_row(event)
-                if existing_raw_event is not None:
-                    row.content_hash = fingerprint
-                session.add(row)
-                session.add(audit_event_row(audit))
+                event_id = (
+                    existing_raw_event.id if existing_raw_event is not None else str(event.id)
+                )
+                if existing_raw_event is None:
+                    session.add(raw_event_row(event))
+                # Keep delivery identity and provenance in its own append-only
+                # receipt/audit, never rewrite the original observation.
+                payload = dict(audit.payload)
+                payload["event_id"] = event_id
+                session.add(audit_event_row(audit.model_copy(update={"payload": payload})))
                 await session.flush()
                 receipt = WebhookReceiptRow(
                     project_id=key[0],
                     integration_id=key[1],
                     event_key=key[2],
                     fingerprint=fingerprint,
-                    event_id=str(event.id),
+                    event_id=event_id,
                     source=delivery.source,
                     created_at=event.created_at,
                 )

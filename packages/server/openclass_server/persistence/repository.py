@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from uuid import UUID
 
 from openclass_core.models import (
@@ -26,11 +28,17 @@ from openclass_server.persistence.tables import (
     RunRow,
     UnknownRow,
 )
+from openclass_server.persistence.unit_of_work import TransactionSessions
 
 
 class SQLRepository:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
-        self.sessions = sessions
+        self.sessions = TransactionSessions(sessions)
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[None]:
+        async with self.sessions.begin():
+            yield
 
     async def create_classifier(
         self, classifier: Classifier, ontology: OntologyVersion, event: DomainEvent
@@ -141,6 +149,20 @@ class SQLRepository:
                 .order_by(UnknownRow.id)
                 .offset(offset)
                 .limit(limit)
+            )
+            return [UnknownEvent.model_validate(row.payload) for row in rows]
+
+    async def unknowns_by_ids(
+        self, classifier_id: UUID, ids: tuple[UUID, ...]
+    ) -> list[UnknownEvent]:
+        async with self.sessions() as session:
+            rows = await session.scalars(
+                select(UnknownRow)
+                .where(
+                    UnknownRow.classifier_id == str(classifier_id),
+                    UnknownRow.id.in_([str(value) for value in ids]),
+                )
+                .order_by(UnknownRow.id)
             )
             return [UnknownEvent.model_validate(row.payload) for row in rows]
 
@@ -285,7 +307,9 @@ class SQLRepository:
 
     async def mark_candidate_evaluated(self, candidate: Candidate, event: DomainEvent) -> Candidate:
         async with self.sessions.begin() as session:
-            row = await session.get(CandidateRow, str(candidate.id))
+            row = await session.scalar(
+                select(CandidateRow).where(CandidateRow.id == str(candidate.id)).with_for_update()
+            )
             if row is None:
                 raise NotFoundError("Candidate not found")
             updated = candidate.model_copy(update={"evaluation_passed": True})
@@ -301,12 +325,20 @@ class SQLRepository:
         events: tuple[DomainEvent, ...],
     ) -> None:
         async with self.sessions.begin() as session:
-            current = await session.get(ClassifierRow, str(classifier.id))
-            stored = await session.get(CandidateRow, str(candidate.id))
+            current = await session.scalar(
+                select(ClassifierRow)
+                .where(ClassifierRow.id == str(classifier.id))
+                .with_for_update()
+            )
+            stored = await session.scalar(
+                select(CandidateRow).where(CandidateRow.id == str(candidate.id)).with_for_update()
+            )
             if current is None or stored is None:
                 raise NotFoundError("Candidate not found")
             current_classifier = Classifier.model_validate(current.payload)
             stored_candidate = Candidate.model_validate(stored.payload)
+            if stored_candidate != candidate:
+                raise ConflictError("Candidate changed before approval")
             if (
                 current_classifier.active_ontology_version_id
                 != stored_candidate.base_ontology_version_id

@@ -395,7 +395,8 @@ while cancelling a completed run returns `409 Conflict`.
 ## OC-046 — Readable mobile landing diagram, simpler copy and purposeful motion (`OC-BG-045`)
 
 **Depends on:** OC-012, OC-043. **Priority:** P1.
-**Status:** Implemented and independently reviewed locally; focused PR CI/merge pending.
+**Status:** Delivered in PR #61 with independent code/visual review, all five
+PR checks and green post-merge main CI.
 
 Preserve the horizontal desktop diagram and provide five connected, tappable
 cards at narrow widths. Extract architecture/evidence/quickstart sections.

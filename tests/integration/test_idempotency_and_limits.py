@@ -153,7 +153,23 @@ async def test_expired_idempotency_key_can_be_refreshed(
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
     store = IdempotencyStore(session_factory)
     try:
-        await store.store(project_id, "expiring-key", {"id": "old-id"}, ttl_hours=1)
+
+        async def execute(identity, value):
+            async def operation():
+                return {"id": value}
+
+            return await store.execute(
+                project_id,
+                "expiring-key",
+                method="POST",
+                path="/events",
+                body=identity,
+                ttl_hours=24,
+                operation=operation,
+            )
+
+        original, replayed = await execute({"content": "old"}, "old-id")
+        assert original == {"id": "old-id"} and replayed is False
         past = datetime.now(UTC) - timedelta(hours=2)
         async with session_factory.begin() as session:
             await session.execute(
@@ -165,11 +181,9 @@ async def test_expired_idempotency_key_can_be_refreshed(
                 .values(created_at=past - timedelta(hours=1), expires_at=past)
             )
 
-        assert await store.get(project_id, "expiring-key") is None
-
-        await store.store(project_id, "expiring-key", {"id": "refreshed-id"}, ttl_hours=24)
-
-        record = await store.get(project_id, "expiring-key")
-        assert record == {"id": "refreshed-id"}
+        record, replayed = await execute({"content": "replacement"}, "refreshed-id")
+        assert record == {"id": "refreshed-id"} and replayed is False
+        record, replayed = await execute({"content": "replacement"}, "must-not-replace")
+        assert record == {"id": "refreshed-id"} and replayed is True
     finally:
         await engine.dispose()

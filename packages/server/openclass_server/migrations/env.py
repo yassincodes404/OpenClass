@@ -24,24 +24,54 @@ def include_name(
 
 
 def run(connection: Connection) -> None:
-    context.configure(
-        connection=connection,
-        target_metadata=Base.metadata,
-        compare_type=True,
-        include_name=include_name,
-    )
-    with context.begin_transaction():
-        context.run_migrations()
+    sqlite = connection.dialect.name == "sqlite"
+    try:
+        if sqlite:
+            # SQLite batch recreation drops parent tables. Disable FK actions
+            # only here, then validate every retained reference.
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()
+        context.configure(
+            connection=connection,
+            target_metadata=Base.metadata,
+            compare_type=True,
+            include_name=include_name,
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+            if sqlite and connection.exec_driver_sql("PRAGMA foreign_key_check").first():
+                raise RuntimeError("Migration left invalid historical foreign-key references")
+        if sqlite:
+            connection.commit()
+    finally:
+        if sqlite:
+            try:
+                # PRAGMA is a no-op inside a physical SQLite transaction.
+                # Settle failed migrations before restoring the pooled handle.
+                connection.rollback()
+                connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+                enabled = connection.exec_driver_sql("PRAGMA foreign_keys").scalar()
+                connection.commit()
+                if enabled != 1:
+                    raise RuntimeError("Cannot restore SQLite foreign-key enforcement")
+            except BaseException:
+                # Never return an unenforced/broken physical handle to a pool.
+                connection.invalidate()
+                raise
 
 
 async def online() -> None:
     engine = create_database_engine(Settings(), poolclass=pool.NullPool)
-    async with engine.connect() as connection:
-        await connection.run_sync(run)
-    await engine.dispose()
+    try:
+        async with engine.connect() as connection:
+            await connection.run_sync(run)
+    finally:
+        await engine.dispose()
 
 
-if context.is_offline_mode():
+if config.attributes.get("connection") is not None:
+    run(config.attributes["connection"])
+elif context.is_offline_mode():
     context.configure(
         url=Settings().database_url,
         target_metadata=Base.metadata,

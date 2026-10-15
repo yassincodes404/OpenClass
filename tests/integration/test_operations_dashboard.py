@@ -98,27 +98,125 @@ def test_event_stream_resumes_by_cursor(mock_client: TestClient):
     assert b": keep-alive" in chunks or b"event: openclass" in chunks
 
 
-def test_analytics_summary_disjoint_previous_window(mock_client: TestClient, database_url: str):
+def test_analytics_summary_disjoint_previous_window(mock_client: TestClient, monkeypatch):
     from datetime import UTC, datetime, timedelta
-
-    import sqlalchemy as sa
 
     slug = client_project(mock_client)
     service = client_service(mock_client, slug)
-    # Seed 2 UNKNOWN runs that we backdate to 10 days ago (previous window)
-    _seed_runs(mock_client, slug, service, ["mystery old one", "mystery old two"])
-    sync_url = database_url.replace("+aiosqlite", "")
-    engine = sa.create_engine(sync_url)
+    # History is immutable: inject the timestamp before the INSERT, never
+    # UPDATE persisted runs to manufacture a historical cohort.
+    repository = mock_client.app.state.project_repository
+    create_run = repository.create_decision_run
     ten_days_ago = datetime.now(UTC) - timedelta(days=10)
-    with engine.begin() as conn:
-        conn.execute(
-            sa.text("UPDATE decision_runs SET created_at = :ts"),
-            {"ts": ten_days_ago},
-        )
-    engine.dispose()
+
+    async def create_historical_run(run):
+        await create_run(run.model_copy(update={"created_at": ten_days_ago}))
+
+    with monkeypatch.context() as patch:
+        patch.setattr(repository, "create_decision_run", create_historical_run)
+        _seed_runs(mock_client, slug, service, ["mystery old one", "mystery old two"])
     # Seed 2 KNOWN runs in current window (today)
     _seed_runs(mock_client, slug, service, ["billing today one", "billing today two"])
     summary = mock_client.get(f"/api/v1/projects/{slug}/analytics/summary?days=7").json()
     assert summary["unknown_rate"] == 0.0
     assert summary["previous_unknown_rate"] == 1.0
     assert summary["unknown_rate_delta"] == -1.0
+
+
+def test_hour_cost_alert_excludes_earlier_same_day_cost_and_reports_missing_prices(
+    mock_client: TestClient,
+    monkeypatch,
+):
+    from datetime import UTC, datetime, timedelta
+
+    import openclass_server.api.operations as operations
+
+    anchor = datetime(2026, 5, 25, 12, tzinfo=UTC)
+
+    class FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return anchor if tz else anchor.replace(tzinfo=None)
+
+    monkeypatch.setattr(operations, "datetime", FrozenDatetime)
+    repository = mock_client.app.state.project_repository
+    create_run = repository.create_decision_run
+
+    async def timestamped_run(run):
+        content = run.input_snapshot["content"]
+        earlier = "earlier" in content
+        metadata = {} if "unpriced" in content else {"estimated_cost": 1000.0 if earlier else 2.0}
+        await create_run(
+            run.model_copy(
+                update={
+                    "created_at": anchor
+                    - (timedelta(hours=3) if earlier else timedelta(minutes=30)),
+                    "provider_metadata": metadata,
+                }
+            )
+        )
+
+    monkeypatch.setattr(repository, "create_decision_run", timestamped_run)
+    slug = client_project(mock_client)
+    service = client_service(mock_client, slug)
+    _seed_runs(mock_client, slug, service, ["billing earlier", "billing recent"])
+    created = mock_client.post(
+        f"/api/v1/projects/{slug}/alerts/rules",
+        json={"metric": "cost", "threshold": 5},
+    )
+    assert created.status_code == 201
+    evaluated = mock_client.post(f"/api/v1/projects/{slug}/alerts/evaluate").json()
+    assert evaluated["fired"] == 0
+    assert evaluated["measurements"]["cost"] == 2.0
+    assert evaluated["measurements"]["cost_window"]["status"] == "complete"
+    _seed_runs(mock_client, slug, service, ["billing unpriced"])
+    evaluated = mock_client.post(f"/api/v1/projects/{slug}/alerts/evaluate").json()
+    assert evaluated["fired"] == 0  # unknown is not a measured breach or a zero charge
+    assert evaluated["measurements"]["cost"] is None
+    assert evaluated["measurements"]["cost_window"]["status"] == "partial"
+    assert evaluated["measurements"]["cost_window"]["declared_cost"] == 2.0
+    assert evaluated["measurements"]["cost_window"]["missing_cost_attempts"] == 1
+
+
+def test_summary_cost_windows_split_boundary_day_by_persisted_timestamps(
+    mock_client: TestClient,
+    monkeypatch,
+):
+    from datetime import UTC, datetime, timedelta
+
+    import openclass_server.api.operations as operations
+
+    anchor = datetime(2026, 5, 25, 12, tzinfo=UTC)
+
+    class FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return anchor if tz else anchor.replace(tzinfo=None)
+
+    monkeypatch.setattr(operations, "datetime", FrozenDatetime)
+    repository = mock_client.app.state.project_repository
+    create_run = repository.create_decision_run
+    boundary = anchor - timedelta(days=7)
+
+    async def timestamped_run(run):
+        previous = "previous" in run.input_snapshot["content"]
+        await create_run(
+            run.model_copy(
+                update={
+                    "created_at": boundary + timedelta(minutes=-30 if previous else 30),
+                    "provider_metadata": {"estimated_cost": 9.0 if previous else 3.0},
+                }
+            )
+        )
+
+    monkeypatch.setattr(repository, "create_decision_run", timestamped_run)
+    slug = client_project(mock_client)
+    service = client_service(mock_client, slug)
+    _seed_runs(mock_client, slug, service, ["billing previous", "billing current"])
+    response = mock_client.get(f"/api/v1/projects/{slug}/analytics/summary?days=7")
+    assert response.status_code == 200, response.text
+    summary = response.json()
+    assert summary["provider_cost"] == 3.0
+    assert summary["previous_provider_cost"] == 9.0
+    assert summary["provider_cost_measurement"]["status"] == "complete"
+    assert summary["previous_provider_cost_measurement"]["status"] == "complete"

@@ -121,7 +121,7 @@ class RawEventRow(Base):
     __table_args__ = (Index("uq_raw_events_content", "project_id", "content_hash", unique=True),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+        ForeignKey("projects.id", ondelete="RESTRICT"), index=True
     )
     source_type: Mapped[str] = mapped_column(String(32), index=True)
     content: Mapped[str] = mapped_column(Text)
@@ -138,7 +138,7 @@ class DecisionServiceRow(Base):
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+        ForeignKey("projects.id", ondelete="RESTRICT"), index=True
     )
     slug: Mapped[str] = mapped_column(String(80))
     name: Mapped[str] = mapped_column(String(200))
@@ -152,13 +152,13 @@ class DecisionRunRow(Base):
     __tablename__ = "decision_runs"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(
-        ForeignKey("projects.id", ondelete="CASCADE"), index=True
+        ForeignKey("projects.id", ondelete="RESTRICT"), index=True
     )
     raw_event_id: Mapped[str] = mapped_column(
-        ForeignKey("raw_events.id", ondelete="CASCADE"), index=True
+        ForeignKey("raw_events.id", ondelete="RESTRICT"), index=True
     )
     decision_service_id: Mapped[str] = mapped_column(
-        ForeignKey("decision_services.id", ondelete="CASCADE"), index=True
+        ForeignKey("decision_services.id", ondelete="RESTRICT"), index=True
     )
     decision_node_id: Mapped[str] = mapped_column(String(36))
     decision_service_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
@@ -216,7 +216,9 @@ class DecisionRunCheckpointRow(Base):
 class ProviderUsageRow(Base):
     __tablename__ = "provider_usage"
     __table_args__ = (
-        Index("uq_provider_usage_day", "project_id", "provider", "usage_date", unique=True),
+        Index(
+            "uq_provider_usage_day", "project_id", "provider", "model", "usage_date", unique=True
+        ),
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
@@ -259,6 +261,7 @@ class EvidenceCaseRow(Base):
 
 class EvidenceItemRow(Base):
     __tablename__ = "evidence_items"
+    __table_args__ = (Index("uq_evidence_items_decision_run", "decision_run_id", unique=True),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
     raw_event_id: Mapped[str | None] = mapped_column(ForeignKey("raw_events.id"), nullable=True)
@@ -323,7 +326,7 @@ class WebhookReceiptRow(Base):
     integration_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     event_key: Mapped[str] = mapped_column(String(200), primary_key=True)
     fingerprint: Mapped[str] = mapped_column(String(64))
-    event_id: Mapped[str] = mapped_column(ForeignKey("raw_events.id"), unique=True)
+    event_id: Mapped[str] = mapped_column(ForeignKey("raw_events.id"))
     source: Mapped[str] = mapped_column(String(100))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -333,6 +336,7 @@ class IdempotencyKeyRow(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), primary_key=True)
     key: Mapped[str] = mapped_column(String(200), primary_key=True)
     response_hash: Mapped[str] = mapped_column(String(64))
+    request_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     response: Mapped[dict[str, Any] | list[Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
@@ -392,7 +396,8 @@ class ClusterCandidateRow(Base):
     existing_match: Mapped[str | None] = mapped_column(String(200), nullable=True)
     confidence: Mapped[float] = mapped_column(Float)
     reason: Mapped[str] = mapped_column(Text)
-    status: Mapped[str] = mapped_column(String(20))
+    # 0017 widened PostgreSQL; SQLite's declared length stayed 20 (unenforced).
+    status: Mapped[str] = mapped_column(String(30).with_variant(String(20), "sqlite"))
     provider: Mapped[str] = mapped_column(String(50))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -462,9 +467,10 @@ class EvaluationRunRow(Base):
 
 class ServiceVersionRow(Base):
     __tablename__ = "service_versions"
+    __table_args__ = (UniqueConstraint("service_id", "version_number"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     service_id: Mapped[str] = mapped_column(
-        ForeignKey("decision_services.id", ondelete="CASCADE"), index=True
+        ForeignKey("decision_services.id", ondelete="RESTRICT"), index=True
     )
     version_number: Mapped[int] = mapped_column(Integer)
     parent_version_id: Mapped[str | None] = mapped_column(String(36), nullable=True)

@@ -254,11 +254,7 @@ def evidence_router(
         for eid in body.evidence_ids:
             if eid not in ids:
                 ids.append(eid)
-        case: EvidenceCase | None = None
-        for eid in ids:
-            case = await projects.add_evidence_to_case(identifier, case_id, eid)
-        assert case is not None
-        return case
+        return await projects.add_evidence_items_to_case(identifier, case_id, ids)
 
     @router.get(
         "/api/v1/projects/{identifier}/evolution/summary",

@@ -7,6 +7,8 @@ in the same transaction so the audit trail cannot drift from project state.
 import asyncio
 import json
 import math
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from datetime import date as date_type
 from typing import Any
@@ -30,6 +32,8 @@ from openclass_core.projects import (
     DecisionServiceChoice,
     Project,
     ProjectAuditEvent,
+    ProjectRunMeasurements,
+    ProviderCostWindow,
     RawEvent,
     get_current_workspace_id,
 )
@@ -38,6 +42,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from openclass_server.persistence import run_queries as rq
 from openclass_server.persistence.mappers import (
     _project_from_row,
     audit_event_row,
@@ -52,14 +57,17 @@ from openclass_server.persistence.tables import (
     EvidenceItemRow,
     ProjectChoiceCandidateRow,
     ProjectRow,
+    ProviderUsageRow,
     RawEventRow,
     RunFeedbackRow,
+    UnknownTriageRow,
 )
+from openclass_server.persistence.unit_of_work import TransactionSessions
 
 
 class SQLProjectRepository:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
-        self.sessions = sessions
+        self.sessions = TransactionSessions(sessions)
         self._session_factory = sessions
         self._claim_lock = asyncio.Lock()
 
@@ -78,6 +86,11 @@ class SQLProjectRepository:
             if isinstance(val, str) and val.strip():
                 return val.strip()
         return None
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[None]:
+        async with self.sessions.begin():
+            yield
 
     async def create_project(self, project: Project, audit_event: ProjectAuditEvent) -> None:
         workspace_id = project.workspace_id or self._effective_workspace_id()
@@ -107,14 +120,12 @@ class SQLProjectRepository:
     async def get_project(self, identifier: str) -> Project:
         ws_id = self._effective_workspace_id()
         async with self.sessions() as session:
-            row = await session.scalar(
-                select(ProjectRow).where(
-                    or_(
-                        ProjectRow.id == identifier,
-                        ProjectRow.slug == identifier,
-                    )
-                )
+            statement = select(ProjectRow).where(
+                or_(ProjectRow.id == identifier, ProjectRow.slug == identifier)
             )
+            if self.sessions.current() is not None:
+                statement = statement.with_for_update()
+            row = await session.scalar(statement)
             if row is None:
                 raise NotFoundError(f"Project '{identifier}' was not found")
             row_ws = self._row_workspace_id(row)
@@ -158,7 +169,7 @@ class SQLProjectRepository:
         try:
             async with self.sessions.begin() as session:
                 row = await session.scalar(
-                    select(ProjectRow).where(ProjectRow.id == str(project.id))
+                    select(ProjectRow).where(ProjectRow.id == str(project.id)).with_for_update()
                 )
                 if row is None:
                     raise NotFoundError(f"Project '{project.id}' was not found")
@@ -278,6 +289,17 @@ class SQLProjectRepository:
                     )
             return events
 
+    async def count_audit_events(self, project_id: UUID) -> int:
+        async with self.sessions() as session:
+            return int(
+                await session.scalar(
+                    select(func.count())
+                    .select_from(AuditEventRow)
+                    .where(AuditEventRow.project_id == str(project_id))
+                )
+                or 0
+            )
+
     async def create_raw_event(self, event: RawEvent) -> None:
         try:
             async with self.sessions.begin() as session:
@@ -340,6 +362,20 @@ class SQLProjectRepository:
                 or 0
             )
 
+    async def get_raw_events_by_hashes(
+        self, project_id: UUID, content_hashes: set[str]
+    ) -> dict[str, RawEvent]:
+        if not content_hashes:
+            return {}
+        async with self.sessions() as session:
+            rows = await session.scalars(
+                select(RawEventRow).where(
+                    RawEventRow.project_id == str(project_id),
+                    RawEventRow.content_hash.in_(content_hashes),
+                )
+            )
+            return {row.content_hash: RawEvent.model_validate(row.payload) for row in rows}
+
     async def create_decision_service(self, service: DecisionService) -> None:
         try:
             async with self.sessions.begin() as session:
@@ -388,15 +424,13 @@ class SQLProjectRepository:
 
     async def get_decision_service(self, project_id: UUID, identifier: str) -> DecisionService:
         async with self.sessions() as session:
-            row = await session.scalar(
-                select(DecisionServiceRow).where(
-                    DecisionServiceRow.project_id == str(project_id),
-                    or_(
-                        DecisionServiceRow.id == identifier,
-                        DecisionServiceRow.slug == identifier,
-                    ),
-                )
+            statement = select(DecisionServiceRow).where(
+                DecisionServiceRow.project_id == str(project_id),
+                or_(DecisionServiceRow.id == identifier, DecisionServiceRow.slug == identifier),
             )
+            if self.sessions.current() is not None:
+                statement = statement.with_for_update()
+            row = await session.scalar(statement)
             if row is None:
                 raise NotFoundError("Decision service not found")
             return DecisionService.model_validate(row.payload)
@@ -414,10 +448,12 @@ class SQLProjectRepository:
         try:
             async with self.sessions.begin() as session:
                 row = await session.scalar(
-                    select(DecisionServiceRow).where(
+                    select(DecisionServiceRow)
+                    .where(
                         DecisionServiceRow.project_id == str(service.project_id),
                         DecisionServiceRow.id == str(service.id),
                     )
+                    .with_for_update()
                 )
                 if row is None:
                     raise NotFoundError("Decision service not found")
@@ -468,6 +504,9 @@ class SQLProjectRepository:
     async def create_decision_run(self, run: DecisionRun) -> None:
         try:
             async with self.sessions.begin() as session:
+                await session.scalar(
+                    select(ProjectRow).where(ProjectRow.id == str(run.project_id)).with_for_update()
+                )
                 session.add(
                     DecisionRunRow(
                         id=str(run.id),
@@ -1435,7 +1474,7 @@ class SQLProjectRepository:
         usage_date = (
             run.created_at.date()
             if run.created_at.tzinfo is None
-            else run.created_at.astimezone().date()
+            else run.created_at.astimezone(UTC).date()
         )
         statement = sa.text(
             "INSERT INTO provider_usage"
@@ -1443,7 +1482,7 @@ class SQLProjectRepository:
             "  output_tokens, estimated_cost, latency_ms_total)"
             " VALUES (:project_id, :provider, :model, :usage_date, :calls, :errors,"
             "         :input_tokens, :output_tokens, :estimated_cost, :latency)"
-            " ON CONFLICT (project_id, provider, usage_date) DO UPDATE SET"
+            " ON CONFLICT (project_id, provider, model, usage_date) DO UPDATE SET"
             " calls = provider_usage.calls + excluded.calls,"
             " errors = provider_usage.errors + excluded.errors,"
             " input_tokens = provider_usage.input_tokens + excluded.input_tokens,"
@@ -1462,7 +1501,7 @@ class SQLProjectRepository:
                 "errors": 1 if error else 0,
                 "input_tokens": run.provider_metadata.get("input_tokens") or 0,
                 "output_tokens": run.provider_metadata.get("output_tokens") or 0,
-                "estimated_cost": run.provider_metadata.get("estimated_cost") or 0.0,
+                "estimated_cost": self._declared_cost(run.provider_metadata) or 0.0,
                 "latency": run.latency_ms or 0.0,
             },
         )
@@ -1482,7 +1521,19 @@ class SQLProjectRepository:
                 self.provider_metadata: dict[str, Any] = {}
 
         async with self.sessions.begin() as session:
-            await self._roll_up_usage(session, _UsageOnly(), error=True)  # type: ignore[arg-type]
+            usage = _UsageOnly()
+            await self._roll_up_usage(session, usage, error=True)  # type: ignore[arg-type]
+            session.add(
+                self._event(
+                    ProjectAuditEvent(
+                        project_id=project_id,
+                        event_type="decision.provider_failed",
+                        actor="system",
+                        payload={"provider": provider, "model": model, "latency_ms": latency_ms},
+                        created_at=usage.created_at,
+                    )
+                )
+            )
 
     async def provider_usage(
         self, project_id: UUID, date_from: str, date_to: str
@@ -1512,29 +1563,380 @@ class SQLProjectRepository:
                     "input_tokens": row.input_tokens,
                     "output_tokens": row.output_tokens,
                     "estimated_cost": row.estimated_cost,
-                    "avg_latency_ms": round(row.latency_ms_total / row.calls, 2)
-                    if row.calls
-                    else 0.0,
+                    "attempts": row.calls + row.errors,
+                    "latency_basis": "attempt",
+                    "avg_latency_ms": round(row.latency_ms_total / (row.calls + row.errors), 2)
+                    if row.calls + row.errors
+                    else None,
                 }
                 for row in rows
             ]
 
     async def list_decision_runs(
-        self, project_id: UUID, limit: int = 50, offset: int = 0
+        self,
+        project_id: UUID,
+        limit: int | None = 50,
+        offset: int = 0,
+        *,
+        unknown_only: bool = False,
+        state: str | None = None,
+        category: str | None = None,
+        query: str | None = None,
+        decision_service_id: UUID | None = None,
     ) -> list[DecisionRun]:
         async with self.sessions() as session:
-            rows = await session.scalars(
+            stmt = (
                 select(DecisionRunRow)
+                .select_from(rq.joined_runs)
+                .outerjoin(UnknownTriageRow, UnknownTriageRow.run_id == DecisionRunRow.id)
                 .where(DecisionRunRow.project_id == str(project_id))
-                .order_by(DecisionRunRow.created_at.desc(), DecisionRunRow.id.desc())
-                .limit(limit)
-                .offset(offset)
             )
-            runs = [DecisionRun.model_validate(row.payload) for row in rows]
-            return await self._overlay_checkpoints(session, runs)
+            if unknown_only:
+                stmt = stmt.where(rq.unknown)
+            if state is not None:
+                stmt = stmt.where(func.coalesce(UnknownTriageRow.status, "needs_evidence") == state)
+            if category is not None:
+                stmt = stmt.where(UnknownTriageRow.category == category)
+            if query is not None:
+                stmt = stmt.join(RawEventRow, RawEventRow.id == DecisionRunRow.raw_event_id).where(
+                    func.lower(RawEventRow.content).contains(query.lower(), autoescape=True)
+                )
+            if decision_service_id is not None:
+                stmt = stmt.where(DecisionRunRow.decision_service_id == str(decision_service_id))
+            stmt = stmt.order_by(DecisionRunRow.created_at.desc(), DecisionRunRow.id.desc()).offset(
+                offset
+            )
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            rows = await session.scalars(stmt)
+            return await self._overlay_checkpoints(
+                session, [DecisionRun.model_validate(row.payload) for row in rows]
+            )
+
+    async def run_recurrence(self, project_id: UUID, event_ids: list[UUID]) -> dict[str, int]:
+        async with self.sessions() as session:
+            rows = await session.execute(
+                select(DecisionRunRow.raw_event_id, func.count())
+                .where(
+                    DecisionRunRow.project_id == str(project_id),
+                    DecisionRunRow.raw_event_id.in_([str(i) for i in event_ids]),
+                )
+                .group_by(DecisionRunRow.raw_event_id)
+            )
+            return {key: int(count) for key, count in rows}
+
+    async def unknown_statistics(self, project_id: UUID) -> dict[str, Any]:
+        from collections import Counter
+
+        from openclass_core.unknown_pool import STOPWORDS
+
+        async with self.sessions() as session:
+            base = rq.joined_runs.outerjoin(
+                UnknownTriageRow, UnknownTriageRow.run_id == DecisionRunRow.id
+            )
+            conditions = [DecisionRunRow.project_id == str(project_id), rq.unknown]
+            total = int(
+                await session.scalar(
+                    select(func.count())
+                    .select_from(DecisionRunRow)
+                    .where(DecisionRunRow.project_id == str(project_id))
+                )
+                or 0
+            )
+            unknowns = int(
+                await session.scalar(select(func.count()).select_from(base).where(*conditions)) or 0
+            )
+            status = func.coalesce(UnknownTriageRow.status, "needs_evidence")
+            states = await session.execute(
+                select(status, func.count()).select_from(base).where(*conditions).group_by(status)
+            )
+            categories = await session.execute(
+                select(UnknownTriageRow.category, func.count())
+                .select_from(base)
+                .where(*conditions, UnknownTriageRow.category.is_not(None))
+                .group_by(UnknownTriageRow.category)
+            )
+            day = func.date(DecisionRunRow.created_at)
+            daily = await session.execute(
+                select(day, func.count())
+                .select_from(base)
+                .where(*conditions)
+                .group_by(day)
+                .order_by(day)
+            )
+            words: Counter[str] = Counter()
+            # Phrase extraction needs text, not entire run JSON. Stream grouped
+            # source content; counts, denominators and daily buckets stay in SQL.
+            texts = await session.stream(
+                select(RawEventRow.content, func.count())
+                .select_from(base.join(RawEventRow, RawEventRow.id == DecisionRunRow.raw_event_id))
+                .where(*conditions)
+                .group_by(RawEventRow.content)
+            )
+            async for text, count in texts:
+                for token in text.lower().split():
+                    cleaned = token.strip(".,!?;:'\"()[]")
+                    if len(cleaned) > 2 and cleaned not in STOPWORDS:
+                        words[cleaned] += int(count)
+            return {
+                "total_unknown": unknowns,
+                "total_runs": total,
+                "unknown_rate": round(unknowns / total, 4) if total else 0.0,
+                "by_status": {key: value for key, value in states},
+                "by_category": {key: value for key, value in categories},
+                "daily": [{"date": str(day), "unknowns": count} for day, count in daily],
+                "top_phrases": [word for word, _ in words.most_common(8)],
+            }
+
+    async def analytics_summary(self, project_id: UUID) -> dict[str, Any]:
+        from math import ceil
+
+        async with self.sessions() as session:
+            where = DecisionRunRow.project_id == str(project_id)
+            row = (
+                await session.execute(
+                    select(
+                        func.count(),
+                        func.coalesce(func.sum(sa.case((rq.choice == "UNKNOWN", 1), else_=0)), 0),
+                        func.coalesce(
+                            func.sum(
+                                sa.case((DecisionRunRow.real_inference.is_(True), 1), else_=0)
+                            ),
+                            0,
+                        ),
+                    )
+                    .select_from(rq.joined_runs)
+                    .where(where)
+                )
+            ).one()
+            total, unknowns, real = (int(value) for value in row)
+
+            async def counts(column: Any) -> list[dict[str, Any]]:
+                rows = await session.execute(
+                    select(column, func.count().label("n"))
+                    .select_from(rq.joined_runs)
+                    .where(where)
+                    .group_by(column)
+                    .order_by(sa.desc("n"), column)
+                )
+                return [{"key": key, "count": count} for key, count in rows]
+
+            async def percentile(proportion: float) -> float | None:
+                if not total:
+                    return None
+                return float(
+                    await session.scalar(
+                        select(rq.latency)
+                        .select_from(rq.joined_runs)
+                        .where(where)
+                        .order_by(rq.latency, DecisionRunRow.id)
+                        .offset(max(0, ceil(proportion * total) - 1))
+                        .limit(1)
+                    )
+                    or 0.0
+                )
+
+            return {
+                "project_id": str(project_id),
+                "total_events": await self.count_raw_events(project_id),
+                "total_runs": total,
+                "unknown_runs": unknowns,
+                "unknown_rate": unknowns / total if total else None,
+                "real_inference_runs": real,
+                "simulated_runs": total - real,
+                "p50_latency_ms": await percentile(0.5),
+                "p95_latency_ms": await percentile(0.95),
+                "choices": await counts(rq.choice),
+                "providers": await counts(DecisionRunRow.provider),
+                "services": await counts(DecisionRunRow.decision_service_id),
+            }
+
+    @staticmethod
+    def _declared_cost(metadata: Any) -> float | None:
+        value = metadata.get("estimated_cost") if isinstance(metadata, dict) else None
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        try:
+            amount = float(value)
+        except OverflowError:
+            return None
+        return amount if math.isfinite(amount) and amount >= 0 else None
+
+    async def _cost_window(
+        self, session: AsyncSession, project_id: str, since: datetime, until: datetime
+    ) -> ProviderCostWindow:
+        # Stream only provider metadata, not complete run payloads or inputs.
+        # Python validates numeric types/finite values consistently on SQLite
+        # and PostgreSQL; no price is inferred from token counts or rollups.
+        rows = await session.stream_scalars(
+            select(DecisionRunRow.payload["provider_metadata"]).where(
+                DecisionRunRow.project_id == project_id,
+                DecisionRunRow.created_at >= since,
+                DecisionRunRow.created_at < until,
+            )
+        )
+        declared_total = 0.0
+        declared_count = missing_count = 0
+        async for metadata in rows:
+            cost = self._declared_cost(metadata)
+            if cost is None:
+                missing_count += 1
+            else:
+                declared_total += cost
+                declared_count += 1
+        failures = int(
+            await session.scalar(
+                select(func.count())
+                .select_from(AuditEventRow)
+                .where(
+                    AuditEventRow.project_id == project_id,
+                    AuditEventRow.event_type == "decision.provider_failed",
+                    AuditEventRow.created_at >= since,
+                    AuditEventRow.created_at < until,
+                )
+            )
+            or 0
+        )
+        # Failures have a real timestamp but no declared charge. Never assume
+        # that a failed request was free.
+        missing_count += failures
+
+        # Older failures/calls may exist only in a daily aggregate. They cannot
+        # be assigned an invented timestamp or charge. Reconcile whole UTC days
+        # intersecting this window and expose any unlocated attempts explicitly.
+        first_date = since.date()
+        last_date = (until - timedelta(microseconds=1)).date()
+        day_start = datetime.combine(first_date, datetime.min.time(), tzinfo=UTC)
+        day_end = datetime.combine(last_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
+
+        def utc_day(column: Any) -> Any:
+            timestamp = (
+                func.timezone("UTC", column)
+                if session.get_bind().dialect.name == "postgresql"
+                else column
+            )
+            return func.date(timestamp)
+
+        run_day = utc_day(DecisionRunRow.created_at)
+        run_counts = await session.execute(
+            select(run_day, func.count())
+            .where(
+                DecisionRunRow.project_id == project_id,
+                DecisionRunRow.created_at >= day_start,
+                DecisionRunRow.created_at < day_end,
+            )
+            .group_by(run_day)
+        )
+        runs_by_day = {str(day): int(count) for day, count in run_counts}
+        failure_day = utc_day(AuditEventRow.created_at)
+        failure_counts = await session.execute(
+            select(failure_day, func.count())
+            .where(
+                AuditEventRow.project_id == project_id,
+                AuditEventRow.event_type == "decision.provider_failed",
+                AuditEventRow.created_at >= day_start,
+                AuditEventRow.created_at < day_end,
+            )
+            .group_by(failure_day)
+        )
+        failures_by_day = {str(day): int(count) for day, count in failure_counts}
+        rollups = await session.execute(
+            select(
+                ProviderUsageRow.usage_date,
+                func.sum(ProviderUsageRow.calls),
+                func.sum(ProviderUsageRow.errors),
+            )
+            .where(
+                ProviderUsageRow.project_id == project_id,
+                ProviderUsageRow.usage_date >= first_date,
+                ProviderUsageRow.usage_date <= last_date,
+            )
+            .group_by(ProviderUsageRow.usage_date)
+        )
+        unlocated = sum(
+            max(0, int(calls) - runs_by_day.get(str(day), 0))
+            + max(0, int(errors) - failures_by_day.get(str(day), 0))
+            for day, calls, errors in rollups
+        )
+        reasons: list[str] = []
+        if missing_count:
+            reasons.append("declared_cost_missing")
+        if unlocated:
+            reasons.append("legacy_attempt_timestamps_missing")
+        status = "complete" if not reasons else "partial" if declared_count else "unavailable"
+        return ProviderCostWindow.model_validate(
+            {
+                "since": since,
+                "until": until,
+                "status": status,
+                "amount": declared_total if not reasons else None,
+                "declared_cost": declared_total,
+                "timestamped_attempts": declared_count + missing_count,
+                "declared_cost_attempts": declared_count,
+                "missing_cost_attempts": missing_count,
+                "legacy_unlocated_attempts": unlocated,
+                "reasons": tuple(reasons),
+            }
+        )
+
+    async def run_measurements(
+        self,
+        project_id: str,
+        since: datetime,
+        until: datetime | None = None,
+    ) -> ProjectRunMeasurements:
+        since = since.replace(tzinfo=UTC) if since.tzinfo is None else since.astimezone(UTC)
+        until = until or datetime.now(UTC)
+        until = until.replace(tzinfo=UTC) if until.tzinfo is None else until.astimezone(UTC)
+        if until <= since:
+            raise ValueError("Measurement window must have a positive duration")
+        async with self.sessions() as session:
+            where = [
+                DecisionRunRow.project_id == project_id,
+                DecisionRunRow.created_at >= since,
+                DecisionRunRow.created_at < until,
+            ]
+            total, unknowns, average = (
+                await session.execute(
+                    select(
+                        func.count(),
+                        func.coalesce(func.sum(sa.case((rq.unknown, 1), else_=0)), 0),
+                        func.avg(rq.latency),
+                    )
+                    .select_from(rq.joined_runs)
+                    .where(*where)
+                )
+            ).one()
+            recurring = (
+                select(func.count().label("n"))
+                .select_from(rq.joined_runs)
+                .where(*where, rq.unknown)
+                .group_by(DecisionRunRow.raw_event_id)
+                .subquery()
+            )
+            recurrence = int(await session.scalar(select(func.max(recurring.c.n))) or 0)
+            costs = await self._cost_window(session, project_id, since, until)
+            return ProjectRunMeasurements(
+                unknown_rate=int(unknowns) / int(total) if total else None,
+                recurring_unknowns=float(recurrence),
+                latency=float(average) if average is not None else None,
+                cost=costs.amount,
+                cost_window=costs,
+            )
 
     async def get_decision_run(self, project_id: UUID, run_id: UUID) -> DecisionRun:
         async with self.sessions() as session:
+            if self.sessions.current() is not None:
+                # Share the lifecycle lock with checkpoint correction feedback,
+                # so a concurrent human correction cannot duplicate evidence.
+                await session.scalar(
+                    select(DecisionRunCheckpointRow)
+                    .where(
+                        DecisionRunCheckpointRow.run_id == str(run_id),
+                        DecisionRunCheckpointRow.project_id == str(project_id),
+                    )
+                    .with_for_update()
+                )
             row = await session.scalar(
                 select(DecisionRunRow).where(
                     DecisionRunRow.project_id == str(project_id),
@@ -1770,6 +2172,7 @@ class SQLProjectRepository:
             )
             if row is None:
                 raise NotFoundError("Evidence item not found")
+            status_changed = row.status != item.status.value
             row.status = item.status.value
             row.diagnosis = item.diagnosis.value if item.diagnosis else None
             row.diagnosis_rationale = item.diagnosis_rationale
@@ -1777,6 +2180,41 @@ class SQLProjectRepository:
             row.resolved_at = item.resolved_at
             row.payload = item.model_dump(mode="json")
             session.add(self._event(audit_event))
+            if (
+                status_changed
+                and item.decision_run_id is not None
+                and item.status != EvidenceStatus.PENDING
+            ):
+                eligible = await session.scalar(
+                    select(DecisionRunRow.id)
+                    .select_from(rq.joined_runs)
+                    .where(
+                        DecisionRunRow.id == str(item.decision_run_id),
+                        DecisionRunRow.project_id == str(item.project_id),
+                        rq.unknown,
+                    )
+                )
+                if eligible is not None:
+                    target = {
+                        EvidenceStatus.TRIAGED: "triaged",
+                        EvidenceStatus.READY_FOR_EVOLUTION: "triaged",
+                        EvidenceStatus.RESOLVED: "resolved",
+                        EvidenceStatus.DISMISSED: "dismissed",
+                    }[item.status]
+                    triage = await session.get(UnknownTriageRow, str(item.decision_run_id))
+                    if triage is None:
+                        session.add(
+                            UnknownTriageRow(
+                                run_id=str(item.decision_run_id),
+                                status=target,
+                                updated_at=audit_event.created_at,
+                            )
+                        )
+                    elif triage.status != target:
+                        if triage.status in {"dismissed", "resolved"}:
+                            raise ConflictError("Unknown triage is already terminal")
+                        triage.status = target
+                        triage.updated_at = audit_event.created_at
 
     async def count_evidence_by_status(self, project_id: UUID) -> dict[str, int]:
         async with self.sessions() as session:

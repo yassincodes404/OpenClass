@@ -12,10 +12,13 @@ from openclass_core.projects import ProjectAuditEvent
 from openclass_core.unknown_pool import UnknownTriage
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from .tables import DecisionRunRow, UnknownTriageRow
+from .unit_of_work import TransactionSessions
+
 
 class UnknownTriageStore:
     def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
-        self.sessions = sessions
+        self.sessions = TransactionSessions(sessions)
 
     async def get(self, run_id: UUID) -> UnknownTriage | None:
         async with self.sessions() as session:
@@ -37,6 +40,30 @@ class UnknownTriageStore:
             note=record.note,
             updated_at=record.updated_at,
         )
+
+    async def get_many(self, project_id: UUID, run_ids: list[UUID]) -> dict[str, UnknownTriage]:
+        async with self.sessions() as session:
+            rows = await session.scalars(
+                sa.select(UnknownTriageRow)
+                .join(DecisionRunRow, DecisionRunRow.id == UnknownTriageRow.run_id)
+                .where(
+                    DecisionRunRow.project_id == str(project_id),
+                    UnknownTriageRow.run_id.in_([str(value) for value in run_ids]),
+                )
+            )
+            return {
+                row.run_id: UnknownTriage.model_validate(
+                    {
+                        "run_id": row.run_id,
+                        "status": row.status,
+                        "category": row.category,
+                        "assignee": row.assignee,
+                        "note": row.note,
+                        "updated_at": row.updated_at,
+                    }
+                )
+                for row in rows
+            }
 
     async def upsert(self, triage: UnknownTriage) -> UnknownTriage:
         async with self.sessions.begin() as session:

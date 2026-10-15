@@ -1,6 +1,6 @@
 # OC-BG-045 / OC-046: landing redesign
 
-Status: implemented locally and independently reviewed; focused PR delivery pending.
+Status: delivered in PR #61; PR checks, merge and main CI passed.
 Priority: P1. Dependencies: OC-012 and OC-043 / OC-BG-042.
 
 The previous planner returned this task in chat on 2026-10-15 at 11:08:58 UTC,
@@ -90,4 +90,5 @@ See the artifact README for exact dimensions, commands, revision and limitations
 
 Repository checks, the explicit offline Python suite, JavaScript builds and all
 11 Python package builds pass. These are not authenticated live-backend
-workflow evidence. PR CI and merge are still required for delivery.
+workflow evidence. PR #61 passed all five checks and merged as
+`227169358fe321dfed59be89dd47829be6da8781`; main CI `38797682622` passed.
