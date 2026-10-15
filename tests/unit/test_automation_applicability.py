@@ -1,192 +1,170 @@
-"""Synthetic tests of Proof #2B semantics; no model or live-artifact dependency."""
+"""Production applicability conformance; synthetic evidence, no discovery/model calls."""
 
-import importlib
-import json
+from datetime import UTC, datetime, timedelta
 
-import httpx
 import pytest
+from openclass_core.automation import ApplicabilitySpec, FailureState, StateGuard
+from openclass_core.automation_applicability import (
+    ApplicabilityGate,
+    FailureRule,
+    applicable,
+    check_applicability,
+    compile_state,
+    matches_signal,
+)
 from pydantic import ValidationError
 
+APPLICABILITY_AT = datetime(2026, 10, 15, 12, tzinfo=UTC)
 
-@pytest.fixture
-def modules(monkeypatch):
-    monkeypatch.syspath_prepend("scripts")
-    return (
-        importlib.import_module("automation_applicability"),
-        importlib.import_module("automation_proof2b"),
+
+def spec(**updates):
+    return ApplicabilitySpec(
+        **dict(
+            require_test_attempted=True,
+            require_failed_test=True,
+            require_result_inspected=True,
+            raw_failure_signals=("fixture bind conflict",),
+            normalization_rules=(),
+            required_failure_category=None,
+        )
+        | updates
     )
 
 
-def spec(m, **updates):
-    data = dict(
-        require_test_attempted=True,
-        require_failed_test=True,
-        require_result_inspected=True,
-        raw_failure_signals=("fixture bind conflict",),
-        normalization_rules=(),
-        required_failure_category=None,
+def state(**updates):
+    return FailureState(
+        **dict(
+            test_attempted=True,
+            exit_code=1,
+            output="fixture bind conflict",
+            result_inspected=True,
+            port=3333,
+        )
+        | updates
     )
-    return m.ApplicabilitySpec(**(data | updates))
-
-
-def state(m, **updates):
-    data = dict(
-        test_attempted=True,
-        exit_code=1,
-        output="fixture bind conflict",
-        result_inspected=True,
-        port=3333,
-    )
-    return m.FailureState(**(data | updates))
 
 
 @pytest.mark.parametrize(
     "updates",
-    [{"exit_code": 0}, {"exit_code": None}, {"test_attempted": False}, {"result_inspected": False}],
+    [
+        {"exit_code": 0},
+        {"exit_code": None},
+        {"test_attempted": False},
+        {"result_inspected": False},
+    ],
 )
-def test_failed_inspected_attempt_is_required(modules, updates):
-    m, _ = modules
-    assert not m.applicable(state(m, **updates), spec(m))
+def test_failed_inspected_attempt_is_required(updates):
+    assert not applicable(state(**updates), spec())
 
 
-def test_literal_matching_is_escaped_and_word_bounded(modules):
-    m, _ = modules
-    assert m.matches_signal("FIXTURE  bind\nconflict", "fixture bind conflict")
-    assert not m.matches_signal("fixture bind conflictual", "fixture bind conflict")
-    assert not m.matches_signal("anything", ".*")
-    assert m.matches_signal("literal .* value", ".*")
+def test_literal_matching_is_escaped_and_word_bounded():
+    assert matches_signal("FIXTURE  bind\nconflict", "fixture bind conflict")
+    assert not matches_signal("fixture bind conflictual", "fixture bind conflict")
+    assert not matches_signal("anything", ".*")
+    assert matches_signal("literal .* value", ".*")
 
 
-def test_normalization_is_deterministic_and_ambiguity_is_unknown(modules):
-    m, _ = modules
-    rule = m.FailureRule(category="fixture_conflict", signals=("fixture bind conflict",))
+def test_normalization_is_deterministic_and_ambiguity_is_unknown():
+    rule = FailureRule(category="fixture_conflict", signals=("fixture bind conflict",))
     config = spec(
-        m,
         raw_failure_signals=(),
         normalization_rules=(rule,),
         required_failure_category="fixture_conflict",
     )
-    assert m.compile_state(state(m), config).failure.category == "fixture_conflict"
-    assert m.applicable(state(m), config)
-    assert m.compile_state(state(m, exit_code=0), config).failure.category is None
-    conflicting = config.model_copy(
-        update={
-            "normalization_rules": (
-                rule,
-                m.FailureRule(category="other_failure", signals=("fixture bind conflict",)),
-            )
-        }
+    assert compile_state(state(), config).failure.category == "fixture_conflict"
+    assert applicable(state(), config)
+    assert compile_state(state(exit_code=0), config).failure.category is None
+    conflicting = spec(
+        raw_failure_signals=(),
+        normalization_rules=(
+            rule,
+            FailureRule(category="other_failure", signals=("fixture bind conflict",)),
+        ),
+        required_failure_category="fixture_conflict",
     )
-    assert m.compile_state(state(m), conflicting).normalization_ambiguous
-    assert not m.applicable(state(m), conflicting)
+    assert compile_state(state(), conflicting).normalization_ambiguous
+    assert not applicable(state(), conflicting)
 
 
-def test_arbitrary_procedure_or_unknown_category_is_rejected(modules):
-    m, _ = modules
-    with pytest.raises(ValidationError):
-        m.ApplicabilityProposal.model_validate_json(
-            json.dumps(
-                {
-                    "proposal_type": "NO_CHANGE",
-                    "semantic_description": "simulated",
-                    "applicability_spec": None,
-                    "rationale": "simulated",
-                    "confidence": 0.5,
-                    "procedure": ["run_shell"],
-                }
-            )
-        )
-    with pytest.raises(ValidationError):
-        spec(m, raw_failure_signals=(), required_failure_category="missing_category")
-
-
-def test_no_change_is_not_promoted_or_repaired(modules):
-    m, harness = modules
-    proposal = m.ApplicabilityProposal(
-        proposal_type="NO_CHANGE",
-        semantic_description="simulated",
-        applicability_spec=None,
-        rationale="simulated",
-        confidence=0.6,
-    )
-    result = harness.evaluate(proposal, [])
-    assert result["status"] == "not_evaluated"
-    assert not result["promotion_allowed"]
-
-
-def test_eval_failure_and_regressions_are_explicit(modules):
-    m, harness = modules
-    proposal = m.ApplicabilityProposal(
-        proposal_type="GENERALIZE_TRIGGER",
-        semantic_description="simulated",
-        applicability_spec=spec(m),
-        rationale="simulated",
-        confidence=0.5,
-    )
-    case = {
-        "id": "miss",
-        "state": state(m, output="Address already in use").model_dump(),
-        "expected": True,
-    }
-    result = harness.evaluate(proposal, [case])
-    assert result["status"] == "failed"
-    assert result["regressions"] == ["miss"]
-    assert not result["promotion_allowed"]
-
-
-def test_eval_cases_are_not_in_the_provider_request(modules):
-    _, harness = modules
-    request = harness.payload_for({"observations": [{"output": "Address in use"}]}, "fixture")
-    encoded = json.dumps(request)
-    for hidden in (
-        "EADDRINUSE",
-        "Connection refused",
-        "Permission denied",
-        "File not found",
-        "expected",
-        "evaluation-fixtures",
-    ):
-        assert hidden not in encoded
-
-
-@pytest.mark.asyncio
-async def test_invalid_response_retry_is_identical_and_bounded(modules, monkeypatch, tmp_path):
-    _, harness = modules
-    requests = []
-
-    def handle(request):
-        requests.append(request.content)
-        return httpx.Response(
-            200, json={"choices": [{"finish_reason": "stop", "message": {"content": "{"}}]}
-        )
-
-    original = httpx.AsyncClient
-    monkeypatch.setattr(
-        harness.httpx,
-        "AsyncClient",
-        lambda **kwargs: original(transport=httpx.MockTransport(handle), **kwargs),
-    )
-    with pytest.raises(ValueError):
-        await harness.discover(harness.payload_for({}, "fixture"), "fixture-key", tmp_path)
-    assert len(requests) == 2 and requests[0] == requests[1]
-    assert (tmp_path / "attempt-1.json").exists()
-    assert (tmp_path / "attempt-2.json").exists()
-    assert not (tmp_path / "provider-proposal.json").exists()
-
-
-def test_task_success_and_applicability_failure_remain_separate(modules):
-    _, harness = modules
-    outcome = harness.interpret(
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"procedure": ("run_shell",)},
+        {"raw_failure_signals": (), "required_failure_category": "missing_category"},
+        {"raw_failure_signals": (), "normalization_rules": (), "required_failure_category": None},
         {
-            "run": 3,
-            "postconditions_verified": True,
-            "trace": [{"selected_action": "done"}],
-            "macro_selected_by_jev": True,
-            "macro_selected_at_observed_inspected_conflict": False,
-            "discovery_calls": 0,
-        }
+            "raw_failure_signals": (),
+            "normalization_rules": (FailureRule(category="unknown", signals=("failure",)),),
+            "required_failure_category": "unknown",
+        },
+        {"require_test_attempted": "true"},
+        {"max_age_seconds": 0},
+    ],
+)
+def test_arbitrary_procedure_unknown_category_and_malformed_spec_are_rejected(updates):
+    with pytest.raises(ValidationError):
+        spec(**updates)
+
+
+def test_all_five_gates_are_conjunctive_and_reported_without_raw_evidence():
+    config = spec(
+        preconditions=(StateGuard(field="port", value=3333),),
+        required_capabilities=("inspect_port",),
+        safety_guards=(StateGuard(field="cwd", value="disposable"),),
     )
-    assert outcome.task_outcome == "success"
-    assert outcome.procedure_outcome == "success"
-    assert outcome.applicability_gate == "failed"
-    assert outcome.generalization_checkpoint == "failed"
+    outcome = check_applicability(
+        state(),
+        config,
+        available_capabilities=frozenset({"inspect_port"}),
+        cwd="disposable",
+    )
+    assert outcome.passed
+    assert tuple(gate.gate for gate in outcome.gates) == tuple(ApplicabilityGate)
+    assert "fixture bind conflict" not in outcome.model_dump_json()
+    assert not check_applicability(state(), config, cwd="disposable").passed
+    assert not check_applicability(
+        state(),
+        config,
+        available_capabilities=frozenset({"inspect_port"}),
+        cwd="other",
+    ).passed
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"schema_id": "another_domain"},
+        {"schema_version": 2},
+        {"observed_at": APPLICABILITY_AT - timedelta(seconds=301)},
+        {"observed_at": APPLICABILITY_AT + timedelta(seconds=60)},
+    ],
+)
+def test_stale_future_and_wrong_schema_are_not_applicable(updates):
+    # Collection may precede execution by minutes in the complete suite.
+    # Freeze both sides of the freshness comparison, not only the observation.
+    outcome = check_applicability(
+        state(**({"observed_at": APPLICABILITY_AT} | updates)), spec(), at=APPLICABILITY_AT
+    )
+    assert not outcome.passed
+    assert not outcome.gates[0].passed
+
+
+@pytest.mark.parametrize("facts", [{}, {"port": None}, {"port": True}, {"port": "3333"}])
+def test_guards_do_not_coerce_missing_null_boolean_or_string_to_integer(facts):
+    assert not StateGuard(field="port", value=3333).matches(facts)
+    assert not StateGuard(field="port", operator="not_equals", value=3333).matches(facts)
+
+
+def test_missing_value_is_not_evidence_for_not_equals_and_false_is_present():
+    assert not StateGuard(field="port", operator="not_equals", value=3333).matches({})
+    assert StateGuard(field="test_attempted", operator="present").matches({"test_attempted": False})
+
+
+def test_capabilities_needed_by_expansion_cannot_be_omitted_from_spec():
+    outcome = check_applicability(
+        state(),
+        spec(),
+        required_capabilities=frozenset({"run_python_tests"}),
+    )
+    assert not outcome.passed
+    assert not outcome.gates[3].passed
