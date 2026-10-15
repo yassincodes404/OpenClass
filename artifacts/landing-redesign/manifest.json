@@ -1,0 +1,188 @@
+{
+  "implementationCommit": "05b9eb5d17b68ef40add9c12d986115abec2668f",
+  "integratedBase": "d8b3051c48439144c4df393cfd57f2591598cf3b",
+  "recordedDate": "2026-10-15",
+  "simulated": true,
+  "liveBackendEvidence": false,
+  "sourceFiles": [
+    {
+      "path": ".prettierignore",
+      "canonicalGitSha256": "d20a109037f5950b39f512a23837d8534b2b9305347094b2a6e3125a7f38cf46"
+    },
+    {
+      "path": "apps/portal/src/portal.tsx",
+      "canonicalGitSha256": "fb9ba1ab185e55fdb86e6cb59191584d7421e514747cf2e88683755715dd06ef"
+    },
+    {
+      "path": "apps/portal/src/open-world-stage.tsx",
+      "canonicalGitSha256": "2058b19fd6251ba67a5766c0cd4e13af40d5ded1e19744456bb6b111024e6473"
+    },
+    {
+      "path": "apps/portal/src/observatory-sections.tsx",
+      "canonicalGitSha256": "c97e0105f53976692bd693d24271309b818f70d5e0f47feb8663d3c792649483"
+    },
+    {
+      "path": "apps/portal/src/landing.css",
+      "canonicalGitSha256": "37dae03731b00600b5f36f7df6b31f6565198588ca7b9a6113bb1aa4aaea89fb"
+    },
+    {
+      "path": "apps/portal/src/portal.test.tsx",
+      "canonicalGitSha256": "e3d8676e6521dc187daed385b3dd82097cd840c23694a01c6eb113fb861910b9"
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "desktop-1440-full.png",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "observedClientWidth": 1425,
+      "observedScrollWidth": 1425,
+      "layout": "horizontal-svg",
+      "capture": "full-page",
+      "image": {
+        "width": 1425,
+        "height": 4973
+      },
+      "sha256": "4351770d664af4f334bc4a6b384114e9c46f4f2d46bee954276d571084f10565"
+    },
+    {
+      "file": "desktop-1280-full.png",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "observedClientWidth": 1265,
+      "observedScrollWidth": 1265,
+      "layout": "horizontal-svg",
+      "capture": "full-page",
+      "image": {
+        "width": 1265,
+        "height": 4983
+      },
+      "sha256": "9e019501c3186c58202d04931274d0e37b31f55a6bdef6968715dac914219bed"
+    },
+    {
+      "file": "tablet-834-full.png",
+      "viewport": {
+        "width": 834,
+        "height": 1112
+      },
+      "observedClientWidth": 819,
+      "observedScrollWidth": 819,
+      "layout": "vertical-cards",
+      "capture": "full-page",
+      "image": {
+        "width": 819,
+        "height": 5443
+      },
+      "sha256": "85089e6af2fde912a14732aafbc8f339440abc47fe9e242810b36cd9c8cb2ca4"
+    },
+    {
+      "file": "mobile-390-full.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "observedClientWidth": 375,
+      "observedScrollWidth": 375,
+      "layout": "vertical-cards",
+      "capture": "full-page",
+      "image": {
+        "width": 375,
+        "height": 6601
+      },
+      "sha256": "108ecfd246b1bac4875607313080fb225da5e6c6f43aabb07b9a138c6dcb9f5b"
+    },
+    {
+      "file": "mobile-375-full.png",
+      "viewport": {
+        "width": 375,
+        "height": 812
+      },
+      "observedClientWidth": 360,
+      "observedScrollWidth": 360,
+      "layout": "vertical-cards",
+      "capture": "full-page",
+      "image": {
+        "width": 360,
+        "height": 6768
+      },
+      "sha256": "6f5de47e3f1f2d3e212db2a35b284be8916fd63aadc0eb8e93c171c2632d996c"
+    },
+    {
+      "file": "mobile-390-decision-loop.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "observedClientWidth": 375,
+      "observedScrollWidth": 375,
+      "layout": "vertical-cards",
+      "capture": "element",
+      "image": {
+        "width": 307,
+        "height": 745
+      },
+      "sha256": "85933289217e99b22f1376c9e176b4f5c99c1b3035b3bd6b2b4bc80ad2bea596"
+    },
+    {
+      "file": "mobile-390-reduced-motion.png",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "observedClientWidth": 375,
+      "observedScrollWidth": 375,
+      "layout": "vertical-cards-reduced-motion",
+      "capture": "element",
+      "image": {
+        "width": 307,
+        "height": 744
+      },
+      "sha256": "05a47370ba7f1aa1ca0644fbaec23e282b004e988f598cb0e5b2f8b538d7d412"
+    }
+  ],
+  "recording": {
+    "file": "landing-desktop-motion.mp4",
+    "bytes": 1064237,
+    "sha256": "61c4303050db03beb393546073ba913c90ddb7fe0f9f88f807803e629ee13520",
+    "browserDecoded": {
+      "durationSeconds": 103.592333,
+      "width": 1440,
+      "height": 1000,
+      "samples": [
+        {
+          "fraction": 0.2,
+          "readyState": 4,
+          "colorLevels": 147
+        },
+        {
+          "fraction": 0.5,
+          "readyState": 4,
+          "colorLevels": 134
+        },
+        {
+          "fraction": 0.9,
+          "readyState": 4,
+          "colorLevels": 138
+        }
+      ]
+    }
+  },
+  "latestManualScenarioStepChecks": 40,
+  "reducedMotion": {
+    "playDisabled": true,
+    "manualStep": "STEP 2 / 5",
+    "cardTransitionDuration": "0s",
+    "headlineAnimation": "none",
+    "titleFontPx": 14,
+    "badgeFontPx": 11
+  },
+  "independentReview": {
+    "reviewerSession": "c28990e3-fc8f-40a7-9681-d11d6173a091",
+    "verdict": "LGTM",
+    "independentVideoReplay": false
+  }
+}

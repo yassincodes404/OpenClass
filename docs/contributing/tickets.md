@@ -251,7 +251,14 @@ or publication used to validate. Local passing checks alone do not close this ti
 ## OC-035 — Versioned transition, execution and verification vertical
 
 **Depends on:** OC-034; OC-017 for immutable decision configuration references.
-**Priority:** P0. **Status:** Partially implemented (`OC-BG-009`, `OC-BG-015`, `OC-BG-019`, `OC-BG-035`, `OC-BG-044` `VERIFIED`; `OC-BG-016` & `OC-BG-018` `PARTIAL`, PRs #36, #42, #43, #49, #52, #55): multi-node `DecisionService` graph execution, `compile_event_state` (`snapshot_hash` in `openclass_core/decision_executor.py:37-58`), durable `decision_run_checkpoints` with atomic CAS claiming and crash recovery (`0026` + `0027`, `/resume`, `/cancel`, `/recover-checkpoint`), and `AutomationLoop` / `SafeSandboxExecutor` in `openclass_core` are implemented; no standalone `StateCompilerPort` / `DeterministicStateCompiler` class, `DecisionServiceNode` `required_state_fields`/`preconditions`, or dedicated `0028_state_schemas.py` SQL table exists (`OC-BG-016` `PARTIAL`), and `ApplicabilitySpec`/`applicable` (`scripts/automation_applicability.py`) + 5-gate `create_policy_v2` (`scripts/automation_policy_approval.py`) remain in `scripts/` (`OC-BG-018` `PARTIAL`).
+**Priority:** P0. **Status:** Partially implemented. `OC-BG-018` is now verified
+through PR #59: runtime applicability, macro guards and independent step/final
+verification are in core. PR #58 adds checkpoint revision CAS, transaction-bound
+snapshots and renewable fenced leases (`0028`). The existing multi-node graph,
+sandbox and checkpoint foundations remain verified. `OC-BG-016` still needs its
+original typed-state, provenance, schema and budget requirements; closure does
+not require a prescribed class or table name. The complete vertical acceptance
+below remains authoritative and is not closed by these foundations alone.
 Review typed state provenance/freshness, semantic Choice → Transition binding,
 scoped capability registry, execution intent/outcome and independent verification.
 Implement one bounded HTTP capability plus termination in customer operations.
@@ -384,3 +391,23 @@ closed (`404`/`409`); concurrent `/resume` requests allow exactly one winner (`2
 reject the contender (`409`) with zero duplicate LLM calls; crashed claims recover after
 stale timeout; cancelling a resumed run that paused at a downstream node succeeds (`200`)
 while cancelling a completed run returns `409 Conflict`.
+
+## OC-046 — Readable mobile landing diagram, simpler copy and purposeful motion (`OC-BG-045`)
+
+**Depends on:** OC-012, OC-043. **Priority:** P1.
+**Status:** Implemented and independently reviewed locally; focused PR CI/merge pending.
+
+Preserve the horizontal desktop diagram and provide five connected, tappable
+cards at narrow widths. Extract architecture/evidence/quickstart sections.
+Keep copy concise, all examples explicitly simulated, UNKNOWN permanent, and
+evaluation plus human approval mandatory. Use purposeful state/connector motion
+with instant keyboard and reduced-motion alternatives.
+
+**Acceptance:** preserve all scenario probabilities and manual controls; verify
+desktop/tablet/mobile overflow, readable labels, keyboard tabs, playback,
+clipboard feedback and working onboarding destinations. Save fresh screenshots,
+a motion recording and tested-revision manifest. Run repository checks and
+independent code/visual review before focused delivery.
+
+Specification: `docs/agentic-engineering/09-landing-redesign-spec.md`.
+Evidence: `artifacts/landing-redesign/README.md`.

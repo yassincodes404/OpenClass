@@ -1,6 +1,6 @@
 # OC-BG-045 / OC-046: landing redesign
 
-Status: specification recovered; implementation and verification pending.
+Status: implemented locally and independently reviewed; focused PR delivery pending.
 Priority: P1. Dependencies: OC-012 and OC-043 / OC-BG-042.
 
 The previous planner returned this task in chat on 2026-10-15 at 11:08:58 UTC,
@@ -72,3 +72,22 @@ Landing implementation primarily owns `apps/portal/src/open-world-stage.tsx`,
 `portal.tsx`, the new `observatory-sections.tsx`, relevant styles and component
 tests. Serialize changes with the separate frontend feature-parity work.
 Do not retire `apps/web` as a side effect of a landing redesign.
+
+## Implementation evidence
+
+Implementation: `05b9eb5d17b68ef40add9c12d986115abec2668f`, based on merged
+main `d8b3051c48439144c4df393cfd57f2591598cf3b`. The responsive switch uses
+1160px so tablet labels stay readable; both recovered desktop targets retain
+the horizontal diagram.
+
+The implementation has 22 passing component tests, 40 actual-browser
+scenario/step checks, five fresh viewport screenshots and a desktop interaction
+recording under `artifacts/landing-redesign/`. Mobile titles are 14px and active
+badges 11px. Reduced motion disables playback while preserving manual controls;
+actual computed transition duration is `0s` and headline animation is `none`.
+Independent final code/visual review reported no remaining high-confidence bugs.
+See the artifact README for exact dimensions, commands, revision and limitations.
+
+Repository checks, the explicit offline Python suite, JavaScript builds and all
+11 Python package builds pass. These are not authenticated live-backend
+workflow evidence. PR CI and merge are still required for delivery.
