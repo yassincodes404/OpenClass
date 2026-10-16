@@ -55,7 +55,7 @@ network boundary.
 | Archived project                           | 409  | Ingestion unavailable                                                           |
 | Missing credential or unavailable database | 503  | No insecure authentication fallback                                             |
 | Integration outside project                | 404  | Scoped lookup rejects access                                                    |
-| Payload larger than 128,000 bytes           | 413  | Rejected before normalization                                                   |
+| Payload larger than 128,000 bytes          | 413  | Rejected before normalization                                                   |
 
 Deduplication compares the logical JSON payload (source, exact content and metadata;
 object key order is ignored). Identity is permanent within a project/integration:

@@ -92,13 +92,13 @@ lifespan runs an in-process dispatcher; tests/operators can inject a sender and
 call its bounded `drain` operation. Defaults and environment bounds:
 
 | Setting (prefix `OPENCLASS_`) | Default | Allowed |
-| --- | --- | --- |
-| `OUTBOUND_ENABLED` | false | boolean |
-| `OUTBOUND_BATCH_SIZE` | 10 | 1–100 |
-| `OUTBOUND_POLL_SECONDS` | 5 | 0.1–300 |
-| `OUTBOUND_MAX_ATTEMPTS` | 3 | 1–10 |
-| `OUTBOUND_TIMEOUT_SECONDS` | 5 | >0–30 |
-| `OUTBOUND_LEASE_SECONDS` | 60 | 35–600 |
+| ----------------------------- | ------- | ------- |
+| `OUTBOUND_ENABLED`            | false   | boolean |
+| `OUTBOUND_BATCH_SIZE`         | 10      | 1–100   |
+| `OUTBOUND_POLL_SECONDS`       | 5       | 0.1–300 |
+| `OUTBOUND_MAX_ATTEMPTS`       | 3       | 1–10    |
+| `OUTBOUND_TIMEOUT_SECONDS`    | 5       | >0–30   |
+| `OUTBOUND_LEASE_SECONDS`      | 60      | 35–600  |
 
 Retry backoff is `min(300, 2 ** attempt)` seconds. Recovery scans at most 100
 expired claims/exhausted queues per drain. Lowering the attempt budget cannot
