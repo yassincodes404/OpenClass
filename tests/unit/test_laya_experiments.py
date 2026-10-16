@@ -35,6 +35,26 @@ from scripts.laya_experiments.verify import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _simulated_source_commit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SIMULATED git commit for source identity; containers may lack git.
+
+    Only the commit string is simulated (and marked). The five locked module
+    file hashes stay real, so source-mismatch gating is still exercised.
+    """
+    names = ("__init__.py", "dataset.py", "metrics.py", "runner.py", "verify.py")
+
+    def simulated() -> dict[str, Any]:
+        return {
+            "commit": "SIMULATED-commit-not-a-git-sha",
+            "files": {
+                name: file_hash(Path(runner.__file__).with_name(name)) for name in names
+            },
+        }
+
+    monkeypatch.setattr(runner, "source_identity", simulated)
+
+
 def metric_row(
     actual: str,
     predicted: str,
