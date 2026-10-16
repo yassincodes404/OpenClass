@@ -452,7 +452,7 @@ test("real frontends share owned projects, scoped classifiers, evidence, graph a
   await page.keyboard.press("Enter");
   await graph.getByLabel("Node name", { exact: true }).nth(1).fill("Human review");
   await graph
-    .getByLabel("Next node", { exact: true })
+    .getByRole("combobox", { name: "Next node", exact: true })
     .first()
     .selectOption({ label: "Human review" });
   await graph.getByLabel("Human approval before this transition").check();
@@ -475,7 +475,7 @@ test("real frontends share owned projects, scoped classifiers, evidence, graph a
   await next.reload();
   await next.getByRole("button", { name: "Edit graph for Parity router" }).click();
   await next
-    .getByLabel("Node instructions", { exact: true })
+    .getByRole("textbox", { name: "Node instructions", exact: true })
     .nth(1)
     .fill("Human review is required.");
   const nextSaved = mutation(next, "PATCH", `/decision-services/${service.id}`);
@@ -512,7 +512,7 @@ test("real frontends share owned projects, scoped classifiers, evidence, graph a
     await replay
       .getByLabel("Label rationale")
       .fill("Independent synthetic annotation for workflow verification only.");
-    await replay.getByLabel("Dataset split").selectOption(split!);
+    await replay.getByRole("combobox", { name: "Dataset split", exact: true }).selectOption(split!);
     const example = mutation(page, "POST", `/eval-datasets/${dataset.id}/examples`);
     await replay.getByRole("button", { name: "Add verified example", exact: true }).click();
     await json(await example, 201);
@@ -547,8 +547,12 @@ test("real frontends share owned projects, scoped classifiers, evidence, graph a
       })
     ).status(),
   ).toBe(409);
-  await replay.getByLabel("Inactive candidate", { exact: true }).selectOption(candidate.id);
-  await replay.getByLabel("Decision service", { exact: true }).selectOption(service.id);
+  await replay
+    .getByRole("combobox", { name: "Inactive candidate", exact: true })
+    .selectOption(candidate.id);
+  await replay
+    .getByRole("combobox", { name: "Decision service", exact: true })
+    .selectOption(service.id);
   const evaluation = mutation(page, "POST", "/evaluations");
   await replay.getByRole("button", { name: "Run sealed replay" }).click();
   const evaluated = await json(await evaluation, 201);

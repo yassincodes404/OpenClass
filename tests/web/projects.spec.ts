@@ -1,4 +1,11 @@
-import { test, expect } from "@playwright/test";
+import {
+  test,
+  expect,
+  mockWorkspaceProject,
+  WORKFLOW_ROUTE,
+  PROJECTS_ROUTE,
+  projectMapping,
+} from "./fixtures/workspace";
 
 const projectResponse = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -11,8 +18,12 @@ const projectResponse = {
   updated_at: "2026-09-25T10:00:00Z",
 };
 
+test.beforeEach(async ({ page }) => {
+  await mockWorkspaceProject(page, projectResponse);
+});
+
 test("projects list shows an empty state before anything exists", async ({ page }) => {
-  await page.route("**/api/v1/projects", (route) => route.fulfill({ json: [] }));
+  await page.route(PROJECTS_ROUTE, (route) => route.fulfill({ json: [] }));
   await page.goto("/projects");
   await expect(page.getByRole("navigation", { name: "Portal navigation" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Workspace", exact: true })).toBeVisible();
@@ -23,16 +34,23 @@ test("projects list shows an empty state before anything exists", async ({ page 
 
 test("create project posts to the public API and shows the new project", async ({ page }) => {
   let created = false;
-  await page.route("**/api/v1/projects", async (route) => {
+  await page.route(PROJECTS_ROUTE, async (route) => {
     if (route.request().method() === "POST") {
       created = true;
       const body = route.request().postDataJSON();
+      expect(body).toEqual({
+        name: "GymHolic Intelligence",
+        description: "Customer intelligence experiment",
+      });
       return route.fulfill({
         status: 201,
-        json: { ...projectResponse, name: body.name, description: body.description },
+        json: projectMapping({
+          ...projectResponse,
+          name: body.name,
+        }),
       });
     }
-    return route.fulfill({ json: created ? [projectResponse] : [] });
+    return route.fulfill({ json: created ? [projectMapping(projectResponse)] : [] });
   });
   await page.goto("/projects");
   await page.getByLabel("Name").fill("GymHolic Intelligence");
@@ -44,15 +62,15 @@ test("create project posts to the public API and shows the new project", async (
 
 test("create project surfaces validation errors without calling the API", async ({ page }) => {
   let calls = 0;
-  await page.route("**/api/v1/projects", (route) => {
+  await page.route(PROJECTS_ROUTE, (route) => {
     calls++;
     return route.fulfill({ json: [] });
   });
   let created = 0;
-  await page.route("**/api/v1/projects", async (route) => {
+  await page.route(PROJECTS_ROUTE, async (route) => {
     if (route.request().method() === "POST") {
       created++;
-      return route.fulfill({ status: 201, json: {} });
+      return route.fulfill({ status: 201, json: projectMapping(projectResponse) });
     }
     calls++;
     return route.fulfill({ json: [] });
@@ -64,10 +82,8 @@ test("create project surfaces validation errors without calling the API", async 
 });
 
 test("project overview shows persisted metadata and real counters", async ({ page }) => {
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/summary", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/summary`, (route) =>
     route.fulfill({
       json: {
         events: 0,
@@ -80,7 +96,9 @@ test("project overview shows persisted metadata and real counters", async ({ pag
     }),
   );
   await page.goto("/projects/gymholic-intelligence");
-  await expect(page.getByRole("heading", { name: "GymHolic Intelligence" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "GymHolic Intelligence", level: 1 }),
+  ).toBeVisible();
   await expect(page.getByText("Customer intelligence experiment")).toBeVisible();
   for (const label of ["Events", "Decision runs", "Unknowns", "Pending candidates"]) {
     await expect(page.getByText(label, { exact: true })).toBeVisible();
@@ -89,9 +107,7 @@ test("project overview shows persisted metadata and real counters", async ({ pag
 });
 
 test("shell sections that are not built show an honest unavailable state", async ({ page }) => {
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
   await page.goto("/projects/gymholic-intelligence/workflows");
   await expect(page.getByRole("heading", { name: "workflows" })).toBeVisible();
   await expect(page.getByText("Not available in this build yet.")).toBeVisible();
@@ -99,7 +115,7 @@ test("shell sections that are not built show an honest unavailable state", async
 
 test("settings edit persists through the public API", async ({ page }) => {
   let patched: unknown;
-  await page.route("**/api/v1/projects/gymholic-intelligence", async (route) => {
+  await page.route(`${WORKFLOW_ROUTE}`, async (route) => {
     if (route.request().method() === "PATCH") {
       patched = route.request().postDataJSON();
       return route.fulfill({
@@ -119,7 +135,7 @@ test("settings edit persists through the public API", async ({ page }) => {
 });
 
 test("server errors are recoverable and reported", async ({ page }) => {
-  await page.route("**/api/v1/projects", (route) =>
+  await page.route(PROJECTS_ROUTE, (route) =>
     route.fulfill({ status: 503, json: { detail: "Database unavailable" } }),
   );
   await page.goto("/projects");

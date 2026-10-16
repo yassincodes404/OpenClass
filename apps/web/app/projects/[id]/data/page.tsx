@@ -62,7 +62,7 @@ export default function ProjectDataPage() {
       .catch(() => {});
 
     client
-      .providerStatus()
+      .projectProviderStatus(slug)
       .then(setProviderStatus)
       .catch(() => {
         // Provider status endpoint optional/best effort

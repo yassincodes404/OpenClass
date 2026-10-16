@@ -2197,6 +2197,15 @@ export class OpenClassWorkspaceClient extends OpenClass {
     return this.control.request("/workspaces", { token });
   }
 
+  /** Public provider summary, authorized through an explicit project mapping. */
+  projectProviderStatus(project: string): Promise<ProviderStatus> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(project)}/provider-status`,
+      undefined,
+      "GET",
+    );
+  }
+
   private requireToken(): string {
     const token = this.sessionToken();
     if (!token) throw new ControlApiError(401, "Sign in to your workspace");

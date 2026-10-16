@@ -1152,6 +1152,40 @@ test("OpenClassWorkspaceClient lists projects across real workspace memberships"
   assert.ok(!seen.some((entry) => entry.includes("/api/v1/")), "never calls the engine directly");
 });
 
+test("workspace provider status resolves a project before reading the closed metadata route", async () => {
+  const seen: string[] = [];
+  const status = {
+    default_provider: "laya",
+    laya: {
+      status: "ready",
+      mode: "local_engine",
+      daemon_status: "ready",
+      endpoint: "",
+      model: "laya-model",
+      default: true,
+    },
+    jev: { status: "not_configured", model: "jev", configured: false, default: false },
+  };
+  const control = new OpenClassControlClient({
+    baseUrl: "/control",
+    fetcher: async (url, init) => {
+      seen.push(String(url));
+      assert.equal(new Headers(init?.headers).get("authorization"), "Bearer simulated-session");
+      if (String(url) === "/control/projects/project%2Falias")
+        return Response.json({ id: "cp-1", workspace_id: "ws-1", engine_project_id: "ep-1" });
+      if (String(url) === "/control/workspaces/ws-1/projects/cp-1/workflow/provider-status")
+        return Response.json(status);
+      return new Response(null, { status: 404 });
+    },
+  });
+  const client = new OpenClassWorkspaceClient(control, () => "simulated-session");
+  assert.deepEqual(await client.projectProviderStatus("project/alias"), status);
+  assert.deepEqual(seen, [
+    "/control/projects/project%2Falias",
+    "/control/workspaces/ws-1/projects/cp-1/workflow/provider-status",
+  ]);
+});
+
 test("OpenClassWorkspaceClient creates projects through the selected workspace only", async () => {
   const seen: Array<{ url: string; method: string; body?: string }> = [];
   const fetcher: typeof fetch = async (url, init) => {

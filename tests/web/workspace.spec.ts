@@ -1,4 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures/workspace";
+
+// Legacy public-classifier playground contracts remain on the public HTTP SDK.
+// All responses are simulated route mocks, not live provider or E2E evidence.
 
 test("shows actual API decisions, unknown explanations and recoverable errors", async ({
   page,

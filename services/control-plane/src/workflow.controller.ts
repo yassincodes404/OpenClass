@@ -21,7 +21,7 @@ import { IngestionService } from "./ingestion.service.js";
 import { ProjectService } from "./project.service.js";
 import { RateLimitService } from "./rate-limit.service.js";
 import { ROLE_RANK, type Role } from "./workspace.service.js";
-import { workflowContract, workflowQuery } from "./workflow-contracts.js";
+import { publicProviderStatus, workflowContract, workflowQuery } from "./workflow-contracts.js";
 
 @Controller("control/workspaces/:workspaceId/projects/:projectId")
 @UseGuards(KeycloakGuard)
@@ -60,6 +60,13 @@ export class WorkflowController {
     // The HTTP RPC is NOT part of the control database's local transaction.
     // No automatic retries: a failed response may follow an accepted engine mutation.
     const options = { workspaceId, actor: request.principal.subject };
+    if (request.method === "GET" && path === "provider-status") {
+      const result = publicProviderStatus(
+        await this.engine.request("GET", "/api/v1/providers/status", undefined, 200, options),
+      );
+      response.status(200);
+      return result;
+    }
     if (request.method === "POST" && (path === "events" || path === "events/batch"))
       await this.ingestion.authorizeIngestion(callerOf(request), workspaceId, project.id);
     if (request.method === "POST" && /^decision-services\/[^/]+\/runs$/.test(path)) {

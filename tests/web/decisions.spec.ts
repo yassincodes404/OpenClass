@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, mockWorkspaceProject, WORKFLOW_ROUTE } from "./fixtures/workspace";
 
 const projectResponse = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -30,7 +30,7 @@ const providerStatusResponse = {
 };
 
 const sampleService = {
-  id: "svc-1111",
+  id: "22222222-2222-4222-8222-222222222222",
   project_id: projectResponse.id,
   slug: "support-routing",
   name: "Support Routing",
@@ -38,7 +38,7 @@ const sampleService = {
   instructions: "Classify incoming ticket by urgency and type",
   nodes: [
     {
-      id: "node-1111",
+      id: "33333333-3333-4333-8333-333333333333",
       name: "default",
       instructions: "Classify incoming ticket by urgency and type",
       choices: [
@@ -55,11 +55,11 @@ const sampleService = {
 };
 
 const sampleRun = {
-  id: "run-9999",
+  id: "44444444-4444-4444-8444-444444444444",
   project_id: projectResponse.id,
-  raw_event_id: "evt-0001",
+  raw_event_id: "55555555-5555-4555-8555-555555555555",
   decision_service_id: sampleService.id,
-  decision_node_id: "node-1111",
+  decision_node_id: "33333333-3333-4333-8333-333333333333",
   provider: "laya",
   model: "laya-router",
   execution_mode: "deterministic_test_fallback",
@@ -79,7 +79,7 @@ const sampleRun = {
     "Laya provider operates under research calibration (conservative supervision)",
   latency_ms: 14.2,
   input_snapshot: {
-    id: "evt-0001",
+    id: "55555555-5555-4555-8555-555555555555",
     content: "Treadmill 4 belt snapped and stopped abruptly with member on it!",
     metadata: { gym_location: "downtown" },
   },
@@ -93,17 +93,15 @@ const sampleRun = {
   created_at: "2026-09-26T12:05:00Z",
 };
 
+test.beforeEach(async ({ page }) => {
+  await mockWorkspaceProject(page, projectResponse);
+});
+
 test("decisions page renders empty states and provider banner", async ({ page }) => {
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/decision-services*", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/runs*", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/decision-services*`, (route) => route.fulfill({ json: [] }));
+  await page.route(`${WORKFLOW_ROUTE}/runs*`, (route) => route.fulfill({ json: [] }));
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
 
@@ -118,20 +116,16 @@ test("decisions page renders empty states and provider banner", async ({ page })
 test("create decision service modal shows locked UNKNOWN choice and submits", async ({ page }) => {
   const servicesList: any[] = [];
 
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/runs*", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/runs*`, (route) => route.fulfill({ json: [] }));
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
-  await page.route("**/api/v1/projects/gymholic-intelligence/decision-services*", async (route) => {
+  await page.route(`${WORKFLOW_ROUTE}/decision-services*`, async (route) => {
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
       const newService = {
-        id: "svc-new",
+        id: "66666666-6666-4666-8666-666666666666",
         project_id: projectResponse.id,
         slug: "lead-routing",
         name: body.name,
@@ -139,8 +133,9 @@ test("create decision service modal shows locked UNKNOWN choice and submits", as
         instructions: body.instructions,
         nodes: [
           {
-            id: "node-1",
+            id: "77777777-7777-4777-8777-777777777777",
             name: "default",
+            instructions: body.instructions,
             choices: [
               ...body.choices,
               { key: "UNKNOWN", label: "Unknown", description: "Permanent semantic fallback" },
@@ -177,20 +172,20 @@ test("create decision service modal shows locked UNKNOWN choice and submits", as
 
   // Verify service card appears on the page
   await expect(page.getByTestId("service-card-lead-routing")).toBeVisible();
-  await expect(page.getByText("Lead Routing")).toBeVisible();
+  await expect(
+    page
+      .getByTestId("service-card-lead-routing")
+      .getByRole("heading", { name: "Lead Routing", exact: true }),
+  ).toBeVisible();
 });
 
 test("decision runs explorer displays runs table and inspect drawer", async ({ page }) => {
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/decision-services*", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/decision-services*`, (route) =>
     route.fulfill({ json: [sampleService] }),
   );
-  await page.route("**/api/v1/projects/gymholic-intelligence/runs*", (route) =>
-    route.fulfill({ json: [sampleRun] }),
-  );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}/runs*`, (route) => route.fulfill({ json: [sampleRun] }));
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
 
@@ -199,7 +194,9 @@ test("decision runs explorer displays runs table and inspect drawer", async ({ p
   // Verify runs table
   await expect(page.getByTestId("decision-runs-table")).toBeVisible();
   await expect(
-    page.getByTestId("run-row-run-9999").getByText("URGENT", { exact: true }),
+    page
+      .getByTestId("run-row-44444444-4444-4444-8444-444444444444")
+      .getByText("URGENT", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("88.0%")).toBeVisible();
   await expect(page.getByText("+81.0%")).toBeVisible();
@@ -208,11 +205,11 @@ test("decision runs explorer displays runs table and inspect drawer", async ({ p
   await expect(page.getByText("⚠ Fallback")).toBeVisible();
 
   // Click Inspect
-  await page.getByTestId("inspect-run-run-9999").click({ force: true });
+  await page.getByTestId("inspect-run-44444444-4444-4444-8444-444444444444").click({ force: true });
 
   // Verify Inspector Drawer content
   await expect(page.getByRole("heading", { name: "Decision Run Details" })).toBeVisible();
-  await expect(page.getByText("Run ID: run-9999")).toBeVisible();
+  await expect(page.getByText("Run ID: 44444444-4444-4444-8444-444444444444")).toBeVisible();
   await expect(
     page.getByText("Laya provider operates under research calibration (conservative supervision)"),
   ).toBeVisible();
@@ -225,7 +222,7 @@ test("data page selects raw events and runs intelligence to create decision runs
 }) => {
   const events = [
     {
-      id: "evt-0001",
+      id: "55555555-5555-4555-8555-555555555555",
       project_id: projectResponse.id,
       source_type: "text",
       content: "Treadmill stopped working",
@@ -234,20 +231,16 @@ test("data page selects raw events and runs intelligence to create decision runs
     },
   ];
 
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/events*", (route) =>
-    route.fulfill({ json: events }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/decision-services*", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/events*`, (route) => route.fulfill({ json: events }));
+  await page.route(`${WORKFLOW_ROUTE}/decision-services*`, (route) =>
     route.fulfill({ json: [sampleService] }),
   );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
   await page.route(
-    "**/api/v1/projects/gymholic-intelligence/decision-services/svc-1111/runs",
+    `${WORKFLOW_ROUTE}/decision-services/22222222-2222-4222-8222-222222222222/runs`,
     async (route) => {
       return route.fulfill({ status: 201, json: [sampleRun] });
     },

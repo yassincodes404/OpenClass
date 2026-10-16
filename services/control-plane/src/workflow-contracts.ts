@@ -1,8 +1,32 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadGatewayException, BadRequestException, NotFoundException } from "@nestjs/common";
 import { z } from "zod";
 import type { Role } from "./workspace.service.js";
 
 const text = (max: number) => z.string().trim().min(1).max(max);
+const providerStatus = z.object({
+  default_provider: text(100),
+  laya: z.object({
+    status: text(100),
+    mode: text(100),
+    daemon_status: text(100),
+    model: text(200),
+    default: z.boolean(),
+  }),
+  jev: z.object({
+    status: text(100),
+    model: text(200),
+    configured: z.boolean(),
+    default: z.boolean(),
+  }),
+});
+
+/** Project viewers need runtime status, not private connection/credential fields. */
+export function publicProviderStatus(value: unknown) {
+  const parsed = providerStatus.safeParse(value);
+  if (!parsed.success) throw new BadGatewayException("Provider status unavailable");
+  return { ...parsed.data, laya: { ...parsed.data.laya, endpoint: "" } };
+}
+
 const id = z.string().uuid();
 const choice = z
   .object({
@@ -92,7 +116,7 @@ const rules: Rule[] = [
   },
   {
     method: "GET",
-    path: /^(summary|analytics|audit|evolution\/summary|ops\/summary|ops\/events|analytics\/summary)$/,
+    path: /^(summary|analytics|audit|evolution\/summary|ops\/summary|ops\/events|analytics\/summary|provider-status)$/,
     role: "viewer",
   },
   {

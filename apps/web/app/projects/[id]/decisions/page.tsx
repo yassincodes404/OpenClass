@@ -63,7 +63,7 @@ export default function ProjectDecisionsPage() {
     loadData(slug);
 
     client
-      .providerStatus()
+      .projectProviderStatus(slug)
       .then(setProviderStatus)
       .catch(() => {});
   }, [slug]);

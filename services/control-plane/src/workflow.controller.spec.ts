@@ -47,6 +47,58 @@ function controllerWith(role: string | null, engineResult: unknown = { ok: true 
 }
 
 describe("WorkflowController", () => {
+  it("provides bounded provider metadata after project membership without exposing connection details", async () => {
+    const { controller, engine, response } = controllerWith("viewer", {
+      default_provider: "laya",
+      laya: {
+        status: "ready",
+        mode: "local_engine",
+        daemon_status: "ready",
+        endpoint: "https://user:sentinel-secret@private.example/?token=sentinel-secret",
+        model: "laya-model",
+        default: true,
+        api_key: "sentinel-secret",
+      },
+      jev: { status: "not_configured", model: "jev", configured: false, default: false },
+      internal_token: "sentinel-secret",
+    });
+    const result = await controller.handle(
+      { principal, method: "GET" },
+      "w1",
+      "p1",
+      ["provider-status"],
+      {},
+      undefined,
+      response,
+    );
+    expect(engine.request).toHaveBeenCalledWith("GET", "/api/v1/providers/status", undefined, 200, {
+      workspaceId: "w1",
+      actor: principal.subject,
+    });
+    expect(result).toMatchObject({
+      default_provider: "laya",
+      laya: { model: "laya-model", endpoint: "" },
+    });
+    expect(JSON.stringify(result)).not.toContain("sentinel-secret");
+    expect(response.status).toHaveBeenCalledWith(200);
+  });
+
+  it("hides provider metadata from non-members before engine access", async () => {
+    const { controller, engine, response } = controllerWith(null);
+    await expect(
+      controller.handle(
+        { principal, method: "GET" },
+        "w1",
+        "p1",
+        ["provider-status"],
+        {},
+        undefined,
+        response,
+      ),
+    ).rejects.toThrow(NotFoundException);
+    expect(engine.request).not.toHaveBeenCalled();
+  });
+
   it.each(["events", "events/batch"])(
     "enforces the existing workspace quota before workflow %s mutation",
     async (path) => {

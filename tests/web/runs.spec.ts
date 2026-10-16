@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, mockWorkspaceProject, WORKFLOW_ROUTE } from "./fixtures/workspace";
 
 const project = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -40,10 +40,17 @@ const run = {
   created_at: "2026-09-27T10:01:00Z",
 };
 
+test.beforeEach(async ({ page }) => {
+  await mockWorkspaceProject(page, project);
+  await page.route(`${WORKFLOW_ROUTE}/runs/${run.id}/feedback`, (route) =>
+    route.fulfill({ json: [] }),
+  );
+});
+
 test("runs remain inspectable after a reload and filters use loaded history", async ({ page }) => {
   let detailCalls = 0;
-  await page.route("**/api/v1/projects/support-demo", (route) => route.fulfill({ json: project }));
-  await page.route("**/api/v1/projects/support-demo/runs?*", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: project }));
+  await page.route(`${WORKFLOW_ROUTE}/runs?*`, (route) =>
     route.fulfill({
       json: [
         run,
@@ -56,7 +63,7 @@ test("runs remain inspectable after a reload and filters use loaded history", as
       ],
     }),
   );
-  await page.route(`**/api/v1/projects/support-demo/runs/${run.id}`, (route) => {
+  await page.route(`${WORKFLOW_ROUTE}/runs/${run.id}`, (route) => {
     detailCalls += 1;
     return route.fulfill({ json: run });
   });
@@ -82,8 +89,8 @@ test("runs remain inspectable after a reload and filters use loaded history", as
 
 test("run history reports API failure and offers retry", async ({ page }) => {
   let attempts = 0;
-  await page.route("**/api/v1/projects/support-demo", (route) => route.fulfill({ json: project }));
-  await page.route("**/api/v1/projects/support-demo/runs?*", (route) => {
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: project }));
+  await page.route(`${WORKFLOW_ROUTE}/runs?*`, (route) => {
     attempts += 1;
     return attempts === 1
       ? route.fulfill({ status: 503, json: { detail: "Unavailable" } })

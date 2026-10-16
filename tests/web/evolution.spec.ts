@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, mockWorkspaceProject, WORKFLOW_ROUTE } from "./fixtures/workspace";
 
 const project = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -93,68 +93,63 @@ const cases = [
   },
 ];
 
+test.beforeEach(async ({ page }) => {
+  await mockWorkspaceProject(page, project);
+  await page.route(`${WORKFLOW_ROUTE}/candidates`, (route) => route.fulfill({ json: [] }));
+  await page.route(`${WORKFLOW_ROUTE}/decision-services`, (route) => route.fulfill({ json: [] }));
+});
+
 test("evolution inbox displays summary, filters evidence, and enables AI diagnosis and triage", async ({
   page,
 }) => {
-  await page.route("**/api/v1/projects/saas-support", (route) => route.fulfill({ json: project }));
-  await page.route("**/api/v1/projects/saas-support/evolution/summary", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: project }));
+  await page.route(`${WORKFLOW_ROUTE}/evolution/summary`, (route) =>
     route.fulfill({ json: summary }),
   );
-  await page.route("**/api/v1/projects/saas-support/evidence?*", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}/evidence?*`, (route) =>
     route.fulfill({ json: evidenceItems }),
   );
-  await page.route("**/api/v1/projects/saas-support/evidence", (route) =>
-    route.fulfill({ json: evidenceItems }),
-  );
-  await page.route("**/api/v1/projects/saas-support/evidence-cases*", (route) =>
-    route.fulfill({ json: cases }),
-  );
-  await page.route(`**/api/v1/projects/saas-support/evidence/${evidenceItems[0].id}`, (route) =>
+  await page.route(`${WORKFLOW_ROUTE}/evidence`, (route) => route.fulfill({ json: evidenceItems }));
+  await page.route(`${WORKFLOW_ROUTE}/evidence-cases*`, (route) => route.fulfill({ json: cases }));
+  await page.route(`${WORKFLOW_ROUTE}/evidence/${evidenceItems[0].id}`, (route) =>
     route.fulfill({ json: evidenceItems[0] }),
   );
 
   // Mock AI Diagnose endpoint
-  await page.route(
-    `**/api/v1/projects/saas-support/evidence/${evidenceItems[0].id}/ai-diagnose`,
-    (route) =>
-      route.fulfill({
-        json: {
-          diagnosis: "decision_space",
-          rationale:
-            "Customer requests collaborative workspace capabilities not present in choices.",
-          confidence: 0.95,
-          recommended_action: "Expand choice set with TEAM_WORKSPACE option.",
-          provider: "gemini",
-          model: "gemini-2.5-flash",
-          simulated: false,
-        },
-      }),
+  await page.route(`${WORKFLOW_ROUTE}/evidence/${evidenceItems[0].id}/ai-diagnose`, (route) =>
+    route.fulfill({
+      json: {
+        diagnosis: "decision_space",
+        rationale: "Customer requests collaborative workspace capabilities not present in choices.",
+        confidence: 0.95,
+        recommended_action: "Expand choice set with TEAM_WORKSPACE option.",
+        provider: "gemini",
+        model: "gemini-2.5-flash",
+        simulated: false,
+      },
+    }),
   );
 
   // Mock Triage endpoint
-  await page.route(
-    `**/api/v1/projects/saas-support/evidence/${evidenceItems[0].id}/triage`,
-    (route) =>
-      route.fulfill({
-        json: {
-          ...evidenceItems[0],
-          status: "triaged",
-          diagnosis: "decision_space",
-          diagnosis_rationale: "Missing shared workspaces capability",
-        },
-      }),
+  await page.route(`${WORKFLOW_ROUTE}/evidence/${evidenceItems[0].id}/triage`, (route) =>
+    route.fulfill({
+      json: {
+        ...evidenceItems[0],
+        status: "triaged",
+        diagnosis: "decision_space",
+        diagnosis_rationale: "Missing shared workspaces capability",
+      },
+    }),
   );
 
   // Mock Transition endpoint
-  await page.route(
-    `**/api/v1/projects/saas-support/evidence/${evidenceItems[0].id}/transition`,
-    (route) =>
-      route.fulfill({
-        json: {
-          ...evidenceItems[0],
-          status: "ready_for_evolution",
-        },
-      }),
+  await page.route(`${WORKFLOW_ROUTE}/evidence/${evidenceItems[0].id}/transition`, (route) =>
+    route.fulfill({
+      json: {
+        ...evidenceItems[0],
+        status: "ready_for_evolution",
+      },
+    }),
   );
 
   await page.goto("/projects/saas-support/evolution");

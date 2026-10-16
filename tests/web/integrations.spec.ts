@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, mockWorkspaceProject, WORKFLOW_ROUTE } from "./fixtures/workspace";
 
 const projectResponse = {
   id: "00000000-0000-0000-0000-000000000001",
@@ -10,6 +10,10 @@ const projectResponse = {
   created_at: "2026-04-18T10:00:00Z",
   updated_at: "2026-04-18T10:00:00Z",
 };
+
+test.beforeEach(async ({ page }) => {
+  await mockWorkspaceProject(page, projectResponse);
+});
 
 test("integrations page displays metrics, connects new MCP server, and shows unsupported connectivity checks", async ({
   page,
@@ -31,18 +35,16 @@ test("integrations page displays metrics, connects new MCP server, and shows uns
     updated_at: string;
   }> = [];
 
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
 
-  await page.route("**/api/v1/projects/gymholic-intelligence/integrations", (route) => {
+  await page.route(`${WORKFLOW_ROUTE}/integrations`, (route) => {
     if (route.request().method() === "GET") {
       return route.fulfill({ json: integrationsList });
     }
     if (route.request().method() === "POST") {
       const data = route.request().postDataJSON();
       const created = {
-        id: "int-1111",
+        id: "22222222-2222-4222-8222-222222222222",
         project_id: projectResponse.id,
         name: data.name,
         type: data.type,
@@ -64,7 +66,7 @@ test("integrations page displays metrics, connects new MCP server, and shows uns
   });
 
   await page.route(
-    "**/api/v1/projects/gymholic-intelligence/integrations/int-1111/test",
+    `${WORKFLOW_ROUTE}/integrations/22222222-2222-4222-8222-222222222222/test`,
     (route) => {
       if (integrationsList.length > 0) {
         integrationsList[0].status = "pending";
@@ -72,7 +74,7 @@ test("integrations page displays metrics, connects new MCP server, and shows uns
       }
       return route.fulfill({
         json: {
-          integration_id: "int-1111",
+          integration_id: "22222222-2222-4222-8222-222222222222",
           status: "pending",
           latency_ms: 18.5,
           capabilities: [],
