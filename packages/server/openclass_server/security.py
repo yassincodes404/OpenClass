@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import hmac
 import ipaddress
 import re
 import socket
+from collections.abc import AsyncIterator
 from urllib.parse import urlsplit
+
+import httpx
 
 _SECRET_REF_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,199}$")
 _WEBHOOK_PATH_RE = re.compile(
@@ -113,7 +117,7 @@ def _check_ip_allowed(
         if not allow_loopback:
             raise ValueError("Outbound URL targets a loopback address")
         return
-    if ip.is_private or ip.is_link_local or ip.is_multicast or ip.is_unspecified or ip.is_reserved:
+    if not ip.is_global or ip.is_multicast:
         raise ValueError("Outbound URL targets a restricted private or link-local IP address")
 
 
@@ -136,6 +140,7 @@ def validate_outbound_url(
         or not parsed.hostname
         or parsed.username
         or parsed.password
+        or parsed.fragment
     ):
         raise ValueError("A credential-free HTTP endpoint is required")
 
@@ -168,3 +173,75 @@ def validate_outbound_url(
             _check_ip_allowed(resolved_ip, allow_loopback=allow_loopback)
 
     return url.strip()
+
+
+class UnsafeOutboundDestination(ValueError):
+    """A destination was rejected before a connection was opened."""
+
+
+class _PinnedStream(httpx.AsyncByteStream):
+    def __init__(self, response: httpx.Response, transport: httpx.AsyncHTTPTransport) -> None:
+        self.response = response
+        self.transport = transport
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        async for chunk in self.response.aiter_raw():
+            yield chunk
+
+    async def aclose(self) -> None:
+        try:
+            await self.response.aclose()
+        finally:
+            await self.transport.aclose()
+
+
+class PublicHTTPTransport(httpx.AsyncBaseTransport):
+    """Resolve ONCE per connection, validate all answers, pin TCP to a public IP.
+
+    Host and TLS SNI retain the original hostname (normal certificate checks).
+    No proxy, redirect, TLS bypass or later hostname DNS lookup is permitted.
+    """
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        try:
+            validate_outbound_url(str(request.url), resolve_dns=False)
+        except ValueError:
+            raise UnsafeOutboundDestination("Outbound destination is not permitted") from None
+        host = request.url.host
+        try:
+            answers = await asyncio.to_thread(
+                socket.getaddrinfo,
+                host,
+                request.url.port or (443 if request.url.scheme == "https" else 80),
+                type=socket.SOCK_STREAM,
+            )
+        except OSError:
+            raise UnsafeOutboundDestination("Integration endpoint could not be reached") from None
+        if not answers:
+            raise UnsafeOutboundDestination("Integration endpoint could not be reached")
+        for answer in answers:
+            try:
+                _check_ip_allowed(ipaddress.ip_address(answer[4][0]), allow_loopback=False)
+            except ValueError:
+                raise UnsafeOutboundDestination(
+                    "Outbound destination is loopback or restricted"
+                ) from None
+        pinned = request.url.copy_with(host=str(answers[0][4][0]))
+        extensions = {**request.extensions, "sni_hostname": host}
+        headers = request.headers.copy()
+        headers["Host"] = request.url.netloc.decode()
+        forwarded = httpx.Request(
+            request.method, pinned, headers=headers, stream=request.stream, extensions=extensions
+        )
+        transport = httpx.AsyncHTTPTransport(verify=True, retries=0, trust_env=False)
+        try:
+            response = await transport.handle_async_request(forwarded)
+        except BaseException:
+            await transport.aclose()
+            raise
+        return httpx.Response(
+            response.status_code,
+            headers=response.headers,
+            stream=_PinnedStream(response, transport),
+            extensions=response.extensions,
+        )

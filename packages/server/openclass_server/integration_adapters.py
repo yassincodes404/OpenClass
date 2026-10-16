@@ -1,9 +1,12 @@
 """Runtime adapters for integration secrets and supported health checks."""
 
+import asyncio
 import hmac
+import json
 import os
 import time
 from collections.abc import Mapping
+from typing import Any
 
 import httpx
 from openclass_core.integrations import (
@@ -12,8 +15,13 @@ from openclass_core.integrations import (
     IntegrationStatus,
     IntegrationType,
 )
+from sqlalchemy import text
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import NullPool
 
 from .security import (
+    PublicHTTPTransport,
     contains_secret,
     is_allowed_integration_secret_ref,
     validate_outbound_url,
@@ -72,106 +80,85 @@ class EnvironmentSecrets:
 
 
 class HTTPIntegrationProbe:
+    """HTTP JSON MCP 2025-03-26 only; no SSE/legacy HTTP fallback."""
+
     def __init__(
-        self,
-        secrets: EnvironmentSecrets,
-        transport: httpx.AsyncBaseTransport | None = None,
+        self, secrets: EnvironmentSecrets, transport: httpx.AsyncBaseTransport | None = None
     ) -> None:
         self.secrets = secrets
         self.transport = transport
 
     async def check(self, integration: IntegrationConfig) -> IntegrationHealthReport:
         started = time.perf_counter()
-        status = IntegrationStatus.PENDING
-        error: str | None = "Connectivity checks for this integration type are not implemented"
+        status = IntegrationStatus.DISCONNECTED
+        error: str | None = "Integration endpoint could not be reached"
         capabilities: tuple[str, ...] = ()
-        if integration.type == IntegrationType.WEBHOOK:
-            try:
-                self.secrets.resolve(integration.secret_ref)
-                status, error = IntegrationStatus.CONNECTED, None
-                capabilities = ("event_ingestion", "token_authentication", "idempotent_ingestion")
-            except IntegrationConfigurationError:
-                status = IntegrationStatus.DISCONNECTED
-                error = "Webhook authentication credential is unavailable"
-        elif integration.type == IntegrationType.REST_API or (
-            integration.type in {IntegrationType.MCP, IntegrationType.PROVIDER}
-            and (integration.endpoint or "").strip()
-        ):
-            endpoint = integration.endpoint or ""
-            try:
-                validated_endpoint = validate_outbound_url(
-                    endpoint,
-                    allow_loopback=False,
-                    resolve_dns=self.transport is None,
-                )
-            except ValueError as exc:
-                status = IntegrationStatus.DISCONNECTED
-                error = str(exc)
-            else:
-                try:
-                    headers = {}
+        try:
+            async with asyncio.timeout(8):
+                if integration.type == IntegrationType.WEBHOOK:
+                    self.secrets.resolve(integration.secret_ref)
+                    auth = (
+                        "token_authentication"
+                        if integration.signature.mode == "bearer"
+                        else "signature_authentication"
+                    )
+                    capabilities = ("event_ingestion", auth, "idempotent_ingestion")
+                    status, error = IntegrationStatus.CONNECTED, None
+                elif (
+                    integration.type == IntegrationType.DATABASE and not integration.secret_ref
+                ) or (
+                    integration.type in {IntegrationType.MCP, IntegrationType.PROVIDER}
+                    and not integration.endpoint
+                ):
+                    status, error = (
+                        IntegrationStatus.PENDING,
+                        "Operator connection configuration is required",
+                    )
+                elif integration.type == IntegrationType.DATABASE:
+                    await self._database(integration)
+                    status, error = IntegrationStatus.CONNECTED, None
+                    capabilities = ("select_1",)
+                else:
+                    endpoint = validate_outbound_url(integration.endpoint, resolve_dns=False)
+                    headers = {"Accept-Encoding": "identity"}
                     if integration.secret_ref:
                         headers["Authorization"] = (
                             f"Bearer {self.secrets.resolve(integration.secret_ref)}"
                         )
                     async with httpx.AsyncClient(
-                        timeout=5,
+                        timeout=3,
                         follow_redirects=False,
-                        transport=self.transport,
                         trust_env=False,
+                        transport=self.transport or PublicHTTPTransport(),
                     ) as client:
                         if integration.type == IntegrationType.MCP:
-                            response = await client.post(
-                                validated_endpoint,
-                                headers=headers,
-                                json={
-                                    "jsonrpc": "2.0",
-                                    "id": 1,
-                                    "method": "tools/list",
-                                    "params": {},
-                                },
-                            )
-                            if response.status_code == 405:
-                                response = await client.get(validated_endpoint, headers=headers)
-                        else:
-                            response = await client.get(validated_endpoint, headers=headers)
-
-                    if integration.type == IntegrationType.MCP:
-                        if 200 <= response.status_code < 300:
+                            capabilities = await self._mcp(client, endpoint, headers)
+                            if integration.secret_ref and contains_secret(
+                                capabilities, self.secrets.resolve(integration.secret_ref)
+                            ):
+                                capabilities = ()
+                                raise ValueError("Credential in result")
                             status, error = IntegrationStatus.CONNECTED, None
-                            discovered = self._extract_mcp_tools(response)
-                            capabilities = discovered or ("mcp_tools", "context_fetch")
                         else:
-                            status = IntegrationStatus.DEGRADED
-                            error = f"HTTP {response.status_code}"
-                    elif integration.type == IntegrationType.PROVIDER:
-                        if 200 <= response.status_code < 300 or response.status_code in {401, 403}:
-                            status, error = IntegrationStatus.CONNECTED, None
-                            capabilities = ("model_inference",)
-                        else:
-                            status = IntegrationStatus.DEGRADED
-                            error = f"HTTP {response.status_code}"
-                    else:
-                        status = (
-                            IntegrationStatus.CONNECTED
-                            if 200 <= response.status_code < 300
-                            else IntegrationStatus.DEGRADED
-                        )
-                        error = (
-                            None
-                            if status == IntegrationStatus.CONNECTED
-                            else f"HTTP {response.status_code}"
-                        )
-                except IntegrationConfigurationError:
-                    status, error = (
-                        IntegrationStatus.DISCONNECTED,
-                        "Integration credential is unavailable",
-                    )
-                except (httpx.HTTPError, ValueError):
-                    status, error = (
-                        IntegrationStatus.DISCONNECTED,
-                        "Integration endpoint could not be reached",
-                    )
+                            async with client.stream("GET", endpoint, headers=headers) as response:
+                                # Reachability is not evidence of provider inference authority.
+                                status = (
+                                    IntegrationStatus.CONNECTED
+                                    if 200 <= response.status_code < 300
+                                    else IntegrationStatus.DEGRADED
+                                )
+                                error = (
+                                    None
+                                    if status == IntegrationStatus.CONNECTED
+                                    else f"HTTP {response.status_code}"
+                                )
+        except IntegrationConfigurationError:
+            error = "Integration credential is unavailable or not permitted"
+        except (httpx.HTTPError, ValueError, TypeError, KeyError, TimeoutError, OSError):
+            error = "Integration protocol, destination or connectivity check failed"
+        except Exception:
+            # Driver exceptions may contain DSNs/passwords. Persist no exception text.
+            error = "Integration connectivity check failed"
         return IntegrationHealthReport(
             integration_id=integration.id,
             status=status,
@@ -180,26 +167,168 @@ class HTTPIntegrationProbe:
             error_message=error,
         )
 
-    @staticmethod
-    def _extract_mcp_tools(response: httpx.Response) -> tuple[str, ...]:
+    async def _database(self, integration: IntegrationConfig) -> None:
+        reference = integration.secret_ref or ""
+        if not reference.startswith("OPENCLASS_INTEGRATION_DATABASE_") or not reference.endswith(
+            "_SECRET"
+        ):
+            raise IntegrationConfigurationError("Dedicated operator database reference required")
+        # Deliberately separate from HTTP credentials: this DSN is operator supplied,
+        # may address an internal DB, and is NEVER combined with caller endpoint data.
+        dsn = os.environ.get(reference, "")
+        url = make_url(dsn)
+        if (
+            url.drivername != "postgresql+asyncpg"
+            or not url.host
+            or integration.endpoint
+            or integration.metadata
+        ):
+            raise ValueError("Only an operator PostgreSQL DSN is supported")
+        engine = create_async_engine(
+            url,
+            poolclass=NullPool,
+            hide_parameters=True,
+            connect_args={
+                "timeout": 3,
+                "command_timeout": 3,
+                "server_settings": {
+                    "default_transaction_read_only": "on",
+                    "statement_timeout": "3000",
+                },
+            },
+        )
         try:
-            payload = response.json()
-        except ValueError:
-            return ()
-        if not isinstance(payload, Mapping):
-            return ()
-        result = payload.get("result")
-        if not isinstance(result, Mapping):
-            return ()
-        tools = result.get("tools")
-        if not isinstance(tools, list):
-            return ()
+            async with engine.connect() as connection:
+                if await connection.scalar(text("SELECT 1")) != 1:
+                    raise ValueError("Database check failed")
+        finally:
+            await engine.dispose()
+
+    @staticmethod
+    async def _rpc(
+        client: httpx.AsyncClient, endpoint: str, headers: dict[str, str], payload: dict[str, Any]
+    ) -> tuple[dict[str, Any], str | None]:
+        async with client.stream("POST", endpoint, headers=headers, json=payload) as response:
+            if (
+                not 200 <= response.status_code < 300
+                or response.headers.get("content-type", "").split(";")[0] != "application/json"
+                or response.headers.get("content-encoding", "identity") != "identity"
+            ):
+                raise ValueError("Unsupported MCP transport or HTTP response")
+            raw = bytearray()
+            async for chunk in response.aiter_bytes():
+                if len(raw) + len(chunk) > 64_000:
+                    raise ValueError("MCP response too large")
+                raw.extend(chunk)
+            result = json.loads(raw)
+            if (
+                not isinstance(result, dict)
+                or result.get("jsonrpc") != "2.0"
+                or type(result.get("id")) is not int
+                or result["id"] != payload["id"]
+                or "error" in result
+                or not isinstance(result.get("result"), dict)
+            ):
+                raise ValueError("Invalid MCP JSON-RPC result")
+            session = response.headers.get("mcp-session-id")
+            if session is not None and (
+                not session
+                or len(session) > 200
+                or any(ord(c) < 33 or ord(c) > 126 for c in session)
+            ):
+                raise ValueError("Invalid MCP session")
+            if (
+                payload["method"] != "initialize"
+                and session
+                and session != headers.get("Mcp-Session-Id")
+            ):
+                raise ValueError("MCP session changed")
+            return result["result"], session
+
+    async def _mcp(
+        self, client: httpx.AsyncClient, endpoint: str, headers: dict[str, str]
+    ) -> tuple[str, ...]:
+        headers = {**headers, "Accept": "application/json, text/event-stream"}
+        result, session = await self._rpc(
+            client,
+            endpoint,
+            headers,
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {"name": "openclass-health", "version": "0.0.1"},
+                },
+            },
+        )
+        if (
+            result.get("protocolVersion") != "2025-03-26"
+            or not isinstance(result.get("capabilities"), dict)
+            or not isinstance(result.get("serverInfo"), dict)
+        ):
+            raise ValueError("Unsupported MCP initialization")
+        if any(
+            not isinstance(result["serverInfo"].get(key), str)
+            or not result["serverInfo"][key].strip()
+            for key in ("name", "version")
+        ):
+            raise ValueError("Invalid MCP server identity")
+        if "tools" not in result["capabilities"] or not isinstance(
+            result["capabilities"]["tools"], dict
+        ):
+            raise ValueError("MCP tools unavailable")
+        headers["MCP-Protocol-Version"] = "2025-03-26"
+        if session:
+            headers["Mcp-Session-Id"] = session
+        async with client.stream(
+            "POST",
+            endpoint,
+            headers=headers,
+            json={"jsonrpc": "2.0", "method": "notifications/initialized"},
+        ) as response:
+            if response.status_code != 202:
+                raise ValueError("MCP initialization notification rejected")
+            if response.headers.get("mcp-session-id", session) != session:
+                raise ValueError("MCP session changed")
         names: list[str] = []
-        for item in tools:
-            if isinstance(item, str) and item.strip():
-                names.append(item.strip())
-            elif isinstance(item, Mapping):
-                name = item.get("name")
-                if isinstance(name, str) and name.strip():
-                    names.append(name.strip())
-        return tuple(names)
+        cursor: str | None = None
+        cursors: set[str] = set()
+        for page in range(3):
+            result, _ = await self._rpc(
+                client,
+                endpoint,
+                headers,
+                {
+                    "jsonrpc": "2.0",
+                    "id": page + 2,
+                    "method": "tools/list",
+                    "params": {"cursor": cursor} if cursor else {},
+                },
+            )
+            tools = result.get("tools")
+            if not isinstance(tools, list) or len(tools) > 100:
+                raise ValueError("Invalid MCP tools")
+            for tool in tools:
+                if (
+                    not isinstance(tool, dict)
+                    or not isinstance(tool.get("name"), str)
+                    or not tool["name"].strip()
+                    or len(tool["name"]) > 100
+                    or not isinstance(tool.get("inputSchema"), dict)
+                    or tool["inputSchema"].get("type") != "object"
+                ):
+                    raise ValueError("Invalid MCP tool")
+                names.append(tool["name"])
+            cursor = result.get("nextCursor")
+            if "nextCursor" in result and cursor is None:
+                raise ValueError("Invalid MCP cursor")
+            if cursor is None:
+                # Tool names are observed availability, not execution grants.
+                return tuple(dict.fromkeys(names))
+            if not isinstance(cursor, str) or not cursor or len(cursor) > 500 or cursor in cursors:
+                raise ValueError("Invalid MCP cursor")
+            cursors.add(cursor)
+        raise ValueError("MCP pagination bound exceeded")

@@ -1,7 +1,9 @@
 """Safe support routing: known → configured action; UNKNOWN → escalate.
 
 UNKNOWN never triggers an automatic reply or assignment beyond a human triage
-queue. Adapters record simulated outcomes; they cannot act on their own.
+queue. Simulation is the default. The legacy ``webhook_verified`` mode requests
+an operator-enabled durable intent, NOT verified delivery or a business outcome.
+Providers and normalizers cannot authorize dispatch.
 """
 
 from __future__ import annotations

@@ -7,6 +7,30 @@ from openclass_server.main import create_app
 from openclass_server.settings import Settings
 
 
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"endpoint": "postgresql+asyncpg://probe:plaintext@db/probe"},
+        {"endpoint": "https://attacker.example"},
+        {"metadata": {"sql": "SELECT password FROM users"}},
+        {"secret_ref": "OPENCLASS_DATABASE_URL"},
+    ],
+)
+def test_database_configuration_rejects_caller_target_and_sql(mock_client, changes):
+    project = mock_client.post("/api/v1/projects", json={"name": "DB safety"}).json()
+    result = mock_client.post(
+        f"/api/v1/projects/{project['id']}/integrations",
+        json={
+            "name": "db",
+            "type": "database",
+            "secret_ref": "OPENCLASS_INTEGRATION_DATABASE_CUSTOMER_SECRET",
+            **changes,
+        },
+    )
+    assert result.status_code == 422
+    assert "plaintext" not in result.text
+
+
 @pytest.fixture
 def app(database_url: str):
     settings = Settings(database_url=database_url)

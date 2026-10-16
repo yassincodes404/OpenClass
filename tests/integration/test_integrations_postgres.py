@@ -6,10 +6,30 @@ and verifies database transaction isolation, foreign key cascades, and audit eve
 
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
 from openclass_provider_mock import MockChoiceTeacher, MockDecisionProvider, MockDiagnosisProvider
 from openclass_server.main import create_app
 from openclass_server.settings import Settings
+
+pytestmark = pytest.mark.postgres
+
+
+async def test_database_probe_uses_real_disposable_postgres(postgres_url, monkeypatch):
+    from openclass_core.integrations import IntegrationConfig, IntegrationStatus, IntegrationType
+    from openclass_server.integration_adapters import EnvironmentSecrets, HTTPIntegrationProbe
+
+    monkeypatch.setenv("OPENCLASS_INTEGRATION_DATABASE_DISPOSABLE_SECRET", postgres_url)
+    report = await HTTPIntegrationProbe(EnvironmentSecrets()).check(
+        IntegrationConfig(
+            project_id=uuid.uuid4(),
+            name="disposable",
+            type=IntegrationType.DATABASE,
+            secret_ref="OPENCLASS_INTEGRATION_DATABASE_DISPOSABLE_SECRET",
+        )
+    )
+    assert report.status == IntegrationStatus.CONNECTED
+    assert report.capabilities == ("select_1",)
 
 
 def test_integrations_survive_restart_postgres(postgres_url: str) -> None:
@@ -36,7 +56,6 @@ def test_integrations_survive_restart_postgres(postgres_url: str) -> None:
             json={
                 "name": "Production MCP Server",
                 "type": "mcp",
-                "endpoint": "https://mcp.prod.domain.com",
                 "capabilities": ["query_metrics", "restart_pod"],
                 "metadata": {"env": "production"},
             },
@@ -57,7 +76,7 @@ def test_integrations_survive_restart_postgres(postgres_url: str) -> None:
         test_resp = client.post(f"/api/v1/projects/{project_id}/integrations/{integration_id}/test")
         assert test_resp.status_code == 200
         test_data = test_resp.json()
-        assert test_data["status"] == "disconnected"
+        assert test_data["status"] == "pending"
         recorded_status = test_data["status"]
         assert test_data["latency_ms"] is not None
 

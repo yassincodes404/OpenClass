@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 from datetime import UTC, datetime
 from typing import Any
-from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -22,6 +23,7 @@ from openclass_core.routing import (
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from openclass_server.persistence.outbound_store import OutboundStore
 from openclass_server.settings import Settings
 
 
@@ -55,7 +57,7 @@ def support_router(
         async with sessions() as session:
             row = await session.execute(
                 sa.text(
-                    "SELECT id, name, type, status FROM project_integrations"
+                    "SELECT id, name, type, status, signature FROM project_integrations"
                     " WHERE project_id = :pid AND name = :source LIMIT 1"
                 ),
                 {"pid": str(project_id), "source": source},
@@ -63,7 +65,13 @@ def support_router(
             record = row.first()
         if record is None:
             return None
-        return {"id": record.id, "name": record.name, "type": record.type, "status": record.status}
+        return {
+            "id": record.id,
+            "name": record.name,
+            "type": record.type,
+            "status": record.status,
+            "signature": record.signature,
+        }
 
     async def _routes(project_id: UUID, integration_id: UUID | None = None) -> list[RoutingRule]:
         async with sessions() as session:
@@ -95,46 +103,13 @@ def support_router(
         event_id: str,
         outcome: RouteOutcome,
     ) -> tuple[dict[str, str], bool]:
-        detail_payload = outcome.to_payload()
-        outcome_row_id = str(
-            uuid5(NAMESPACE_URL, f"openclass:route_outcome:{project_id}:{outcome.idempotency_key}")
+        return await OutboundStore(sessions).record_outcome(
+            project_id=project_id,
+            integration_id=integration_id,
+            event_id=event_id,
+            outcome=outcome,
+            allow_external=config.outbound_enabled,
         )
-        async with sessions.begin() as session:
-            existing_query = await session.execute(
-                sa.text(
-                    "SELECT id, detail FROM routing_outcomes"
-                    " WHERE project_id = :pid AND id = :id LIMIT 1"
-                ),
-                {"pid": str(project_id), "id": outcome_row_id},
-            )
-            existing = existing_query.first()
-            if existing is not None:
-                existing_detail = (
-                    json.loads(existing.detail)
-                    if isinstance(existing.detail, str)
-                    else existing.detail
-                )
-                return existing_detail, True
-
-            await session.execute(
-                sa.text(
-                    "INSERT INTO routing_outcomes"
-                    " (id, project_id, integration_id, event_id, selected_choice,"
-                    "  action, detail, created_at)"
-                    " VALUES (:id, :pid, :iid, :eid, :choice, :action, :detail, :created)"
-                ),
-                {
-                    "id": outcome_row_id,
-                    "pid": str(project_id),
-                    "iid": integration_id,
-                    "eid": event_id,
-                    "choice": outcome.selected_choice,
-                    "action": outcome.action,
-                    "detail": json.dumps(detail_payload),
-                    "created": datetime.now(UTC),
-                },
-            )
-        return detail_payload, False
 
     @router.get("/api/v1/projects/{identifier}/integrations/adapters")
     async def adapters(identifier: str) -> list[dict[str, Any]]:
@@ -164,11 +139,22 @@ def support_router(
         project = await projects.get(identifier)
         async with sessions() as session:
             exists = await session.execute(
-                sa.text("SELECT 1 FROM project_integrations WHERE id = :iid AND project_id = :pid"),
+                sa.text(
+                    "SELECT secret_ref FROM project_integrations "
+                    "WHERE id = :iid AND project_id = :pid"
+                ),
                 {"iid": integration_id, "pid": str(project.id)},
             )
-            if exists.first() is None:
+            integration = exists.first()
+            if integration is None:
                 raise HTTPException(status_code=404, detail="Integration not found")
+            from openclass_server.integration_adapters import EnvironmentSecrets
+            from openclass_server.provider_config import reject_credentials
+
+            reject_credentials(body.model_dump(), config)
+            EnvironmentSecrets().reject_configured_content(
+                integration.secret_ref, body.model_dump()
+            )
         rule_id = str(uuid4())
         async with sessions.begin() as session:
             await session.execute(
@@ -225,7 +211,9 @@ def support_router(
                     )
                 ).first()
                 integration_id = str(int_row.id) if int_row is not None else "default"
-        rules = await _routes(project.id)
+        rules = await _routes(
+            project.id, UUID(body.integration_id) if body.integration_id else None
+        )
         route_outcome = evaluate_routing(
             rules,
             run_row.selected_choice,
@@ -274,8 +262,20 @@ def support_router(
         token_env = f"OPENCLASS_WEBHOOK_TOKEN_{source.upper().replace('-', '_')}"
         expected = os.environ.get(token_env, "")
         provided = request.headers.get("authorization", "")
-        if not expected or provided != f"Bearer {expected}":
+        signature = integration["signature"]
+        if isinstance(signature, str):
+            signature = json.loads(signature)
+        if signature.get("mode", "bearer") != "bearer":
+            raise HTTPException(status_code=400, detail="Use the signed integration webhook route")
+        if not expected or not hmac.compare_digest(
+            provided.encode(), f"Bearer {expected}".encode()
+        ):
             raise HTTPException(status_code=401, detail="Invalid webhook token")
+
+        from openclass_server.security import contains_secret
+
+        if contains_secret(body.model_dump(), expected):
+            raise ValueError("Input contains an integration credential")
 
         # Idempotent receipts (0010 pattern): same key+content → replay, key
         # with different content → conflict.
@@ -369,10 +369,11 @@ def support_router(
     @router.get("/api/v1/projects/{identifier}/integrations/outcomes")
     async def routing_outcomes(identifier: str) -> list[dict[str, Any]]:
         project = await projects.get(identifier)
+        states = {s["outcome_id"]: s for s in await OutboundStore(sessions).list_states(project.id)}
         async with sessions() as session:
             rows = await session.execute(
                 sa.text(
-                    "SELECT selected_choice, action, detail, created_at"
+                    "SELECT id, selected_choice, action, detail, created_at"
                     " FROM routing_outcomes WHERE project_id = :pid"
                     " ORDER BY created_at DESC LIMIT 50"
                 ),
@@ -381,6 +382,9 @@ def support_router(
             results: list[dict[str, Any]] = []
             for row in rows:
                 detail = json.loads(row.detail) if isinstance(row.detail, str) else row.detail
+                state = states.get(row.id, {}).get("state", "simulated")
+                if isinstance(detail, dict):
+                    detail = {**detail, "delivery_state": state}
                 results.append(
                     {
                         "selected_choice": row.selected_choice,
@@ -393,6 +397,11 @@ def support_router(
                         ),
                         "idempotency_key": (
                             detail.get("idempotency_key", "") if isinstance(detail, dict) else ""
+                        ),
+                        "delivery_state": state,
+                        "delivery_attempts": states.get(row.id, {}).get("attempts", 0),
+                        "delivery_had_ambiguous_attempt": states.get(row.id, {}).get(
+                            "had_ambiguous_attempt", False
                         ),
                         "created_at": row.created_at,
                     }

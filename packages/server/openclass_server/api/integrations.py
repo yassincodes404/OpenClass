@@ -1,5 +1,8 @@
 """HTTP integration boundary; domain policy and network adapters live separately."""
 
+import json
+import os
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -16,6 +19,7 @@ from openclass_core.integrations import (
     WebhookIngestResult,
 )
 from openclass_core.projects import ProjectService, ProjectStatus
+from sqlalchemy.engine import make_url
 
 from openclass_server.integration_adapters import (
     EnvironmentSecrets,
@@ -29,6 +33,11 @@ from openclass_server.security import (
     validate_outbound_url,
 )
 from openclass_server.settings import Settings
+from openclass_server.webhook_normalizers import (
+    MAX_WEBHOOK_BYTES,
+    normalize_webhook,
+    verify_webhook,
+)
 
 
 def integration_router(
@@ -40,6 +49,51 @@ def integration_router(
     secrets = EnvironmentSecrets()
     service = IntegrationService(repository, HTTPIntegrationProbe(secrets))
 
+    def validate_config(body: IntegrationCreate | IntegrationConfig) -> None:
+        if body.type == IntegrationType.DATABASE:
+            if (
+                body.endpoint
+                or body.metadata
+                or (
+                    body.secret_ref is not None
+                    and not re.fullmatch(
+                        r"OPENCLASS_INTEGRATION_DATABASE_[A-Z0-9_]+_SECRET", body.secret_ref
+                    )
+                )
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Database checks require only a dedicated operator DSN reference",
+                )
+            secret = os.environ.get(body.secret_ref or "", "")
+            from openclass_server.security import contains_secret
+
+            if secret and contains_secret(body.model_dump(mode="json"), secret):
+                raise HTTPException(
+                    status_code=422, detail="Input contains an integration credential"
+                )
+            if secret:
+                try:
+                    password = make_url(secret).password
+                except ValueError:
+                    password = None
+                if password and contains_secret(body.model_dump(mode="json"), password):
+                    raise HTTPException(
+                        status_code=422, detail="Input contains an integration credential"
+                    )
+        elif body.secret_ref and not is_allowed_integration_secret_ref(body.secret_ref):
+            raise HTTPException(
+                status_code=422, detail="Secret reference is not permitted for integrations"
+            )
+        if body.signature.mode != "bearer" and body.type != IntegrationType.WEBHOOK:
+            raise HTTPException(
+                status_code=422, detail="Signature configuration requires a webhook"
+            )
+        if body.outbound.enabled and body.type != IntegrationType.REST_API:
+            raise HTTPException(
+                status_code=422, detail="Outbound delivery requires a REST integration"
+            )
+
     @router.get("", response_model=list[IntegrationConfig])
     async def list_integrations(identifier: str) -> list[IntegrationConfig]:
         project = await projects.get(identifier)
@@ -48,10 +102,7 @@ def integration_router(
     @router.post("", response_model=IntegrationConfig, status_code=201)
     async def create_integration(identifier: str, body: IntegrationCreate) -> IntegrationConfig:
         reject_credentials(body.model_dump(mode="json"), config)
-        if body.secret_ref and not is_allowed_integration_secret_ref(body.secret_ref):
-            raise HTTPException(
-                status_code=422, detail="Secret reference is not permitted for integrations"
-            )
+        validate_config(body)
         if body.type == IntegrationType.REST_API and body.endpoint:
             try:
                 validate_outbound_url(body.endpoint, allow_loopback=False, resolve_dns=False)
@@ -77,12 +128,13 @@ def integration_router(
         body: IntegrationUpdate,
     ) -> IntegrationConfig:
         reject_credentials(body.model_dump(mode="json"), config)
-        if body.secret_ref and not is_allowed_integration_secret_ref(body.secret_ref):
-            raise HTTPException(
-                status_code=422, detail="Secret reference is not permitted for integrations"
-            )
         project = await projects.get(identifier)
         current = await repository.get_integration(project.id, integration_id)
+        validate_config(
+            IntegrationConfig.model_validate(
+                {**current.model_dump(), **body.model_dump(exclude_unset=True)}
+            )
+        )
         if current.type == IntegrationType.REST_API and body.endpoint:
             try:
                 validate_outbound_url(body.endpoint, allow_loopback=False, resolve_dns=False)
@@ -110,6 +162,22 @@ def integration_router(
         "/{integration_id}/webhook",
         response_model=WebhookIngestResult,
         status_code=201,
+        openapi_extra={
+            "requestBody": {
+                "required": True,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "anyOf": [WebhookDelivery.model_json_schema(), {"type": "object"}],
+                            "description": (
+                                "Generic WebhookDelivery or configured signed vendor payload. "
+                                "Sign exact bytes."
+                            ),
+                        }
+                    }
+                },
+            },
+        },
         responses={
             200: {"model": WebhookIngestResult, "description": "Duplicate delivery"},
             401: {"description": "Invalid token"},
@@ -120,7 +188,6 @@ def integration_router(
     async def ingest_webhook(
         identifier: str,
         integration_id: UUID,
-        body: WebhookDelivery,
         request: Request,
         response: Response,
     ) -> WebhookIngestResult:
@@ -131,8 +198,22 @@ def integration_router(
         if project.status != ProjectStatus.ACTIVE:
             raise HTTPException(status_code=409, detail="Archived projects cannot ingest webhooks")
         try:
-            secrets.authenticate(integration, request.headers)
-            secrets.reject_secret_content(integration, body.model_dump(mode="json"))
+            raw = bytearray()
+            async for chunk in request.stream():
+                if len(raw) + len(chunk) > MAX_WEBHOOK_BYTES:
+                    raise HTTPException(status_code=413, detail="Webhook payload is too large")
+                raw.extend(chunk)
+            verify_webhook(integration, bytes(raw), request.headers, secrets)
+            try:
+                decoded = json.loads(raw)
+            except (ValueError, RecursionError):
+                raise HTTPException(status_code=422, detail="Malformed webhook payload") from None
+            secrets.reject_secret_content(integration, decoded)
+            reject_credentials(decoded, config)
+            try:
+                body = normalize_webhook(integration, bytes(raw))
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Malformed webhook payload") from None
         except WebhookAuthenticationError as exc:
             raise HTTPException(status_code=401, detail=str(exc)) from None
         except IntegrationConfigurationError as exc:

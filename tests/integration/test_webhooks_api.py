@@ -40,6 +40,118 @@ def delivery(**changes: object) -> dict[str, object]:
     }
 
 
+def signed_headers(raw, timestamp=None):
+    import base64
+    import hmac
+    from datetime import UTC, datetime
+
+    timestamp = timestamp or datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    return {
+        "Content-Type": "application/json",
+        "X-Zendesk-Webhook-Signature-Timestamp": timestamp,
+        "X-Zendesk-Webhook-Signature": base64.b64encode(
+            hmac.digest(b"synthetic-vendor-secret", timestamp.encode() + raw, "sha256")
+        ).decode(),
+    }
+
+
+def test_native_vendor_raw_bytes_scoping_and_no_bearer_downgrade(mock_client, monkeypatch):
+    monkeypatch.setenv("TEST_VENDOR_SECRET", "synthetic-vendor-secret")
+    projects = [
+        mock_client.post("/api/v1/projects", json={"name": name}).json()
+        for name in ("First signed", "Other signed")
+    ]
+    urls = []
+    for project in projects:
+        base = f"/api/v1/projects/{project['id']}/integrations"
+        integration = mock_client.post(
+            base,
+            json={
+                "name": "zendesk",
+                "type": "webhook",
+                "secret_ref": "TEST_VENDOR_SECRET",
+                "signature": {"mode": "zendesk"},
+            },
+        )
+        assert integration.status_code == 201, integration.text
+        urls.append(f"{base}/{integration.json()['id']}/webhook")
+    raw = (
+        b'{ "id":"evt-real-identity", "detail":{"ticket":{"subject":"Billing help",'
+        b'"description":"Invoice question"}} }'
+    )
+    first = mock_client.post(urls[0], content=raw, headers=signed_headers(raw))
+    assert first.status_code == 201, first.text
+    retry = mock_client.post(urls[0], content=raw, headers=signed_headers(raw))
+    assert retry.status_code == 200 and retry.json()["event_id"] == first.json()["event_id"]
+    assert mock_client.post(urls[1], content=raw, headers=signed_headers(raw)).status_code == 201
+    changed = raw.replace(b"Invoice", b"Other")
+    assert (
+        mock_client.post(urls[0], content=changed, headers=signed_headers(changed)).status_code
+        == 409
+    )
+    assert (
+        mock_client.post(urls[0], content=changed, headers=signed_headers(raw)).status_code == 401
+    )
+    assert (
+        mock_client.post(
+            urls[0], content=raw, headers={"Authorization": "Bearer synthetic-vendor-secret"}
+        ).status_code
+        == 401
+    )
+    assert (
+        mock_client.post(
+            urls[0], content=raw, headers=signed_headers(raw, "2000-01-01T00:00:00Z")
+        ).status_code
+        == 401
+    )
+    # Existing source path may not bypass configured signed-mode authentication.
+    monkeypatch.setenv("OPENCLASS_WEBHOOK_TOKEN_ZENDESK", "legacy-synthetic")
+    assert (
+        mock_client.post(
+            f"/api/v1/projects/{projects[0]['id']}/webhooks/zendesk",
+            json={"event_key": "bypass", "content": "billing"},
+            headers={"Authorization": "Bearer legacy-synthetic"},
+        ).status_code
+        == 400
+    )
+    events = mock_client.get(f"/api/v1/projects/{projects[0]['id']}/events").json()
+    assert len(events) == 1 and "Billing help" in events[0]["content"]
+    assert "signature" not in str(events[0]["metadata"]).lower()
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (b"{", 422),
+        (b"[]", 422),
+        (b"x" * 128_001, 413),
+        (b'{"id":"bad","detail":{"subject":"synthetic-vendor-secret"}}', 400),
+    ],
+    ids=["invalid-json", "invalid-shape", "too-large", "credential-echo"],
+)
+def test_signed_webhook_rejects_malformed_oversized_and_secret_echo(
+    mock_client, monkeypatch, raw, expected
+):
+    monkeypatch.setenv("TEST_VENDOR_SECRET", "synthetic-vendor-secret")
+    project = mock_client.post("/api/v1/projects", json={"name": "Signed negative"}).json()
+    base = f"/api/v1/projects/{project['id']}/integrations"
+    integration = mock_client.post(
+        base,
+        json={
+            "name": "signed",
+            "type": "webhook",
+            "secret_ref": "TEST_VENDOR_SECRET",
+            "signature": {"mode": "zendesk"},
+        },
+    ).json()
+    result = mock_client.post(
+        f"{base}/{integration['id']}/webhook", content=raw, headers=signed_headers(raw)
+    )
+    assert result.status_code == expected
+    assert "synthetic-vendor-secret" not in result.text
+    assert mock_client.get(f"/api/v1/projects/{project['id']}/events").json() == []
+
+
 def test_delivery_retries_survive_restart(
     mock_client: TestClient,
     webhook: tuple[str, dict[str, str]],
@@ -209,7 +321,7 @@ def test_configuration_is_not_verified_capability_execution(mock_client: TestCli
         report = mock_client.post(url + "/test").json()
         assert report["status"] == "pending"
         assert report["capabilities"] == []
-        assert "not implemented" in report["error_message"]
+        assert "configuration is required" in report["error_message"]
         assert mock_client.patch(url, json={"status": "connected"}).status_code == 422
         assert mock_client.patch(url, json={}).status_code == 422
 
@@ -305,3 +417,16 @@ def test_distinct_event_keys_with_identical_content_succeed_independently(
     audit = mock_client.get(f"{project_base}/audit").json()
     ingested = [a for a in audit if a["event_type"] == "integration.webhook_ingested"]
     assert len(ingested) == 2
+
+
+def test_signed_mode_update_requires_explicit_mode(mock_client, webhook):
+    url, _ = webhook
+    config_url = url.removesuffix("/webhook")
+    assert mock_client.patch(config_url, json={"signature": {"mode": "zendesk"}}).status_code == 200
+    assert (
+        mock_client.patch(
+            config_url, json={"signature": {"replay_window_seconds": 600}}
+        ).status_code
+        == 422
+    )
+    assert mock_client.get(config_url).json()["signature"]["mode"] == "zendesk"
