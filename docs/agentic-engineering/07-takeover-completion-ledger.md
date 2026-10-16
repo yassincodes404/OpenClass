@@ -1,6 +1,6 @@
 # Takeover completion ledger
 
-Date: 2026-10-15. This is an evidence ledger, not a completion claim.
+Date: 2026-10-16. This is an evidence ledger, not a completion claim.
 
 ## Recovered state
 
@@ -52,27 +52,27 @@ Date: 2026-10-15. This is an evidence ledger, not a completion claim.
 All original acceptance criteria remain authoritative in
 `04-executable-backlog.md`, reconciled against commit `7158104`.
 
-| Item      | Takeover status | Remaining acceptance / evidence                                                                |
-| --------- | --------------- | ---------------------------------------------------------------------------------------------- |
-| OC-BG-012 | PARTIAL         | Complete replay, original gates and durable per-example outcomes.                              |
-| OC-BG-013 | PARTIAL         | Complete transactional promotion, history, and rollback requirements.                          |
-| OC-BG-014 | PARTIAL         | Unify candidate domain, persistence, and lifecycle across tracks.                              |
-| OC-BG-016 | PARTIAL         | Typed compiler, schemas, persisted snapshots, provenance, budgets.                             |
-| OC-BG-017 | PARTIAL         | Data-driven supervision and verified calibrated profiles.                                      |
-| OC-BG-018 | VERIFIED        | Original scope delivered in PR #59; runtime and independent verification tests pass.           |
-| OC-BG-020 | PARTIAL         | Continuous supervision sampling, triggers, and budgets.                                        |
-| OC-BG-021 | PARTIAL         | Integrate the ten-layer Teacher protocol into runtime paths.                                   |
-| OC-BG-022 | PARTIAL         | Real embeddings, cache identity, and PostgreSQL vector indexing.                               |
-| OC-BG-024 | PARTIAL         | Control-plane contracts delivered in PR #60; engine and broader webhook identity remain.       |
-| OC-BG-025 | PARTIAL         | Atomic units of work and evidence uniqueness.                                                  |
-| OC-BG-026 | PARTIAL         | Control-plane migrations/history delivered in PR #60; engine migration acceptance remains.     |
-| OC-BG-027 | PARTIAL         | Frontend feature parity and consistent project workflows.                                      |
-| OC-BG-029 | PARTIAL         | Control-plane correlation delivered; engine model/cost attribution and caller adoption remain. |
-| OC-BG-030 | PARTIAL         | Complete pagination and SQL aggregation.                                                       |
-| OC-BG-032 | PARTIAL         | Transactional outbound delivery, retries, vendor verification.                                 |
-| OC-BG-033 | PARTIAL         | 23 genuine control-plane PostgreSQL tests pass; authenticated live-stack browser gate remains. |
-| OC-BG-034 | PARTIAL         | Full-stack Compose and original build/benchmark criteria.                                      |
-| OC-BG-036 | PARTIAL         | Post-promotion cohort monitoring and rollback behavior.                                        |
+| Item      | Takeover status | Remaining acceptance / evidence                                                                         |
+| --------- | --------------- | ------------------------------------------------------------------------------------------------------- |
+| OC-BG-012 | PARTIAL         | Complete replay, original gates and durable per-example outcomes.                                       |
+| OC-BG-013 | PARTIAL         | Complete transactional promotion, history, and rollback requirements.                                   |
+| OC-BG-014 | PARTIAL         | Unify candidate domain, persistence, and lifecycle across tracks.                                       |
+| OC-BG-016 | PARTIAL         | Typed compiler, schemas, persisted snapshots, provenance, budgets.                                      |
+| OC-BG-017 | PARTIAL         | Data-driven supervision and verified calibrated profiles.                                               |
+| OC-BG-018 | VERIFIED        | Original scope delivered in PR #59; runtime and independent verification tests pass.                    |
+| OC-BG-020 | PARTIAL         | Continuous supervision sampling, triggers, and budgets.                                                 |
+| OC-BG-021 | PARTIAL         | Integrate the ten-layer Teacher protocol into runtime paths.                                            |
+| OC-BG-022 | PARTIAL         | Real embeddings, cache identity, and PostgreSQL vector indexing.                                        |
+| OC-BG-024 | PARTIAL         | Control-plane/engine slices delivered in PR #60/#62; broader webhook identity acceptance remains.       |
+| OC-BG-025 | PARTIAL         | Engine UoW/evidence constraints delivered in PR #62; broader original acceptance remains open.          |
+| OC-BG-026 | PARTIAL         | Migration/history increments delivered in PR #60/#62; broader upgrade/drift acceptance remains.         |
+| OC-BG-027 | PARTIAL         | Frontend feature parity and consistent project workflows.                                               |
+| OC-BG-029 | PARTIAL         | Correlation/usage foundation delivered; configured model attribution and caller adoption remain.        |
+| OC-BG-030 | PARTIAL         | Engine SQL filtering/rollups delivered in PR #62; discovery/clustering caller adoption remains.         |
+| OC-BG-032 | PARTIAL         | Transactional outbound delivery, retries, vendor verification.                                          |
+| OC-BG-033 | PARTIAL         | 28 real PostgreSQL contracts and live lifecycle/restart/isolation pass; broader workflow scope remains. |
+| OC-BG-034 | PARTIAL         | Full-stack containers delivered in PR #63; original packaging/build/benchmark remainders stay open.     |
+| OC-BG-036 | PARTIAL         | Post-promotion cohort monitoring and rollback behavior.                                                 |
 
 ## Checkpoint acceptance gates
 
@@ -99,8 +99,12 @@ fenced. Forced recovery and lease expiry can overlap an already sent remote call
 
 ## Current verification evidence
 
-The disposable container `openclass-takeover-pg17-20261015` binds only
-`127.0.0.1:55434`. Image: `pgvector/pgvector:pg17`, digest
+The following table is historical checkpoint-delivery evidence from 2026-10-15,
+not a claim that every command was rerun on the latest main or that its disposable
+containers are still running. Later engine/delivery evidence is recorded below.
+
+That run used disposable container `openclass-takeover-pg17-20261015`, bound only
+to `127.0.0.1:55434`. Image: `pgvector/pgvector:pg17`, digest
 `sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d`.
 
 | Check                                                                       | Exit / actual result                                                                                                                                                                                                                                                |
@@ -190,32 +194,71 @@ head `cb9e377`, reran the 22 component tests, and verified all four landing gate
 The seven screenshots, genuine recording, source hashes, viewport measurements
 and independent review are retained in `artifacts/landing-redesign/`.
 
+Engine foundations [PR #62](https://github.com/yassincodes404/OpenClass/pull/62)
+merged as `b99d19776128ff88f94d03da693bb3b602e9d8c6`. The exact reviewed head
+`5bd9558def9318ea18c01ff95ddad1ef7c1c3f4b` passed
+[PR CI](https://github.com/yassincodes404/OpenClass/actions/runs/38800818959):
+**845 passed, 7 optional skips**, using genuine `pgvector/pgvector:pg17`.
+The workflow sets the disposable database URL and runs unrestricted
+`uv run pytest -q`; quiet output does not enumerate every test.
+Both [main CI](https://github.com/yassincodes404/OpenClass/actions/runs/38802459879)
+and [main PostgreSQL CI](https://github.com/yassincodes404/OpenClass/actions/runs/38802459825)
+passed. Independent review resolved migration/recurrence/latency/cost defects
+and verified all four terminal-UNKNOWN attachment combinations, restart survival
+and byte-identical immutable run history. This delivers foundations, not the
+remaining discovery/clustering callers or all original engine tickets.
+
+Full-stack delivery [PR #63](https://github.com/yassincodes404/OpenClass/pull/63)
+merged as `6cd0e9c3b6732d30f28504d70c29dfa2b4fa7eb6`. Its merged tree exactly
+matches reviewed head `f6a01639c425a6cdf45882a851498b6ab9c715f5`.
+All six checks passed:
+
+- [CI](https://github.com/yassincodes404/OpenClass/actions/runs/38881500309):
+  Python **845 passed, 7 optional skips**; containerized suite **845 passed,
+  7 optional skips**; quickstart regressions **2 passed**; web and security green.
+- [Control-plane PostgreSQL](https://github.com/yassincodes404/OpenClass/actions/runs/38881500301):
+  **28 real database contracts passed**, including both project lookup routes
+  with control ID, engine ID, slug, missing identifiers and non-member denial.
+- Actual live browser: **2 passed in 24.5 seconds**. Real Keycloak, PostgreSQL,
+  engine, control plane and both frontend containers start without API route
+  mocks. The lifecycle ingests an event, runs a clearly simulated provider,
+  restarts database/backends, reads persisted run/event records, restores SSO
+  after browser reload and denies another workspace.
+- Four genuine screenshots are in that run's
+  `live-backend-browser-evidence` artifact. Parent inspected persisted-runs and
+  denied-workspace captures and retained a local copy.
+
+Hosted failures were fixed rather than skipped: deterministic applicability
+clocks, missing test-image source/protocol fixtures, UUID/text lookup mismatch,
+an unhandled idle database connection error, and missing project-route SSO
+restoration. Shared pool errors log only a stable event; query failures still
+reject. SSO tokens stay in memory and the public landing page does not initiate
+the new redirect. The real restart/isolation assertions were not weakened.
+Independent correction review found no actionable bugs.
+
+Final local delta checks: **111 control-plane tests**, **25 portal tests**,
+types and builds passed. A 256 MB control-plane build heap was insufficient;
+the 512 MB retry passed. Earlier fixture/boundary checks passed **19 tests** and
+delivery runner checks passed **29 tests**, with one POSIX-only assertion skipped
+on Windows. Those local unit checks are not the live-stack proof.
+
+[Main PostgreSQL CI](https://github.com/yassincodes404/OpenClass/actions/runs/38882554834)
+passed. [Main CI](https://github.com/yassincodes404/OpenClass/actions/runs/38882554816)
+also passed, including another real live-backend run. Original OC-BG-033/034
+remain partial beyond this delivery slice. No package, registry image or release
+was published.
+
 ## Continuing work
 
 - Original `OC-BG-018` is verified through PR #59. The first full local run
   exposed a collection-time freshness-test flake; freezing observation and
   evaluation clocks fixed it. Hosted PostgreSQL subsequently passed without
   database skips.
-- Engine persistence and full-stack delivery edits remain preserved in separate
-  `D:\Projects 2\OpenClass-workstreams\` worktrees. Engine review accepted four
-  migration/recurrence/latency/cost corrections. A subsequently reproduced
-  attachment regression is fixed: all four resolved/dismissed × existing/new-case
-  HTTP combinations preserve ready evidence and terminal UNKNOWN state.
-  Independent probes verified immutable run bytes and persistence after restart.
-  Integrated parent checks pass, including **758 offline Python tests,
-  7 optional skips, 87 PostgreSQL/live cases deselected**, 2743 warnings,
-  238.97 seconds. Package builds pass. Caller adoption, broader original
-  acceptance and genuine PostgreSQL execution remain open.
-- Full-stack review reproduced a broken no-key base quickstart, unreadable
-  Keycloak realm permissions on Linux, and missing interruption cleanup.
-  These are corrected and independently re-probed. A later manual-project
-  isolation finding has a red/green Compose-render regression and distinct
-  workspace project/volume defaults. Parent delivery checks pass **29 tests
-  with one Windows-only POSIX assertion skipped**. Linux permissions and hosted
-  authenticated live-browser acceptance remain required.
-  Static/unit checks do not prove successful stack startup. The benchmark audit
-  reported `historical_files_preserved: 0`; it does not close the original
-  frozen-evidence requirement.
+- Engine and delivery worktrees remain preserved after PR #62/#63. Genuine
+  PostgreSQL and full-stack browser evidence is now delivered above. Caller
+  adoption and broader original acceptance remain open. The benchmark audit
+  reported `historical_files_preserved: 0`; container success does not close the
+  original frozen-evidence requirement.
 - Landing implementation `05b9eb5d17b68ef40add9c12d986115abec2668f`
   has **22 passing component tests** and independent code/visual approval.
   Fresh actual-browser verification covers **40 scenario/step checks**, five
@@ -226,7 +269,10 @@ and independent review are retained in `artifacts/landing-redesign/`.
 - Original `OC-BG-027` implementation is now isolated in the frontend workflow
   worktree. Both frontends remain; supported evidence/graph/evaluation workflows
   must use SDKs and preserve workspace authorization. Mocked UI checks do not
-  close the separate authenticated cross-child integration requirement.
+  close the separate authenticated cross-child integration requirement. The
+  frontend worker stopped from model usage exhaustion; partial tracked and new
+  files are preserved, uncommitted and unverified. The caller-adoption worker
+  also stopped without a result; its worktree is clean, not implemented.
 - After safely integrating merged main without overlapping saved landing
   edits, `make check` passed (109 control-plane, 22 portal, 18 SDK tests).
   Explicit offline `make test` passed **725 tests, 7 skipped, 58 deselected**,
@@ -239,3 +285,12 @@ and independent review are retained in `artifacts/landing-redesign/`.
   preserved. Storage recovered, but the local Docker engine did not restart
   successfully. New database acceptance must use genuine hosted PostgreSQL CI,
   not silently skipped checks or fake extension files.
+- A later disposable Windows PostgreSQL attempt failed under resource pressure;
+  retries also failed to start. No test pass is claimed from it and no owned
+  disposable server remains. Historical checkpoint checks and current hosted
+  results must not be conflated with that failed attempt.
+- Coordination reconciliation replaced an invalid manually checked engine gate
+  with an executable exact-source hosted oracle and actually released its lease.
+  Incorrect future caller-wave timestamps were corrected from native session
+  records, preserving the missed prelaunch lease/dispatch ordering as a defect.
+  Scheduler completion of failed workers is not acceptance verification.
