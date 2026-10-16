@@ -35,8 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    const projectRoute =
+      window.location.pathname === "/projects" || window.location.pathname.startsWith("/projects/");
     keycloak
-      .init({ pkceMethod: "S256", checkLoginIframe: false })
+      .init({
+        onLoad: projectRoute ? "check-sso" : undefined,
+        pkceMethod: "S256",
+        checkLoginIframe: false,
+      })
       .then((ok) => {
         if (!cancelled) {
           setAuthenticated(ok);
