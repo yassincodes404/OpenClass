@@ -43,7 +43,11 @@ async function signedIn(page: Page, origin: string, username = owner) {
   await page.goto(`${origin}/projects`);
   // check-sso may restore an existing real IdP session without showing a form.
   await expect(
-    page.getByRole("heading", { name: /^(Projects|Sign in to your workspace\.)$/, exact: true }),
+    page.getByRole("heading", {
+      name: /^(Projects|Sign in to your workspace\.)$/,
+      exact: true,
+      level: 1,
+    }),
   ).toBeVisible({ timeout: 30_000 });
   if (await page.getByRole("heading", { name: "Sign in to your workspace." }).isVisible()) {
     await page.getByRole("button", { name: /^Continue with Keycloak/ }).click();
@@ -53,7 +57,9 @@ async function signedIn(page: Page, origin: string, username = owner) {
       .fill(username === owner ? "OpenClass-Local-Owner-2026" : "OpenClass-Local-Reviewer-2026");
     await page.locator("#kc-login").click();
   }
-  await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Projects", exact: true, level: 1 }),
+  ).toBeVisible();
 }
 
 async function json(response: Pick<APIResponse, "status" | "url" | "json">, status = 200) {
@@ -153,17 +159,30 @@ test("real frontends share owned projects, scoped classifiers, evidence, graph a
 
   // Observe only a boolean, never capture or print browser credentials.
   let browserBoundaryLeak = false;
+  let headerInspectionFailed = false;
+  const headerChecks: Promise<void>[] = [];
   const observe = (current: Page) =>
     current.on("request", (req) => {
-      void req.allHeaders().then((values) => {
-        if (
-          Object.keys(values).some((key) => key.toLowerCase() === "x-openclass-internal-token") ||
-          Object.values(values).some((value) => value.includes(internal)) ||
-          req.url().includes(internal) ||
-          (req.postData() ?? "").includes(internal)
-        )
-          browserBoundaryLeak = true;
-      });
+      headerChecks.push(
+        req
+          .allHeaders()
+          .then((values) => {
+            if (
+              Object.keys(values).some(
+                (key) => key.toLowerCase() === "x-openclass-internal-token",
+              ) ||
+              Object.values(values).some((value) => value.includes(internal)) ||
+              req.url().includes(internal) ||
+              (req.postData() ?? "").includes(internal)
+            )
+              browserBoundaryLeak = true;
+          })
+          .catch(() => {
+            // A failed test may close a page with an outstanding header read.
+            // Catch cleanup rejection, but never certify an incomplete inspection.
+            headerInspectionFailed = true;
+          }),
+      );
     });
   observe(page);
   await signedIn(page, portal);
@@ -680,6 +699,8 @@ test("real frontends share owned projects, scoped classifiers, evidence, graph a
     ).toBe(false);
     expect((await current.locator("body").innerText()).includes(internal)).toBe(false);
   }
+  await Promise.all(headerChecks);
+  expect(headerInspectionFailed, "Every observed request header check must finish").toBe(false);
   expect(browserBoundaryLeak, "Internal credentials must never cross into browser HTTP").toBe(
     false,
   );
