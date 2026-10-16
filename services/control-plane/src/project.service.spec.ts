@@ -511,7 +511,7 @@ describe("ProjectService", () => {
       if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
       if (
         text.includes("FROM control_projects") &&
-        text.includes("(id::text = $1 OR engine_project_id = $1 OR slug = $1)")
+        text.includes("(id::text = $1 OR engine_project_id::text = $1 OR slug = $1)")
       ) {
         return {
           rows: [
@@ -562,7 +562,7 @@ describe("ProjectService", () => {
       if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
       if (
         text.includes("FROM control_projects") &&
-        text.includes("(id::text = $1 OR engine_project_id = $1 OR slug = $1)")
+        text.includes("(id::text = $1 OR engine_project_id::text = $1 OR slug = $1)")
       ) {
         return {
           rows: [

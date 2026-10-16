@@ -18,14 +18,19 @@ COPY providers/ollama providers/ollama
 RUN uv sync --frozen --all-packages --no-dev
 COPY alembic.ini LICENSE ./
 COPY examples examples
+COPY benchmarks benchmarks
+COPY scripts scripts
 RUN useradd --create-home --uid 10001 openclass
 ENV PATH="/app/.venv/bin:$PATH"
 
 FROM base AS test
 RUN uv sync --frozen --all-packages
 COPY tests tests
-COPY scripts scripts
-COPY benchmarks benchmarks
+# tests/unit/test_boundaries.py reads the portal source to enforce the SDK
+# boundary; the suite runs from /app, so the same relative layout is required.
+COPY apps/portal/src apps/portal/src
+# The offline characterization tests snapshot this public protocol document.
+COPY docs/research/jev-characterization.md docs/research/jev-characterization.md
 USER openclass
 CMD ["pytest", "-q", "-p", "no:cacheprovider", "--tb=short"]
 

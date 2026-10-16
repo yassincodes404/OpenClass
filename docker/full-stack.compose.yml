@@ -1,0 +1,91 @@
+# Explicit opt-in boundary: a profile alone cannot change base-service settings.
+# Load after docker-compose.yml; an absent token fails configuration before up.
+name: openclass-workspace
+services:
+  server:
+    environment:
+      OPENCLASS_AUTH_REQUIRED: "true"
+      OPENCLASS_INTERNAL_TOKEN: ${OPENCLASS_INTERNAL_TOKEN:?Full-stack requires a private OPENCLASS_INTERNAL_TOKEN}
+  keycloak:
+    profiles: [portal-identity, full-stack]
+  control-migrate:
+    profiles: [full-stack]
+    build:
+      context: .
+      dockerfile: services/control-plane/Dockerfile
+    environment:
+      CONTROL_PLANE_DATABASE_URL: postgresql://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
+    command: ["pnpm", "--filter", "@openclass/control-plane", "migrate"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  control-plane:
+    profiles: [full-stack]
+    build:
+      context: .
+      dockerfile: services/control-plane/Dockerfile
+    environment:
+      CONTROL_PLANE_DATABASE_URL: postgresql://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
+      ENGINE_BASE_URL: http://server:7331
+      OPENCLASS_INTERNAL_TOKEN: ${OPENCLASS_INTERNAL_TOKEN:?Full-stack requires a private OPENCLASS_INTERNAL_TOKEN}
+      KEYCLOAK_ISSUER_URL: http://127.0.0.1:${KEYCLOAK_PORT:-8080}/realms/openclass-local
+      KEYCLOAK_AUDIENCE: openclass-portal
+      KEYCLOAK_CONTAINER_HOST: keycloak
+    ports:
+      - "127.0.0.1:${CONTROL_PLANE_PORT:-7400}:7400"
+    depends_on:
+      control-migrate:
+        condition: service_completed_successfully
+      server:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:7400/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+  portal:
+    profiles: [full-stack]
+    build:
+      context: .
+      dockerfile: apps/portal/Dockerfile
+      args:
+        KEYCLOAK_PUBLIC_URL: http://127.0.0.1:${KEYCLOAK_PORT:-8080}
+    ports:
+      - "127.0.0.1:${PORTAL_PORT:-5173}:8080"
+    depends_on:
+      control-plane:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  web:
+    profiles: [full-stack]
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10

@@ -7,10 +7,23 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-change-me-local-only}
+      KC_HOSTNAME: http://127.0.0.1:${KEYCLOAK_PORT:-8080}
     ports:
       - "127.0.0.1:${KEYCLOAK_PORT:-8080}:8080"
     volumes:
-      - ./services/control-plane/keycloak:/opt/keycloak/data/import:ro
+      - ${OPENCLASS_KEYCLOAK_REALM_DIR:-./services/control-plane/keycloak}:/opt/keycloak/data/import:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /realms/openclass-local/.well-known/openid-configuration HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
   db:
     image: pgvector/pgvector:pg17
     environment:
@@ -37,8 +50,13 @@ services:
   server:
     build: .
     environment:
-      OPENCLASS_DECISION_PROVIDER: ${OPENCLASS_DECISION_PROVIDER:-laya}
+      # Deterministic simulated inference; no ambient model credentials forwarded.
+      OPENCLASS_DECISION_PROVIDER: ${OPENCLASS_DECISION_PROVIDER:-mock}
       OPENCLASS_DATABASE_URL: postgresql+asyncpg://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
+      # The loopback-only base demo is deliberately no-key. Workspace deployments
+      # must also load docker/full-stack.compose.yml, which forces authentication.
+      OPENCLASS_AUTH_REQUIRED: ${OPENCLASS_AUTH_REQUIRED:-false}
+      OPENCLASS_INTERNAL_TOKEN: ${OPENCLASS_INTERNAL_TOKEN:-}
     ports:
       - "127.0.0.1:${OPENCLASS_PORT:-7331}:7331"
     depends_on:
@@ -62,6 +80,7 @@ services:
       target: test
     environment:
       OPENCLASS_TEST_DATABASE_URL: postgresql+asyncpg://openclass:${OPENCLASS_DB_PASSWORD:-openclass}@db:5432/openclass
+      OPENCLASS_DECISION_PROVIDER: mock
     depends_on:
       db:
         condition: service_healthy

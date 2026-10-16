@@ -6,10 +6,16 @@ positive/negative examples and four state regressions without reading evidence.
 """
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import pytest
 from openclass_core.automation import ApplicabilitySpec, FailureState
 from openclass_core.automation_applicability import FailureRule, applicable, compile_state
+
+# Collection may precede execution by minutes in the complete suite, and hosted
+# containers run slower than the default 300-second freshness window. Freeze
+# both sides of the comparison, matching test_automation_applicability.py.
+OBSERVED_AT = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 @dataclass(frozen=True)
@@ -22,6 +28,7 @@ class Case:
 def failure(output="Address already in use", **updates):
     return FailureState(
         **dict(
+            observed_at=OBSERVED_AT,
             test_attempted=True,
             exit_code=1,
             output=output,
@@ -66,7 +73,7 @@ def category_spec():
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case.name)
 def test_cycle2_category_normalization_retains_cross_environment_and_negative_cases(case):
-    assert applicable(case.state, category_spec()) == case.expected
+    assert applicable(case.state, category_spec(), at=OBSERVED_AT) == case.expected
 
 
 def test_cycle2_literal_gap_is_measured_not_hidden_and_source_version_is_unchanged():
@@ -80,8 +87,12 @@ def test_cycle2_literal_gap_is_measured_not_hidden_and_source_version_is_unchang
     )
     frozen = literal.model_dump_json()
     category = category_spec()
-    baseline_correct = sum(applicable(case.state, literal) == case.expected for case in CASES)
-    candidate_correct = sum(applicable(case.state, category) == case.expected for case in CASES)
+    baseline_correct = sum(
+        applicable(case.state, literal, at=OBSERVED_AT) == case.expected for case in CASES
+    )
+    candidate_correct = sum(
+        applicable(case.state, category, at=OBSERVED_AT) == case.expected for case in CASES
+    )
     assert baseline_correct == 9
     assert candidate_correct == 12
     assert literal.model_dump_json() == frozen
@@ -104,5 +115,5 @@ def test_cycle2_literal_gap_is_measured_not_hidden_and_source_version_is_unchang
 def test_negative_transfer_has_no_port_conflict_authority(output):
     config = category_spec()
     observed = failure(output)
-    assert not applicable(observed, config)
+    assert not applicable(observed, config, at=OBSERVED_AT)
     assert compile_state(observed, config).failure.category is None
