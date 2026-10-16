@@ -31,9 +31,11 @@ def test_seal_screens_holdout_against_json_run_payloads(postgres_url: str) -> No
     with TestClient(
         create_app(Settings(database_url=postgres_url), provider=MockForcedUnknownProvider())
     ) as client:
-        slug = f"eval-seal-{uuid.uuid4().hex[:8]}"
-        project = client.post("/api/v1/projects", json={"name": f"Eval Seal {slug}"})
+        project = client.post(
+            "/api/v1/projects", json={"name": f"Eval Seal {uuid.uuid4().hex[:8]}"}
+        )
         assert project.status_code == 201
+        slug = project.json()["slug"]
 
         event = client.post(
             f"/api/v1/projects/{slug}/events",
