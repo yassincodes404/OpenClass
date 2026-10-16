@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { OpenClass, type Project, type ProjectAnalytics } from "@openclass/sdk";
+import { type Project, type ProjectAnalytics } from "@openclass/sdk";
 import { ProjectShell } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
 
 function formatLatency(value: number | null) {
   return value === null ? "—" : `${value.toFixed(1)} ms`;

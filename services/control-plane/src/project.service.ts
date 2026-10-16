@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Pool } from "pg";
+import { createHash } from "node:crypto";
 import { ApiKeyService, type ApiKeyScope } from "./api-key.service.js";
 import { AuditService } from "./audit.service.js";
 import type { Principal } from "./auth.js";
@@ -109,8 +110,8 @@ export class ProjectService {
             if (!ep?.id || !ep?.slug) continue;
             if (ep.workspace_id !== workspaceId) continue;
             const claimed = await this.db.query(
-              "SELECT workspace_id FROM control_projects WHERE engine_project_id = $1 OR slug = $2",
-              [ep.id, ep.slug],
+              "SELECT workspace_id FROM control_projects WHERE engine_project_id = $1",
+              [ep.id],
             );
             if (
               claimed.rows?.some(
@@ -120,16 +121,14 @@ export class ProjectService {
             ) {
               continue;
             }
-            const existing = rows.find(
-              (row) => row.engine_project_id === ep.id || row.slug === ep.slug,
-            );
+            const existing = rows.find((row) => row.engine_project_id === ep.id);
             if (!existing) {
               const base = this.slugify(ep.slug || ep.name);
               const slug = await this.uniqueSlug(workspaceId, base);
               const inserted = await this.db.query(
                 "INSERT INTO control_projects (workspace_id, engine_project_id, slug, name)" +
                   " VALUES ($1, $2, $3, $4)" +
-                  " ON CONFLICT (workspace_id, slug) DO UPDATE SET engine_project_id = EXCLUDED.engine_project_id" +
+                  " ON CONFLICT (workspace_id, slug) DO NOTHING" +
                   " RETURNING id, workspace_id, engine_project_id, slug, name, created_at, redaction_enabled, retention_days",
                 [workspaceId, ep.id, slug, (ep.name || ep.slug).trim()],
               );
@@ -212,6 +211,8 @@ export class ProjectService {
       [projectId, normalized.subject],
     );
     if (!result.rowCount) throw new NotFoundException("Project not found");
+    if (result.rowCount > 1)
+      throw new BadRequestException("Project identifier is ambiguous; use its project id");
     const row = result.rows[0] as ControlProject;
     if (!row.engine_project_id) {
       return this.syncMissingEngineProject(row, row.workspace_id, normalized.subject);
@@ -292,9 +293,15 @@ export class ProjectService {
     if (taken.rowCount)
       throw new BadRequestException("Classifier slug already exists in this project");
 
+    // Public slugs are project-local; the legacy engine registry is global.
+    // Hash the full versioned tuple, never a truncated slug or caller-supplied
+    // project alias. 68 characters fit the engine's 80-character slug contract.
+    const engineSlug = `ocp-${createHash("sha256")
+      .update(JSON.stringify(["openclass.control.classifier.v1", project.id, slug]))
+      .digest("hex")}`;
     const engineClassifier = await this.engine.createClassifier(
       {
-        slug,
+        slug: engineSlug,
         name: input.name.trim(),
         description: input.description,
         classes: input.classes,

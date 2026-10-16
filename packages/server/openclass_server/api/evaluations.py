@@ -185,9 +185,11 @@ def evaluations_router(
     async def _discovery_texts(project_id: UUID, candidate_id: str | None = None) -> set[str]:
         async with sessions() as session:
             if candidate_id is not None:
+                # No DISTINCT/GROUP BY on r.payload: PostgreSQL json has no
+                # equality operator; duplicates are removed by normalization.
                 rows = await session.execute(
                     sa.text(
-                        "SELECT DISTINCT r.payload FROM decision_runs r"
+                        "SELECT r.payload FROM decision_runs r"
                         " WHERE r.project_id = :pid AND ("
                         "   r.id IN ("
                         "     SELECT run_id FROM candidate_evidence WHERE candidate_id = :cid"
@@ -202,9 +204,10 @@ def evaluations_router(
                     {"pid": str(project_id), "cid": candidate_id},
                 )
             else:
+                # See above: deduplication happens after content normalization.
                 rows = await session.execute(
                     sa.text(
-                        "SELECT DISTINCT r.payload FROM decision_runs r"
+                        "SELECT r.payload FROM decision_runs r"
                         " WHERE r.project_id = :pid AND ("
                         "   r.id IN ("
                         "     SELECT m.run_id FROM cluster_members m"

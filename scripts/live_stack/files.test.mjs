@@ -5,6 +5,19 @@ import path from "node:path";
 import test from "node:test";
 import { writePrivateFile, writePublicRealm } from "./files.mjs";
 
+test("local Keycloak fixture permits both supported frontend origins", async () => {
+  const realm = JSON.parse(
+    await readFile(
+      new URL("../../services/control-plane/keycloak/openclass-local-realm.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const client = realm.clients.find((item) => item.clientId === "openclass-portal");
+  assert.ok(client);
+  assert.deepEqual(client.redirectUris, ["http://127.0.0.1:5173/*", "http://127.0.0.1:3000/*"]);
+  assert.deepEqual(client.webOrigins, ["http://127.0.0.1:5173", "http://127.0.0.1:3000"]);
+});
+
 test("writes only the public realm as container-readable data", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "openclass-realm-test-"));
   try {

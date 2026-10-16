@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, mockWorkspaceProject, WORKFLOW_ROUTE } from "./fixtures/workspace";
 
 const projectResponse = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -29,14 +29,15 @@ const providerStatusResponse = {
   },
 };
 
+test.beforeEach(async ({ page }) => {
+  await mockWorkspaceProject(page, projectResponse);
+  await page.route(`${WORKFLOW_ROUTE}/decision-services`, (route) => route.fulfill({ json: [] }));
+});
+
 test("data page shows empty state and decision engine banner", async ({ page }) => {
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/projects/gymholic-intelligence/events*", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/events*`, (route) => route.fulfill({ json: [] }));
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
 
@@ -52,13 +53,11 @@ test("data page shows empty state and decision engine banner", async ({ page }) 
 test("ingest text event posts through public SDK route and displays in table", async ({ page }) => {
   const eventsList: any[] = [];
 
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
-  await page.route("**/api/v1/projects/gymholic-intelligence/events*", async (route) => {
+  await page.route(`${WORKFLOW_ROUTE}/events*`, async (route) => {
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
       const newEvt = {
@@ -89,13 +88,11 @@ test("ingest text event posts through public SDK route and displays in table", a
 test("ingest JSON events batch posts and displays multiple rows", async ({ page }) => {
   const eventsList: any[] = [];
 
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
-  await page.route("**/api/v1/projects/gymholic-intelligence/events/batch", async (route) => {
+  await page.route(`${WORKFLOW_ROUTE}/events/batch`, async (route) => {
     const body = route.request().postDataJSON();
     const created = body.items.map((item: any, i: number) => ({
       id: `evt-json-${i + 1}`,
@@ -106,11 +103,19 @@ test("ingest JSON events batch posts and displays multiple rows", async ({ page 
       created_at: new Date().toISOString(),
     }));
     eventsList.push(...created);
-    return route.fulfill({ status: 201, json: created });
+    return route.fulfill({
+      status: 207,
+      json: {
+        items: created.map((event: unknown, index: number) => ({
+          index,
+          status: 201,
+          event,
+          deduped: false,
+        })),
+      },
+    });
   });
-  await page.route("**/api/v1/projects/gymholic-intelligence/events*", (route) =>
-    route.fulfill({ json: eventsList }),
-  );
+  await page.route(`${WORKFLOW_ROUTE}/events*`, (route) => route.fulfill({ json: eventsList }));
 
   await page.goto("/projects/gymholic-intelligence/data");
 
@@ -140,15 +145,11 @@ test("inspecting an event opens the detail dialog and displays metadata", async 
     created_at: "2026-09-26T12:00:00Z",
   };
 
-  await page.route("**/api/v1/projects/gymholic-intelligence", (route) =>
-    route.fulfill({ json: projectResponse }),
-  );
-  await page.route("**/api/v1/providers/status", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: projectResponse }));
+  await page.route(`${WORKFLOW_ROUTE}/provider-status`, (route) =>
     route.fulfill({ json: providerStatusResponse }),
   );
-  await page.route("**/api/v1/projects/gymholic-intelligence/events*", (route) =>
-    route.fulfill({ json: [sampleEvent] }),
-  );
+  await page.route(`${WORKFLOW_ROUTE}/events*`, (route) => route.fulfill({ json: [sampleEvent] }));
 
   await page.goto("/projects/gymholic-intelligence/data");
 

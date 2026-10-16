@@ -71,8 +71,8 @@ try {
   const realm = JSON.parse(
     await readFile(path.join(root, "services/control-plane/keycloak/openclass-local-realm.json")),
   );
-  realm.clients[0].redirectUris = [`${urls.portal}/*`];
-  realm.clients[0].webOrigins = [urls.portal];
+  realm.clients[0].redirectUris = [`${urls.portal}/*`, `${urls.web}/*`];
+  realm.clients[0].webOrigins = [urls.portal, urls.web];
   await writePublicRealm(realmDirectory, realm);
   const envFile = path.join(directory, "compose.env");
   await writePrivateFile(envFile, "# Intentionally empty; never load the checkout .env.\n");

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  OpenClass,
   OpenClassError,
   type DecisionRun,
   type Project,
@@ -13,7 +12,7 @@ import {
 } from "@openclass/sdk";
 import { ProjectShell } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
 const PAGE_SIZE = 50;
 
 function formatTime(value: string) {
@@ -229,7 +228,7 @@ export default function ProjectRunsPage() {
         ) : runs.length === 0 && !runsError ? (
           <p className="empty">
             No runs yet.{" "}
-            <Link href={`/projects/${project.slug}/data`}>
+            <Link href={`/projects/${project.id}/data`}>
               Ingest data and run a decision service
             </Link>{" "}
             to see results here.
@@ -349,7 +348,7 @@ export default function ProjectRunsPage() {
           <h3>Input snapshot</h3>
           <p className="runs-input">{String(selected.input_snapshot.content ?? "")}</p>
           <p>
-            <Link href={`/projects/${project.slug}/data`}>View source events</Link> · Event ID:{" "}
+            <Link href={`/projects/${project.id}/data`}>View source events</Link> · Event ID:{" "}
             <code>{selected.raw_event_id}</code>
           </p>
           <h3>Choice probabilities</h3>

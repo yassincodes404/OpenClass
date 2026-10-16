@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, mockWorkspaceProject, WORKFLOW_ROUTE } from "./fixtures/workspace";
 
 const project = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -44,14 +44,14 @@ const service = {
 };
 
 const candidate = {
-  id: "cand-1111-2222-3333-444444444444",
+  id: "22222222-2222-4222-8222-222222222222",
   project_id: project.id,
   decision_service_id: service.id,
   base_service_hash: "a".repeat(64),
   evidence_run_ids: [
-    "run-1111-1111-1111-111111111111",
-    "run-2222-2222-2222-222222222222",
-    "run-3333-3333-3333-333333333333",
+    "33333333-3333-4333-8333-333333333333",
+    "44444444-4444-4444-8444-444444444444",
+    "55555555-5555-4555-8555-555555555555",
   ],
   proposal: {
     kind: "new_choice",
@@ -69,14 +69,18 @@ const candidate = {
   created_at: "2026-09-28T01:00:00Z",
 };
 
+test.beforeEach(async ({ page }) => {
+  await mockWorkspaceProject(page, project);
+});
+
 test("candidate proposals remain inspectable but evaluation and activation are unavailable", async ({
   page,
 }) => {
   const currentCandidate = { ...candidate };
   const currentService = { ...service };
 
-  await page.route("**/api/v1/projects/saas-support", (route) => route.fulfill({ json: project }));
-  await page.route("**/api/v1/projects/saas-support/evolution/summary", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}`, (route) => route.fulfill({ json: project }));
+  await page.route(`${WORKFLOW_ROUTE}/evolution/summary`, (route) =>
     route.fulfill({
       json: {
         project_id: project.id,
@@ -89,19 +93,15 @@ test("candidate proposals remain inspectable but evaluation and activation are u
       },
     }),
   );
-  await page.route("**/api/v1/projects/saas-support/evidence*", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.route("**/api/v1/projects/saas-support/evidence-cases*", (route) =>
-    route.fulfill({ json: [] }),
-  );
-  await page.route("**/api/v1/projects/saas-support/decision-services*", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}/evidence*`, (route) => route.fulfill({ json: [] }));
+  await page.route(`${WORKFLOW_ROUTE}/evidence-cases*`, (route) => route.fulfill({ json: [] }));
+  await page.route(`${WORKFLOW_ROUTE}/decision-services*`, (route) =>
     route.fulfill({ json: [currentService] }),
   );
-  await page.route("**/api/v1/projects/saas-support/candidates", (route) =>
+  await page.route(`${WORKFLOW_ROUTE}/candidates`, (route) =>
     route.fulfill({ json: [currentCandidate] }),
   );
-  await page.route(`**/api/v1/projects/saas-support/candidates/${candidate.id}`, (route) =>
+  await page.route(`${WORKFLOW_ROUTE}/candidates/${candidate.id}`, (route) =>
     route.fulfill({ json: currentCandidate }),
   );
   let forbiddenRequests = 0;
@@ -141,7 +141,7 @@ test("candidate proposals remain inspectable but evaluation and activation are u
   await expect(page.getByRole("button", { name: "Promote & Activate Choice" })).toBeDisabled();
   expect(forbiddenRequests).toBe(0);
 
-  await page.route(`**/api/v1/projects/saas-support/candidates/${candidate.id}/reject`, (route) => {
+  await page.route(`${WORKFLOW_ROUTE}/candidates/${candidate.id}/reject`, (route) => {
     expect(route.request().postDataJSON().reason).toBe("Insufficient verified evidence");
     Object.assign(currentCandidate, {
       status: "rejected",

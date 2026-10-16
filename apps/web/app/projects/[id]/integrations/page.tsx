@@ -2,10 +2,10 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
-import { OpenClass, type Integration, type IntegrationType, type Project } from "@openclass/sdk";
+import { type Integration, type IntegrationType, type Project } from "@openclass/sdk";
 import { ProjectShell } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
 
 export default function IntegrationsPage() {
   const { id } = useParams<{ id: string }>();
@@ -348,7 +348,7 @@ export default function IntegrationsPage() {
               color: "var(--text)",
             }}
           >
-            {`curl -X POST http://localhost:7331/api/v1/projects/${project.slug}/integrations/{integration_id}/webhook \\
+            {`curl -X POST http://localhost:7331/api/v1/projects/${project.id}/integrations/{integration_id}/webhook \\
   -H "Content-Type: application/json" \\
   -H "X-OpenClass-Token: <your-configured-secret>" \\
   -d '{

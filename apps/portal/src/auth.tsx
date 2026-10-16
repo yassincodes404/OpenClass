@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearSession = useCallback(() => {
     queryClient.clear();
     setAuthenticated(false);
+    keycloak.clearToken?.();
   }, [queryClient]);
 
   const value = useMemo<Auth>(
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await keycloak.logout({ redirectUri: window.location.origin });
       },
       clearSession,
-      token: () => keycloak.token,
+      token: () => (authenticated ? keycloak.token : undefined),
     }),
     [ready, authenticated, clearSession],
   );

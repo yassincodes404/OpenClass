@@ -10,6 +10,7 @@ const SECTIONS = [
   "decisions",
   "knowledge",
   "evolution",
+  "evaluations",
   "integrations",
   "analytics",
   "runs",
@@ -43,15 +44,17 @@ export function ProjectShell({
         {SECTIONS.map((section) => {
           const href =
             section === "overview"
-              ? `/projects/${project.slug}`
-              : `/projects/${project.slug}/${section}`;
+              ? `/projects/${project.id}`
+              : `/projects/${project.id}/${section}`;
           return (
             <Link
               key={section}
               href={href}
               className={pathname === href ? "project-tab active-tab" : "project-tab"}
             >
-              {section[0].toUpperCase() + section.slice(1)}
+              {section === "evolution"
+                ? "Evidence & cases"
+                : section[0].toUpperCase() + section.slice(1)}
             </Link>
           );
         })}

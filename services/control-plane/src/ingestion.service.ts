@@ -87,6 +87,14 @@ export class IngestionService {
     private readonly audit: AuditService,
   ) {}
 
+  /** Shared policy for ordinary and closed-workflow ingestion entry points. */
+  async authorizeIngestion(caller: Caller, workspaceId: string, projectId: string) {
+    const project = await this.authorize(caller, workspaceId, projectId, "developer", "ingest");
+    this.throttle(caller, project.id);
+    await this.enforceQuota(workspaceId);
+    return project;
+  }
+
   async ingest(
     caller: Caller,
     workspaceId: string,
@@ -94,9 +102,7 @@ export class IngestionService {
     body: { content: string; source_type?: string; metadata?: Record<string, unknown> },
     idempotencyKey?: string,
   ) {
-    const project = await this.authorize(caller, workspaceId, projectId, "developer", "ingest");
-    this.throttle(caller, project.id);
-    await this.enforceQuota(workspaceId);
+    const project = await this.authorizeIngestion(caller, workspaceId, projectId);
     if (!body.content?.trim()) throw new BadRequestException("content cannot be blank");
     if (body.content.length > MAX_EVENT_CHARS) {
       throw new PayloadTooLargeException(`content exceeds ${MAX_EVENT_CHARS} characters`);
@@ -132,9 +138,7 @@ export class IngestionService {
     sourceType: string,
     idempotencyKey?: string,
   ) {
-    const project = await this.authorize(caller, workspaceId, projectId, "developer", "ingest");
-    this.throttle(caller, project.id);
-    await this.enforceQuota(workspaceId);
+    const project = await this.authorizeIngestion(caller, workspaceId, projectId);
     if (items.length > MAX_BATCH_ITEMS)
       throw new PayloadTooLargeException(`batch exceeds ${MAX_BATCH_ITEMS} items`);
     if (items.length === 0) throw new BadRequestException("items cannot be empty");

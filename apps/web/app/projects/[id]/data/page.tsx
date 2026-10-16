@@ -4,7 +4,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  OpenClass,
   type Project,
   type RawEvent,
   type ProviderStatus,
@@ -12,7 +11,7 @@ import {
 } from "@openclass/sdk";
 import { ProjectShell } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
 
 type IngestMode = "text" | "json" | "csv";
 
@@ -63,7 +62,7 @@ export default function ProjectDataPage() {
       .catch(() => {});
 
     client
-      .providerStatus()
+      .projectProviderStatus(slug)
       .then(setProviderStatus)
       .catch(() => {
         // Provider status endpoint optional/best effort

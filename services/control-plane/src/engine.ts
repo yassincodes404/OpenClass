@@ -982,7 +982,10 @@ export class EngineClient {
       this.failure(method, undefined, resolvedContext);
       throw new BadGatewayException("Engine is temporarily unavailable");
     }
-    if (response.status === expectedStatus) return (await response.json()) as T;
+    if (response.status === expectedStatus) {
+      if (response.status === 204) return undefined as T;
+      return (await response.json()) as T;
+    }
     this.failure(method, response.status, resolvedContext);
     const detail = "Engine rejected the request";
     if (response.status === 404) throw new NotFoundException(detail);

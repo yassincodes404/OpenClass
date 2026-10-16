@@ -80,6 +80,9 @@ importers:
       "@openclass/sdk":
         specifier: workspace:*
         version: link:../../packages/sdk-typescript
+      keycloak-js:
+        specifier: ^26.2.1
+        version: 26.2.4
       next:
         specifier: ^16.0.0
         version: 16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@playwright/test@1.63.0)(@types/node@22.20.4)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -99,6 +102,9 @@ importers:
       "@types/react-dom":
         specifier: ^19.0.0
         version: 19.3.0(@types/react@19.3.0)
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.15
       typescript:
         specifier: ^5.8.0
         version: 5.9.3

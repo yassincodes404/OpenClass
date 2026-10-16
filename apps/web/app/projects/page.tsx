@@ -2,9 +2,9 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { OpenClass, type Project } from "@openclass/sdk";
+import { type Project } from "@openclass/sdk";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../lib/workspace-client";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -123,7 +123,7 @@ export default function ProjectsPage() {
           <ul className="project-list">
             {projects.map((project) => (
               <li key={project.id}>
-                <Link href={`/projects/${project.slug}`} className="project-link">
+                <Link href={`/projects/${project.id}`} className="project-link">
                   <strong>{project.name}</strong>
                   <span className="muted">
                     Created {new Date(project.created_at).toLocaleDateString()} · {project.status}

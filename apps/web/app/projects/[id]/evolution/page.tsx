@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  OpenClass,
   type Project,
   type EvidenceItem,
   type EvidenceCase,
@@ -18,7 +17,7 @@ import {
 } from "@openclass/sdk";
 import { ProjectShell } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
 
 const DIAGNOSIS_OPTIONS: Array<{ value: DiagnosisCategory; label: string; description: string }> = [
   {
@@ -98,9 +97,11 @@ function percent(val: number): string {
 }
 
 export default function EvolutionInboxPage() {
-  const params = useParams<{ id: string }>();
-  const slug = params?.id;
+  const { id } = useParams<{ id: string }>();
+  return <EvolutionInbox key={id} slug={id} />;
+}
 
+function EvolutionInbox({ slug }: { slug: string }) {
   const [project, setProject] = useState<Project | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [summary, setSummary] = useState<EvolutionSummary | null>(null);
@@ -110,6 +111,9 @@ export default function EvolutionInboxPage() {
   const [decisionServices, setDecisionServices] = useState<DecisionService[]>([]);
   const [activeTab, setActiveTab] = useState<"evidence" | "cases" | "candidates">("evidence");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [evidenceOffset, setEvidenceOffset] = useState(0);
 
   // Candidates & Synthesis state
   const [candidateActionMessage, setCandidateActionMessage] = useState<Record<string, string>>({});
@@ -156,19 +160,22 @@ export default function EvolutionInboxPage() {
       .project(slug)
       .then(setProject)
       .catch(() => setNotFound(true));
-
-    loadData(slug);
   }, [slug]);
+
+  useEffect(() => {
+    if (slug) void loadData(slug);
+  }, [slug, evidenceOffset]);
 
   async function loadData(projectSlug: string) {
     setLoading(true);
+    setLoadError("");
     try {
       const [sum, ev, cases, cands, services] = await Promise.all([
-        client.evolutionSummary(projectSlug).catch(() => null),
-        client.evidence(projectSlug, { limit: 100 }),
-        client.evidenceCases(projectSlug, { limit: 50 }).catch(() => []),
-        client.projectCandidates(projectSlug).catch(() => []),
-        client.decisionServices(projectSlug).catch(() => []),
+        client.evolutionSummary(projectSlug),
+        client.evidence(projectSlug, { limit: 25, offset: evidenceOffset }),
+        client.evidenceCases(projectSlug, { limit: 50 }),
+        client.projectCandidates(projectSlug),
+        client.decisionServices(projectSlug),
       ]);
       setSummary(sum);
       setEvidenceList(ev);
@@ -178,8 +185,8 @@ export default function EvolutionInboxPage() {
       if (services.length > 0 && !synthTargetServiceId) {
         setSynthTargetServiceId(services[0].id);
       }
-    } catch {
-      // Best-effort
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Evidence workspace unavailable.");
     } finally {
       setLoading(false);
     }
@@ -209,6 +216,7 @@ export default function EvolutionInboxPage() {
   }, [evidenceList, statusFilter, triggerFilter, searchQuery]);
 
   async function openInspect(item: EvidenceItem) {
+    setActionError("");
     setSelectedItem(item);
     setAiDiagnosis(null);
     setDiagnoseError("");
@@ -230,7 +238,8 @@ export default function EvolutionInboxPage() {
         }
       }
     } catch {
-      // keep existing item
+      setActionError("Could not refresh evidence detail. Refresh before submitting a change.");
+      setSelectedItem(null);
     } finally {
       setInspectLoading(false);
     }
@@ -278,7 +287,7 @@ export default function EvolutionInboxPage() {
       setTriageSuccess("Triage saved successfully!");
       if (slug) loadData(slug);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Triage save failed");
+      setActionError(err instanceof Error ? err.message : "Triage save failed");
     } finally {
       setTriageBusy(false);
     }
@@ -296,7 +305,7 @@ export default function EvolutionInboxPage() {
       setEvidenceList((prev) => prev.map((it) => (it.id === updated.id ? updated : it)));
       if (slug) loadData(slug);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Transition failed");
+      setActionError(err instanceof Error ? err.message : "Transition failed");
     }
   }
 
@@ -313,7 +322,7 @@ export default function EvolutionInboxPage() {
       setEvidenceList((prev) => prev.map((it) => (it.id === fresh.id ? fresh : it)));
       if (slug) loadData(slug);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Could not assign case");
+      setActionError(err instanceof Error ? err.message : "Could not assign case");
     }
   }
 
@@ -336,7 +345,7 @@ export default function EvolutionInboxPage() {
       setEvidenceList((prev) => prev.map((it) => (it.id === fresh.id ? fresh : it)));
       if (slug) loadData(slug);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Could not create case");
+      setActionError(err instanceof Error ? err.message : "Could not create case");
     } finally {
       setCaseBusy(false);
     }
@@ -345,7 +354,7 @@ export default function EvolutionInboxPage() {
   async function handleRejectCandidate(candidateId: string, reason: string) {
     if (!slug) return;
     if (!reason) {
-      alert("Please provide a rejection reason.");
+      setActionError("Please provide a rejection reason.");
       return;
     }
     try {
@@ -361,7 +370,7 @@ export default function EvolutionInboxPage() {
       }));
       loadData(slug);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Rejection failed");
+      setActionError(err instanceof Error ? err.message : "Rejection failed");
     }
   }
 
@@ -431,8 +440,44 @@ export default function EvolutionInboxPage() {
     );
   }
 
+  if (loadError) {
+    return (
+      <ProjectShell project={project} active="evolution">
+        <p role="alert">{loadError} No automatic retry was attempted.</p>
+        <button onClick={() => void loadData(slug)}>Retry evidence read</button>
+      </ProjectShell>
+    );
+  }
+
   return (
     <ProjectShell project={project} active="evolution">
+      {actionError && <p role="alert">{actionError} No automatic retry was attempted.</p>}
+      <p>
+        UNKNOWN is permanent, not proof of a new class. Provider advice never becomes a verified
+        label.{" "}
+        <Link href={`/projects/${project.id}/evaluations`}>Open verified replay evaluations</Link>
+      </p>
+      <nav aria-label="Evidence pagination">
+        <p>Evidence page {evidenceOffset / 25 + 1}. Filters apply to this page.</p>
+        <button
+          disabled={loading || evidenceOffset === 0}
+          onClick={() => {
+            setSelectedItem(null);
+            setEvidenceOffset((value) => Math.max(0, value - 25));
+          }}
+        >
+          Previous evidence page
+        </button>
+        <button
+          disabled={loading || evidenceList.length !== 25}
+          onClick={() => {
+            setSelectedItem(null);
+            setEvidenceOffset((value) => value + 25);
+          }}
+        >
+          Next evidence page
+        </button>
+      </nav>
       {/* Overview & Metric Counters */}
       <section className="panel">
         <div className="section-heading">
@@ -752,6 +797,10 @@ export default function EvolutionInboxPage() {
           {selectedItem && (
             <section
               className="panel"
+              aria-label="Evidence detail"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setSelectedItem(null);
+              }}
               style={{
                 border: "1px solid var(--accent)",
                 marginTop: "20px",
@@ -1006,6 +1055,7 @@ export default function EvolutionInboxPage() {
                           <span style={{ fontSize: "12px", color: "var(--muted)" }}>
                             Confidence: {(aiDiagnosis.confidence * 100).toFixed(0)}% · Provider:{" "}
                             {aiDiagnosis.provider} ({aiDiagnosis.model})
+                            {aiDiagnosis.simulated ? " · simulated advisory" : " · provider advice"}
                           </span>
                         </div>
                         <p style={{ margin: "8px 0", fontSize: "13px", lineHeight: "1.5" }}>
@@ -1052,13 +1102,17 @@ export default function EvolutionInboxPage() {
                   >
                     <h3 style={{ marginTop: 0 }}>Human Triage Decision</h3>
                     {triageSuccess && (
-                      <p style={{ color: "var(--accent)", fontSize: "13px", fontWeight: 600 }}>
+                      <p
+                        role="status"
+                        style={{ color: "var(--accent)", fontSize: "13px", fontWeight: 600 }}
+                      >
                         {triageSuccess}
                       </p>
                     )}
                     <form onSubmit={handleSaveTriage}>
                       <div style={{ marginBottom: "12px" }}>
                         <label
+                          htmlFor="triage-category"
                           style={{
                             display: "block",
                             fontSize: "12px",
@@ -1069,6 +1123,7 @@ export default function EvolutionInboxPage() {
                           Failure Diagnosis Category
                         </label>
                         <select
+                          id="triage-category"
                           value={triageCategory}
                           onChange={(e) => setTriageCategory(e.target.value as DiagnosisCategory)}
                           style={{
@@ -1091,6 +1146,7 @@ export default function EvolutionInboxPage() {
 
                       <div style={{ marginBottom: "14px" }}>
                         <label
+                          htmlFor="triage-rationale"
                           style={{
                             display: "block",
                             fontSize: "12px",
@@ -1101,6 +1157,9 @@ export default function EvolutionInboxPage() {
                           Triage Rationale & Notes
                         </label>
                         <textarea
+                          id="triage-rationale"
+                          required
+                          maxLength={2000}
                           rows={3}
                           value={triageRationale}
                           onChange={(e) => setTriageRationale(e.target.value)}
@@ -1120,7 +1179,11 @@ export default function EvolutionInboxPage() {
                       <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                         <button
                           type="submit"
-                          disabled={triageBusy}
+                          disabled={
+                            triageBusy ||
+                            !triageRationale.trim() ||
+                            ["resolved", "dismissed"].includes(selectedItem.status)
+                          }
                           style={{
                             padding: "8px 16px",
                             borderRadius: "6px",
@@ -1139,6 +1202,7 @@ export default function EvolutionInboxPage() {
                         <button
                           type="button"
                           onClick={() => handleTransition("ready_for_evolution")}
+                          disabled={triageBusy || selectedItem.status !== "triaged"}
                           style={{
                             padding: "8px 14px",
                             borderRadius: "6px",
@@ -1554,7 +1618,7 @@ export default function EvolutionInboxPage() {
                               : ""}
                           </span>
                           <Link
-                            href={`/projects/${project.slug}/knowledge`}
+                            href={`/projects/${project.id}/knowledge`}
                             style={{
                               fontSize: "12px",
                               color: "var(--accent)",

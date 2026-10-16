@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { OpenClass, type Project, type ProjectSummary } from "@openclass/sdk";
+import { type Project, type ProjectSummary } from "@openclass/sdk";
 import { ProjectShell } from "../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../lib/workspace-client";
 
 export default function ProjectOverview({ params }: { params: Promise<{ id: string }> }) {
   const [id, setId] = useState<string | null>(null);
@@ -73,10 +73,10 @@ export default function ProjectOverview({ params }: { params: Promise<{ id: stri
               "No description yet. Add context in Settings to orient reviewers."}
           </p>
           <div className="project-actions">
-            <Link className="primary-link" href={`/projects/${project.slug}/data`}>
+            <Link className="primary-link" href={`/projects/${project.id}/data`}>
               Ingest observations <span aria-hidden="true">↗</span>
             </Link>
-            <Link className="quiet-link" href={`/projects/${project.slug}/decisions`}>
+            <Link className="quiet-link" href={`/projects/${project.id}/decisions`}>
               Configure decisions
             </Link>
           </div>

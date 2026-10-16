@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -78,10 +79,23 @@ test("workspace config forces auth and preserves the private engine/control-plan
   assert.ok(services["control-migrate"]);
   assert.ok(services.portal);
   assert.ok(services.web);
+  assert.equal(services.web.environment.CONTROL_PLANE_URL, "http://control-plane:7400");
+  assert.equal(
+    services.web.build.args.KEYCLOAK_PUBLIC_URL,
+    services.portal.build.args.KEYCLOAK_PUBLIC_URL,
+  );
   for (const service of [services.portal, services.web]) {
     assert.equal(service.environment?.OPENCLASS_INTERNAL_TOKEN, undefined);
     assert.equal(service.build.args?.OPENCLASS_INTERNAL_TOKEN, undefined);
   }
   for (const service of Object.values(services))
     for (const port of service.ports ?? []) assert.equal(port.host_ip, "127.0.0.1");
+});
+
+test("web image includes shared workflow sources and public identity build configuration", async () => {
+  const source = await readFile(path.join(root, "apps/web/Dockerfile"), "utf8");
+  assert.match(source, /COPY apps\/portal\/src apps\/portal\/src/);
+  assert.match(source, /--filter @openclass\/portal\.\.\./);
+  assert.match(source, /ARG KEYCLOAK_PUBLIC_URL=/);
+  assert.match(source, /NEXT_PUBLIC_KEYCLOAK_URL=\$KEYCLOAK_PUBLIC_URL/);
 });
