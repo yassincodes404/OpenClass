@@ -29,7 +29,7 @@ Example service configuration:
       ]
     },
     "node_preconditions": {
-      "refund-router": [{"field": "blocked", "equals": false}]
+      "refund-router": [{ "field": "blocked", "equals": false }]
     },
     "budgets": {
       "max_field_chars": 4096,
@@ -91,7 +91,7 @@ invalid JSON, missing/type errors, unsatisfied preconditions and exceeded budget
 raise `StateCompilationError`. HTTP execution returns 422:
 
 ```json
-{"detail": {"kind": "state_compilation", "code": "precondition_unsatisfied"}}
+{ "detail": { "kind": "state_compilation", "code": "precondition_unsatisfied" } }
 ```
 
 Codes include `invalid_json`, `missing_required_field`, `wrong_field_type`,
