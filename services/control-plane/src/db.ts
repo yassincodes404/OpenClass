@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import type { PoolClient } from "pg";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { Logger } from "@nestjs/common";
 
 /** Injection token so tests can substitute the control-plane database pool. */
 export const CONTROL_DB = "CONTROL_DB_POOL";
@@ -46,11 +47,16 @@ export async function controlTransaction<T>(
 }
 
 export function createControlPool(): Pool {
-  return transactionalPool(
-    new Pool({
-      connectionString:
-        process.env.CONTROL_PLANE_DATABASE_URL ??
-        "postgresql://openclass:openclass@127.0.0.1:5432/openclass",
-    }),
-  );
+  const pool = new Pool({
+    connectionString:
+      process.env.CONTROL_PLANE_DATABASE_URL ??
+      "postgresql://openclass:openclass@127.0.0.1:5432/openclass",
+  });
+  const logger = new Logger("ControlDatabase");
+  // pg removes failed idle clients before emitting this event. Keep the
+  // process alive for fresh connections; query failures still reject normally.
+  pool.on("error", () => {
+    logger.warn({ event: "control.database_connection_error" });
+  });
+  return transactionalPool(pool);
 }
