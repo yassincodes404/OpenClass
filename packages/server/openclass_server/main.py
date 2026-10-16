@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from uuid import uuid4
 
 from fastapi import FastAPI, Request, Response
@@ -45,10 +46,12 @@ from openclass_server.api.providers import providers_router
 from openclass_server.api.support import support_router
 from openclass_server.api.system import system_router
 from openclass_server.api.unknowns import unknowns_router
+from openclass_server.outbound import HTTPOutboundSender, OutboundDispatcher
 from openclass_server.persistence.cluster_store import ClusterStore
 from openclass_server.persistence.database import create_database_engine
 from openclass_server.persistence.idempotency import IdempotencyStore
 from openclass_server.persistence.integration_repository import SQLIntegrationRepository
+from openclass_server.persistence.outbound_store import OutboundStore
 from openclass_server.persistence.project_repository import SQLProjectRepository
 from openclass_server.persistence.promotion_store import PromotionStore
 from openclass_server.persistence.repository import SQLRepository
@@ -99,9 +102,26 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        task: asyncio.Task[None] | None = None
+        if config.outbound_enabled:
+            dispatcher = OutboundDispatcher(
+                OutboundStore(
+                    async_sessionmaker(engine, expire_on_commit=False),
+                    max_attempts=config.outbound_max_attempts,
+                    lease_seconds=config.outbound_lease_seconds,
+                ),
+                HTTPOutboundSender(timeout=config.outbound_timeout_seconds),
+                batch_size=config.outbound_batch_size,
+                timeout=config.outbound_timeout_seconds,
+            )
+            task = asyncio.create_task(dispatcher.run(config.outbound_poll_seconds))
         try:
             yield
         finally:
+            if task:
+                task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await task
             await engine.dispose()
 
     app = FastAPI(

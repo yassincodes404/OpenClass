@@ -19,6 +19,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -315,6 +316,8 @@ class ProjectIntegrationRow(Base):
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSON)
+    signature: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default="{}")
+    outbound: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -538,4 +541,39 @@ class RoutingOutcomeRow(Base):
     selected_choice: Mapped[str] = mapped_column(String(100))
     action: Mapped[str] = mapped_column(String(40))
     detail: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class OutboundDeliveryRow(Base):
+    __tablename__ = "outbound_deliveries"
+    __table_args__ = (
+        UniqueConstraint("project_id", "idempotency_key", name="uq_outbound_identity"),
+        Index("ix_outbound_due", "state", "next_attempt_at"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"))
+    # No FK to deletable configuration: historical destinations survive revocation.
+    integration_id: Mapped[str] = mapped_column(String(36))
+    outcome_id: Mapped[str] = mapped_column(ForeignKey("routing_outcomes.id"), unique=True)
+    idempotency_key: Mapped[str] = mapped_column(String(300))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    intent: Mapped[dict[str, Any]] = mapped_column(JSON)
+    state: Mapped[str] = mapped_column(String(20))
+    attempts: Mapped[int] = mapped_column(Integer)
+    had_ambiguous_attempt: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    claim_token: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class OutboundHistoryRow(Base):
+    __tablename__ = "outbound_delivery_history"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    delivery_id: Mapped[str] = mapped_column(ForeignKey("outbound_deliveries.id"))
+    state: Mapped[str] = mapped_column(String(20))
+    attempt: Mapped[int] = mapped_column(Integer)
+    code: Mapped[str] = mapped_column(String(40))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

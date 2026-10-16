@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from uuid import uuid4
 
 import httpx
@@ -265,73 +264,32 @@ def test_repeated_route_evaluation_for_same_run_is_idempotent(mock_client: TestC
     assert outcomes[0]["delivery_mode"] == "simulated"
 
 
-async def test_mcp_probe_discovers_tools_and_falls_back_on_405() -> None:
-    seen_requests: list[httpx.Request] = []
+async def test_mcp_probe_rejects_405_without_fabricated_get_fallback() -> None:
+    methods = []
 
-    def handle_tools_list(request: httpx.Request) -> httpx.Response:
-        seen_requests.append(request)
-        assert request.method == "POST"
-        payload = json.loads(request.content.decode())
-        assert payload == {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
-        return httpx.Response(
-            200,
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "result": {
-                    "tools": [
-                        {"name": "lookup_customer"},
-                        {"name": "create_ticket"},
-                    ]
-                },
-            },
-        )
+    def handle(request):
+        methods.append(request.method)
+        return httpx.Response(405)
 
-    probe = HTTPIntegrationProbe(EnvironmentSecrets(), httpx.MockTransport(handle_tools_list))
-    report = await probe.check(
+    report = await HTTPIntegrationProbe(EnvironmentSecrets(), httpx.MockTransport(handle)).check(
         IntegrationConfig(
             project_id=uuid4(),
-            name="Support MCP",
+            name="MCP",
             type=IntegrationType.MCP,
             endpoint="https://mcp.example.invalid/rpc",
         )
     )
-    assert report.status == IntegrationStatus.CONNECTED
-    assert report.capabilities == ("lookup_customer", "create_ticket")
-    assert report.error_message is None
-    assert len(seen_requests) == 1
-
-    # Fallback to GET on 405 with default MCP capabilities when tools list not returned
-    fallback_methods: list[str] = []
-
-    def handle_fallback(request: httpx.Request) -> httpx.Response:
-        fallback_methods.append(request.method)
-        if request.method == "POST":
-            return httpx.Response(405)
-        return httpx.Response(200, json={"status": "ok"})
-
-    fallback_probe = HTTPIntegrationProbe(
-        EnvironmentSecrets(), httpx.MockTransport(handle_fallback)
-    )
-    fallback_report = await fallback_probe.check(
-        IntegrationConfig(
-            project_id=uuid4(),
-            name="Fallback MCP",
-            type=IntegrationType.MCP,
-            endpoint="https://mcp.example.invalid/health",
-        )
-    )
-    assert fallback_report.status == IntegrationStatus.CONNECTED
-    assert fallback_report.capabilities == ("mcp_tools", "context_fetch")
-    assert fallback_methods == ["POST", "GET"]
+    assert report.status == IntegrationStatus.DISCONNECTED
+    assert report.capabilities == ()
+    assert methods == ["POST"]
 
 
 @pytest.mark.parametrize(
     "status_code,expected_status,expected_caps",
     [
-        (200, IntegrationStatus.CONNECTED, ("model_inference",)),
-        (401, IntegrationStatus.CONNECTED, ("model_inference",)),
-        (403, IntegrationStatus.CONNECTED, ("model_inference",)),
+        (200, IntegrationStatus.CONNECTED, ()),
+        (401, IntegrationStatus.DEGRADED, ()),
+        (403, IntegrationStatus.DEGRADED, ()),
         (502, IntegrationStatus.DEGRADED, ()),
     ],
 )

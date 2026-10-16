@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Single source of truth for the Alembic revision readiness requires. Update this
 # constant (and only it) whenever a new migration becomes the expected head.
-EXPECTED_SCHEMA_REVISION = "0029_engine_persistence_contracts"
+EXPECTED_SCHEMA_REVISION = "0030_outbound_deliveries"
 
 
 class Settings(BaseSettings):
@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     rate_limit_ingest_per_minute: int = Field(default=60, ge=1)
     rate_limit_classify_per_minute: int = Field(default=300, ge=1)
     idempotency_ttl_hours: int = Field(default=24, ge=1, le=24 * 30)
+    outbound_enabled: bool = False
+    outbound_batch_size: int = Field(default=10, ge=1, le=100)
+    outbound_poll_seconds: float = Field(default=5, ge=0.1, le=300, allow_inf_nan=False)
+    outbound_max_attempts: int = Field(default=3, ge=1, le=10)
+    outbound_timeout_seconds: float = Field(default=5, gt=0, le=30, allow_inf_nan=False)
+    outbound_lease_seconds: int = Field(default=60, ge=35, le=600)
     novelty: NoveltyPolicy = NoveltyPolicy()
     decision_provider: Literal["mock", "jev", "laya", "openai-compatible"] = "laya"
     supervisor_provider: Literal["mock", "glm", "openai-compatible"] = "mock"

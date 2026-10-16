@@ -23,6 +23,7 @@ from uuid import UUID, uuid4
 from pydantic import Field, model_validator
 
 from .models import Model
+from .outbound import OutboundPolicy
 from .projects import ProjectAuditEvent, RawEvent
 
 SECRET_REFERENCE_PATTERN = r"^[A-Z][A-Z0-9_]{0,199}$"
@@ -47,6 +48,11 @@ class IntegrationStatus(StrEnum):
     PENDING = "pending"
 
 
+class WebhookSignature(Model):
+    mode: Literal["bearer", "zendesk", "intercom_sha1", "customer_hmac_sha256"] = "bearer"
+    replay_window_seconds: int = Field(default=300, ge=30, le=900)
+
+
 class IntegrationConfig(Model):
     id: UUID = Field(default_factory=uuid4)
     project_id: UUID
@@ -60,6 +66,8 @@ class IntegrationConfig(Model):
     last_health_check: datetime | None = None
     error_message: str | None = Field(default=None, max_length=2000)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    signature: WebhookSignature = Field(default_factory=WebhookSignature)
+    outbound: OutboundPolicy = Field(default_factory=OutboundPolicy)
     created_at: datetime = Field(default_factory=now)
     updated_at: datetime = Field(default_factory=now)
 
@@ -71,6 +79,8 @@ class IntegrationCreate(Model):
     secret_ref: str | None = Field(default=None, pattern=SECRET_REFERENCE_PATTERN)
     capabilities: tuple[str, ...] = Field(default_factory=tuple)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    signature: WebhookSignature = Field(default_factory=WebhookSignature)
+    outbound: OutboundPolicy = Field(default_factory=OutboundPolicy)
 
 
 class IntegrationUpdate(Model):
@@ -80,9 +90,13 @@ class IntegrationUpdate(Model):
     secret_ref: str | None = Field(default=None, pattern=SECRET_REFERENCE_PATTERN)
     capabilities: tuple[str, ...] | None = None
     metadata: dict[str, Any] | None = None
+    signature: WebhookSignature | None = None
+    outbound: OutboundPolicy | None = None
 
     @model_validator(mode="after")
     def has_changes(self) -> "IntegrationUpdate":
+        if self.signature is not None and "mode" not in self.signature.model_fields_set:
+            raise ValueError("Signature updates require an explicit mode")
         if (
             self.name is None
             and self.status is None
@@ -90,6 +104,8 @@ class IntegrationUpdate(Model):
             and self.secret_ref is None
             and self.capabilities is None
             and self.metadata is None
+            and self.signature is None
+            and self.outbound is None
             and not self.model_fields_set.intersection({"endpoint", "secret_ref"})
         ):
             raise ValueError("IntegrationUpdate must set at least one field")

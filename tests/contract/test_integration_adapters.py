@@ -8,6 +8,54 @@ from openclass_core.integrations import IntegrationConfig, IntegrationStatus, In
 from openclass_server.integration_adapters import EnvironmentSecrets, HTTPIntegrationProbe
 
 
+async def test_mcp_initializes_before_listing_and_keeps_session_header():
+    import json
+
+    seen = []
+
+    def handle(request):
+        payload = json.loads(request.content)
+        seen.append(payload["method"])
+        if payload["method"] == "initialize":
+            return httpx.Response(
+                200,
+                headers={"Mcp-Session-Id": "synthetic-session"},
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {
+                        "protocolVersion": "2025-03-26",
+                        "capabilities": {"tools": {}},
+                        "serverInfo": {"name": "fixture", "version": "1"},
+                    },
+                },
+            )
+        assert request.headers["Mcp-Session-Id"] == "synthetic-session"
+        assert request.headers["MCP-Protocol-Version"] == "2025-03-26"
+        if payload["method"] == "notifications/initialized":
+            return httpx.Response(202)
+        return httpx.Response(
+            200,
+            json={
+                "jsonrpc": "2.0",
+                "id": 2,
+                "result": {"tools": [{"name": "lookup", "inputSchema": {"type": "object"}}]},
+            },
+        )
+
+    report = await HTTPIntegrationProbe(EnvironmentSecrets(), httpx.MockTransport(handle)).check(
+        IntegrationConfig(
+            project_id=uuid4(),
+            name="mcp",
+            type=IntegrationType.MCP,
+            endpoint="https://mcp.example/rpc",
+        )
+    )
+    assert report.status == IntegrationStatus.CONNECTED
+    assert report.capabilities == ("lookup",)
+    assert seen == ["initialize", "notifications/initialized", "tools/list"]
+
+
 @pytest.mark.parametrize(
     "code,expected", [(200, "connected"), (302, "degraded"), (401, "degraded"), (503, "degraded")]
 )
@@ -138,3 +186,201 @@ def test_decoded_secret_content_cannot_escape_redaction(
     )
     with pytest.raises(ValueError, match="Input contains an integration credential"):
         EnvironmentSecrets().reject_secret_content(integration, {"metadata": {"nested": [secret]}})
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "json",
+        "rpc_error",
+        "id",
+        "version",
+        "no_tools",
+        "sse",
+        "oversized",
+        "cursor",
+        "session",
+        "secret",
+        "notify_session",
+        "cursor_null",
+        "empty_schema",
+    ],
+)
+async def test_mcp_invalid_protocol_never_invents_capabilities(monkeypatch, fault):
+    import json
+
+    monkeypatch.setenv("TEST_MCP_TOKEN", "synthetic-mcp-token")
+    methods = []
+
+    def handle(request):
+        payload = json.loads(request.content)
+        methods.append(payload["method"])
+        if payload["method"] == "initialize":
+            if fault == "json":
+                return httpx.Response(
+                    200, text="not json", headers={"Content-Type": "application/json"}
+                )
+            if fault == "sse":
+                return httpx.Response(
+                    200, text="data: {}", headers={"Content-Type": "text/event-stream"}
+                )
+            if fault == "oversized":
+                return httpx.Response(
+                    200, content=b" " * 64_001, headers={"Content-Type": "application/json"}
+                )
+            if fault == "rpc_error":
+                return httpx.Response(
+                    200,
+                    json={"jsonrpc": "2.0", "id": 1, "error": {"message": "synthetic-mcp-token"}},
+                )
+            return httpx.Response(
+                200,
+                headers={"Mcp-Session-Id": "session-one"},
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 999 if fault == "id" else 1,
+                    "result": {
+                        "protocolVersion": "unknown" if fault == "version" else "2025-03-26",
+                        "capabilities": {} if fault == "no_tools" else {"tools": {}},
+                        "serverInfo": {"name": "mock", "version": "1"},
+                    },
+                },
+            )
+        if payload["method"] == "notifications/initialized":
+            return httpx.Response(
+                202,
+                headers={"Mcp-Session-Id": "other" if fault == "notify_session" else "session-one"},
+            )
+        result = {
+            "tools": [
+                {
+                    "name": "synthetic-mcp-token" if fault == "secret" else "lookup",
+                    "inputSchema": {} if fault == "empty_schema" else {"type": "object"},
+                }
+            ]
+        }
+        if fault == "cursor":
+            result["nextCursor"] = "same-forever"
+        if fault == "cursor_null":
+            result["nextCursor"] = None
+        return httpx.Response(
+            200,
+            headers={"Mcp-Session-Id": "session-two" if fault == "session" else "session-one"},
+            json={"jsonrpc": "2.0", "id": payload["id"], "result": result},
+        )
+
+    report = await HTTPIntegrationProbe(EnvironmentSecrets(), httpx.MockTransport(handle)).check(
+        IntegrationConfig(
+            project_id=uuid4(),
+            name="mcp",
+            type=IntegrationType.MCP,
+            endpoint="https://mcp.example/rpc",
+            secret_ref="TEST_MCP_TOKEN",
+        )
+    )
+    assert report.status == IntegrationStatus.DISCONNECTED
+    assert report.capabilities == ()
+    assert "synthetic-mcp-token" not in report.model_dump_json()
+    assert len(methods) <= 5
+
+
+@pytest.mark.parametrize("fails", [False, True])
+async def test_database_executes_only_bounded_select_and_always_disposes(monkeypatch, fails):
+    from openclass_server import integration_adapters
+
+    monkeypatch.setenv(
+        "OPENCLASS_INTEGRATION_DATABASE_FIXTURE_SECRET",
+        "postgresql+asyncpg://probe:synthetic-db-password@internal-db/probe",
+    )
+    seen = []
+
+    class Connection:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+        async def scalar(self, sql):
+            seen.append(str(sql))
+            if fails:
+                raise RuntimeError("synthetic-db-password")
+            return 1
+
+    class Engine:
+        def connect(self):
+            return Connection()
+
+        async def dispose(self):
+            seen.append("disposed")
+
+    def engine(url, **kwargs):
+        assert url.host == "internal-db"
+        assert kwargs["connect_args"]["command_timeout"] == 3
+        assert kwargs["connect_args"]["server_settings"]["default_transaction_read_only"] == "on"
+        return Engine()
+
+    monkeypatch.setattr(integration_adapters, "create_async_engine", engine)
+    report = await HTTPIntegrationProbe(EnvironmentSecrets()).check(
+        IntegrationConfig(
+            project_id=uuid4(),
+            name="db",
+            type=IntegrationType.DATABASE,
+            secret_ref="OPENCLASS_INTEGRATION_DATABASE_FIXTURE_SECRET",
+        )
+    )
+    assert seen == ["SELECT 1", "disposed"]
+    assert report.status == (
+        IntegrationStatus.DISCONNECTED if fails else IntegrationStatus.CONNECTED
+    )
+    assert report.capabilities == (() if fails else ("select_1",))
+    assert "synthetic-db-password" not in report.model_dump_json()
+
+
+@pytest.mark.parametrize(
+    "reference,dsn,endpoint,metadata",
+    [
+        ("OPENCLASS_DATABASE_URL", "postgresql+asyncpg://probe@db/probe", None, {}),
+        (
+            "OPENCLASS_INTEGRATION_DATABASE_FIXTURE_SECRET",
+            "sqlite+aiosqlite:///sensitive.db",
+            None,
+            {},
+        ),
+        (
+            "OPENCLASS_INTEGRATION_DATABASE_FIXTURE_SECRET",
+            "postgresql+asyncpg://probe@db/probe",
+            "https://attacker.example",
+            {},
+        ),
+        (
+            "OPENCLASS_INTEGRATION_DATABASE_FIXTURE_SECRET",
+            "postgresql+asyncpg://probe@db/probe",
+            None,
+            {"query": "DROP TABLE evidence"},
+        ),
+    ],
+)
+async def test_database_cannot_use_global_secret_file_or_caller_override(
+    monkeypatch, reference, dsn, endpoint, metadata
+):
+    from openclass_server import integration_adapters
+
+    monkeypatch.setenv(reference, dsn)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Invalid database target must never create an engine")
+
+    monkeypatch.setattr(integration_adapters, "create_async_engine", forbidden)
+    report = await HTTPIntegrationProbe(EnvironmentSecrets()).check(
+        IntegrationConfig(
+            project_id=uuid4(),
+            name="db",
+            type=IntegrationType.DATABASE,
+            endpoint=endpoint,
+            metadata=metadata,
+            secret_ref=reference,
+        )
+    )
+    assert report.status == IntegrationStatus.DISCONNECTED
+    assert report.capabilities == ()

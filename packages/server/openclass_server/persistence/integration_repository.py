@@ -12,7 +12,9 @@ from openclass_core.integrations import (
     IntegrationUpdate,
     WebhookDelivery,
     WebhookIngestResult,
+    WebhookSignature,
 )
+from openclass_core.outbound import OutboundPolicy
 from openclass_core.projects import ProjectAuditEvent, RawEvent
 from openclass_core.repositories import ConflictError, NotFoundError
 from sqlalchemy import select
@@ -52,9 +54,11 @@ class SQLIntegrationRepository:
 
         try:
             async with self.sessions.begin() as session:
-                await session.scalar(
+                project = await session.scalar(
                     select(ProjectRow).where(ProjectRow.id == key[0]).with_for_update()
                 )
+                if project is None or project.status != "active":
+                    raise ConflictError("Archived projects cannot ingest webhooks")
                 current = await session.scalar(
                     select(ProjectIntegrationRow)
                     .where(
@@ -68,6 +72,7 @@ class SQLIntegrationRepository:
                 if (
                     current.type != integration.type.value
                     or current.secret_ref != integration.secret_ref
+                    or WebhookSignature.model_validate(current.signature) != integration.signature
                 ):
                     raise ConflictError("Integration changed during webhook authentication")
                 existing = await session.get(WebhookReceiptRow, key)
@@ -128,6 +133,8 @@ class SQLIntegrationRepository:
             last_health_check=row.last_health_check,
             error_message=row.error_message,
             metadata=dict(row.metadata_json or {}),
+            signature=WebhookSignature.model_validate(row.signature),
+            outbound=OutboundPolicy.model_validate(row.outbound),
             created_at=row.created_at,
             updated_at=row.updated_at,
         )
@@ -147,6 +154,8 @@ class SQLIntegrationRepository:
             secret_ref=integration.secret_ref,
             capabilities=integration.capabilities,
             metadata=integration.metadata,
+            signature=integration.signature,
+            outbound=integration.outbound,
         )
         row = ProjectIntegrationRow(
             id=str(config.id),
@@ -161,6 +170,8 @@ class SQLIntegrationRepository:
             last_health_check=config.last_health_check,
             error_message=config.error_message,
             metadata_json=config.metadata,
+            signature=config.signature.model_dump(mode="json"),
+            outbound=config.outbound.model_dump(mode="json"),
             created_at=config.created_at,
             updated_at=config.updated_at,
         )
@@ -241,7 +252,13 @@ class SQLIntegrationRepository:
                 row.capabilities = list(patch.capabilities)
             if patch.metadata is not None:
                 row.metadata_json = dict(patch.metadata)
-            if patch.model_fields_set.intersection({"endpoint", "secret_ref", "capabilities"}):
+            if patch.signature is not None:
+                row.signature = patch.signature.model_dump(mode="json")
+            if patch.outbound is not None:
+                row.outbound = patch.outbound.model_dump(mode="json")
+            if patch.model_fields_set.intersection(
+                {"endpoint", "secret_ref", "capabilities", "signature", "outbound"}
+            ):
                 row.status = IntegrationStatus.PENDING.value
                 row.latency_ms = None
                 row.last_health_check = None
