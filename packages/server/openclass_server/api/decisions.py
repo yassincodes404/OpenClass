@@ -22,6 +22,7 @@ from openclass_core.projects import (
 from openclass_core.projects import ProjectService as ProjectDomainService
 from openclass_core.providers import DecisionProvider, ProviderError
 from openclass_core.repositories import ConflictError, NotFoundError
+from openclass_core.state_compiler import StateCompilationError
 from pydantic import BaseModel, Field
 
 from openclass_server.api.schemas import (
@@ -136,6 +137,7 @@ def decisions_router(
             choices=[c.model_dump(mode="json") for c in body.choices],
             description=body.description,
             provider_override=body.provider_override,
+            runtime_config=body.runtime_config,
             nodes=[n.model_dump(mode="json") for n in body.nodes]
             if body.nodes is not None
             else None,
@@ -184,6 +186,7 @@ def decisions_router(
             instructions=body.instructions,
             status=status_enum,
             provider_override=body.provider_override,
+            runtime_config=body.runtime_config,
             nodes=node_objs,
             transitions=transition_objs,
         )
@@ -231,6 +234,16 @@ def decisions_router(
             started = time.perf_counter()
             try:
                 run = await executor.execute(event, service)
+            except StateCompilationError as error:
+                # Protocol-declared: missing support must fail loudly, never
+                # silently drop the decision_run.failed audit event.
+                if project_repository is not None:
+                    await project_repository.record_state_error(
+                        service.project_id, service.id, error.code
+                    )
+                raise HTTPException(
+                    status_code=422, detail={"kind": "state_compilation", "code": error.code}
+                ) from None
             except ProviderError:
                 elapsed_ms = round((time.perf_counter() - started) * 1000.0, 2)
                 provider_name = (
@@ -515,6 +528,7 @@ def decisions_router(
 
         lease = CheckpointLease(renew_claim, ttl)
         run_for_executor = claimed_run.model_copy(update={"run_status": "paused"})
+        # Resume uses captured configuration, not attributes on this lease wrapper.
         executor = DecisionExecutor(lease.provider(exec_provider))
 
         def execute_resume() -> Coroutine[Any, Any, DecisionRun]:
@@ -528,6 +542,19 @@ def decisions_router(
 
         try:
             resumed_run = await lease.run(execute_resume)
+        except StateCompilationError as error:
+            await project_repository.mark_decision_run_failed(
+                claimed_run.project_id,
+                claimed_run.id,
+                operator=operator,
+                failure_reason="State compilation failed during resume",
+                claim_token=claim_token,
+                expected_checkpoint_revision=claimed_revision,
+                stale_claim_timeout_seconds=ttl,
+            )
+            raise HTTPException(
+                status_code=422, detail={"kind": "state_compilation", "code": error.code}
+            ) from None
         except ProviderError:
             await project_repository.mark_decision_run_failed(
                 claimed_run.project_id,

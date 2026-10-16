@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 import pytest
+from openclass_core.decision import StateFeature, StateSchema
 from openclass_core.decision_executor import DecisionExecutor
 from openclass_core.projects import (
     DecisionService,
@@ -10,8 +11,190 @@ from openclass_core.projects import (
     DecisionServiceNode,
     RawEvent,
 )
+from openclass_core.state_compiler import RuntimeDecisionConfig
+from openclass_core.supervision import (
+    InferenceProvenance,
+    OperatingProfile,
+    ProvenancedChoiceResult,
+)
 from openclass_provider_laya import LayaDecisionProvider
 from openclass_provider_mock import MockDecisionProvider
+
+
+@pytest.mark.parametrize("allow_simulated", [False, True])
+async def test_calibrated_profile_cannot_authorize_actual_laya_lexical_fallback(
+    monkeypatch,
+    allow_simulated,
+):
+    import httpx
+
+    # Exercise Laya.choice -> real _http_choice transport failure -> lexical fallback,
+    # without contacting a daemon or replacing the adapter's fallback implementation.
+    original_init = httpx.AsyncClient.__init__
+    calls = []
+
+    def unavailable(request):
+        calls.append(request)
+        raise httpx.ConnectError("synthetic offline daemon", request=request)
+
+    def offline_init(self, *args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(unavailable)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "__init__", offline_init)
+    downstream = DecisionServiceNode(
+        name="downstream",
+        instructions="Resolve billing",
+        choices=(DecisionServiceChoice(key="DONE", label="Billing"),),
+    )
+    root = DecisionServiceNode(
+        name="root",
+        instructions="Route billing",
+        choices=(
+            DecisionServiceChoice(
+                key="BILLING",
+                label="Billing",
+                target_node_id=downstream.id,
+            ),
+        ),
+    )
+    service = DecisionService(
+        project_id=uuid4(),
+        slug="fallback-proof",
+        name="Fallback proof",
+        instructions="Route billing",
+        nodes=(root, downstream),
+        runtime_config=RuntimeDecisionConfig(
+            operating_profile=OperatingProfile(
+                calibration_status="calibrated",
+                validation_artifact_hash="synthetic-fixture-not-empirical",
+                measured_max_choices=3,
+                allow_simulated_continuation=allow_simulated,
+            )
+        ),
+    )
+    executor = DecisionExecutor(
+        LayaDecisionProvider(
+            prefer_local_process=False,
+            allow_fallback=True,
+        )
+    )
+    run = await executor.execute(
+        RawEvent(project_id=service.project_id, content="billing"), service
+    )
+    assert run.execution_mode == "deterministic_test_fallback"
+    assert run.real_inference is False
+    assert run.provider_metadata["simulated"] is True
+    assert run.supervision_outcome == "REVIEW"
+    assert run.run_status == "paused"
+    assert len(run.steps) == len(calls) == 1
+    assert "calibrated operating thresholds satisfied" not in run.supervision_reason
+
+    # Approval of the root node cannot lend authority to a new fallback inference.
+    from openclass_core.projects import DecisionRun
+
+    checkpoint = DecisionRun.model_validate_json(run.model_dump_json())
+    restarted_executor = DecisionExecutor(
+        LayaDecisionProvider(
+            prefer_local_process=False,
+            allow_fallback=True,
+        )
+    )
+    resumed = await restarted_executor.resume(checkpoint, service, approved_choice="BILLING")
+    assert resumed.run_status == "paused"
+    assert resumed.current_node_key == "downstream"
+    assert resumed.supervision_outcome == "REVIEW"
+    assert resumed.steps[0]["supervision_outcome"] == "TRUSTED"
+    assert resumed.steps[1]["supervision_outcome"] == "REVIEW"
+    assert resumed.steps[1]["inference_provenance"] == {
+        "execution_mode": "deterministic_test_fallback",
+        "simulated": True,
+    }
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize("provider_name", ["jev", "laya", "gateway", "arbitrary"])
+async def test_plain_result_metadata_cannot_forge_calibrated_inference(
+    sample_service,
+    provider_name,
+):
+    from openclass_core.models import ChoiceResult
+
+    class UnattributedProvider:
+        async def choice(self, request):
+            return ChoiceResult(
+                provider=provider_name,
+                model="unattributed-fixture",
+                probabilities={"positive": 0.95, "negative": 0},
+                unknown_probability=0.05,
+                provider_metadata={
+                    "real_inference": True,
+                    "simulated": False,
+                    "execution_mode": "api",
+                    "calibration_status": "calibrated",
+                    "inference_provenance": {"execution_mode": "api", "simulated": False},
+                },
+            )
+
+    service = sample_service.model_copy(
+        update={
+            "runtime_config": RuntimeDecisionConfig(
+                operating_profile=OperatingProfile(
+                    calibration_status="calibrated",
+                    validation_artifact_hash="synthetic-fixture-not-empirical",
+                    measured_max_choices=3,
+                ),
+            )
+        }
+    )
+    run = await DecisionExecutor(UnattributedProvider()).execute(
+        RawEvent(project_id=service.project_id, content="positive"),
+        service,
+    )
+    assert run.supervision_outcome == "REVIEW"
+    assert run.real_inference is False
+    assert run.steps[0]["inference_provenance"] is None
+    assert run.provider_metadata["inference_provenance"] is None
+
+
+@pytest.mark.parametrize("allow_simulated", [False, True])
+async def test_mock_continuation_requires_explicit_simulation_opt_in(
+    sample_service,
+    allow_simulated,
+):
+    service = sample_service.model_copy(
+        update={
+            "runtime_config": RuntimeDecisionConfig(
+                operating_profile=OperatingProfile(
+                    calibration_status="simulated",
+                    allow_simulated_continuation=allow_simulated,
+                ),
+            )
+        }
+    )
+    run = await DecisionExecutor(MockDecisionProvider()).execute(
+        RawEvent(project_id=service.project_id, content="positive"),
+        service,
+    )
+    assert run.supervision_outcome == ("TRUSTED" if allow_simulated else "REVIEW")
+    assert run.real_inference is False
+    assert run.provider_metadata["simulated"] is True
+    if allow_simulated:
+        assert "Simulated fixture" in run.supervision_reason
+
+
+def test_legacy_service_hash_is_preserved_without_runtime_configuration(sample_service):
+    import json
+    from hashlib import sha256
+
+    from openclass_core.projects import compute_service_hash
+
+    legacy_snapshot = sample_service.model_dump(mode="json")
+    legacy_snapshot.pop("runtime_config")
+    legacy_hash = sha256(
+        json.dumps(legacy_snapshot, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    assert compute_service_hash(sample_service) == legacy_hash
 
 
 @pytest.fixture
@@ -185,7 +368,8 @@ async def test_decision_executor_unknown_wins_ties_and_uses_deterministic_uuids(
     class TiedProvider:
         async def choice(self, request: ChoiceRequest) -> ChoiceResult:
             captured_requests.append(request)
-            return ChoiceResult(
+            return ProvenancedChoiceResult(
+                inference_provenance=InferenceProvenance(execution_mode="mock", simulated=True),
                 provider="jev",
                 model="typesafe-ai/jev",
                 probabilities={"positive": 0.50, "negative": 0.0},
@@ -244,23 +428,57 @@ async def test_decision_executor_multi_node_traversal_and_state_compilation() ->
         name="Multi-Hop Router",
         instructions="Route and specialize support requests",
         nodes=(root_node, billing_node),
+        runtime_config=RuntimeDecisionConfig(
+            state_schema=StateSchema(
+                id="runtime_state",
+                version=1,
+                features=(
+                    StateFeature(
+                        id="account_tier",
+                        kind="string",
+                        sensor_field="account_tier",
+                        required=False,
+                    ),
+                    StateFeature(
+                        id="auto_refund_blocked",
+                        kind="boolean",
+                        sensor_field="auto_refund_blocked",
+                        required=False,
+                    ),
+                    StateFeature(
+                        id="customer_tier",
+                        kind="string",
+                        sensor_field="customer_tier",
+                        required=False,
+                    ),
+                ),
+            )
+        ),
     )
 
     seen_instructions: list[str] = []
+    seen_metadata: list[dict] = []
 
     class HierarchicalProvider:
+        operating_profile = OperatingProfile(
+            calibration_status="simulated", allow_simulated_continuation=True
+        )
+
         async def choice(self, request: ChoiceRequest) -> ChoiceResult:
             seen_instructions.append(request.instructions or "")
+            seen_metadata.append(request.observation.metadata)
             class_names = {c.canonical_name for c in request.ontology.classes}
             if "billing" in class_names:
-                return ChoiceResult(
+                return ProvenancedChoiceResult(
+                    inference_provenance=InferenceProvenance(execution_mode="mock", simulated=True),
                     provider="jev",
                     model="typesafe-ai/jev",
                     probabilities={"billing": 0.85, "tech": 0.10},
                     unknown_probability=0.05,
                     latency_ms=12.5,
                 )
-            return ChoiceResult(
+            return ProvenancedChoiceResult(
+                inference_provenance=InferenceProvenance(execution_mode="mock", simulated=True),
                 provider="jev",
                 model="typesafe-ai/jev",
                 probabilities={"refund": 0.80, "invoice": 0.10},
@@ -290,8 +508,9 @@ async def test_decision_executor_multi_node_traversal_and_state_compilation() ->
     }
     assert len(run.state_snapshot["resolved_decisions"]) == 1
     assert run.state_snapshot["resolved_decisions"][0]["choice"] == "BILLING"
-    assert "Structured state facts:" in seen_instructions[1]
-    assert "Prior resolved decisions: root-router=BILLING" in seen_instructions[1]
+    assert seen_metadata[1]["state_facts"] == run.state_snapshot["facts"]
+    assert seen_metadata[1]["resolved_decisions"][0]["choice"] == "BILLING"
+    assert "enterprise" not in seen_instructions[1]  # data is not promoted to instructions
 
 
 async def test_decision_executor_cycle_detection_and_node_supervision_policy() -> None:
@@ -320,9 +539,14 @@ async def test_decision_executor_cycle_detection_and_node_supervision_policy() -
     )
 
     class AlwaysFirstChoiceProvider:
+        operating_profile = OperatingProfile(
+            calibration_status="simulated", allow_simulated_continuation=True
+        )
+
         async def choice(self, request: ChoiceRequest) -> ChoiceResult:
             first = request.ontology.classes[0].canonical_name
-            return ChoiceResult(
+            return ProvenancedChoiceResult(
+                inference_provenance=InferenceProvenance(execution_mode="mock", simulated=True),
                 provider="jev",
                 model="typesafe-ai/jev",
                 probabilities={first: 0.90},
@@ -406,17 +630,48 @@ async def test_decision_executor_multi_node_pause_and_resume_downstream_executio
         name="Supervised Router",
         instructions="Route and specialize support requests",
         nodes=(root_node, billing_node),
+        runtime_config=RuntimeDecisionConfig(
+            state_schema=StateSchema(
+                id="runtime_state",
+                version=1,
+                features=(
+                    StateFeature(
+                        id="account_tier",
+                        kind="string",
+                        sensor_field="account_tier",
+                        required=False,
+                    ),
+                    StateFeature(
+                        id="auto_refund_blocked",
+                        kind="boolean",
+                        sensor_field="auto_refund_blocked",
+                        required=False,
+                    ),
+                    StateFeature(
+                        id="customer_tier",
+                        kind="string",
+                        sensor_field="customer_tier",
+                        required=False,
+                    ),
+                ),
+            )
+        ),
         transitions=(transition,),
     )
 
     executed_nodes: list[str] = []
 
     class TwoStageProvider:
+        operating_profile = OperatingProfile(
+            calibration_status="simulated", allow_simulated_continuation=True
+        )
+
         async def choice(self, request: ChoiceRequest) -> ChoiceResult:
             class_names = {c.canonical_name for c in request.ontology.classes}
             if "billing" in class_names:
                 executed_nodes.append("root-router")
-                return ChoiceResult(
+                return ProvenancedChoiceResult(
+                    inference_provenance=InferenceProvenance(execution_mode="mock", simulated=True),
                     provider="jev",
                     model="typesafe-ai/jev",
                     probabilities={"billing": 0.48, "tech": 0.42},
@@ -424,7 +679,8 @@ async def test_decision_executor_multi_node_pause_and_resume_downstream_executio
                     latency_ms=10.0,
                 )
             executed_nodes.append("billing-specialist")
-            return ChoiceResult(
+            return ProvenancedChoiceResult(
+                inference_provenance=InferenceProvenance(execution_mode="mock", simulated=True),
                 provider="jev",
                 model="typesafe-ai/jev",
                 probabilities={"refund": 0.90, "invoice": 0.05},

@@ -1506,6 +1506,24 @@ class SQLProjectRepository:
             },
         )
 
+    async def record_state_error(self, project_id: UUID, service_id: UUID, code: str) -> None:
+        """Append a sanitized representation failure, with no fabricated decision run."""
+        async with self.sessions.begin() as session:
+            session.add(
+                self._event(
+                    ProjectAuditEvent(
+                        project_id=project_id,
+                        event_type="decision_run.failed",
+                        actor="system",
+                        payload={
+                            "decision_service_id": str(service_id),
+                            "stage": "state_compilation",
+                            "code": code,
+                        },
+                    )
+                )
+            )
+
     async def record_provider_error(
         self, project_id: UUID, provider: str, model: str, latency_ms: float
     ) -> None:

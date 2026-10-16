@@ -19,6 +19,28 @@ from pydantic import SecretStr
 KEY = "synthetic-test-credential"
 
 
+async def test_compiled_state_credentials_and_payload_budget_fail_before_transport(ontology):
+    from openclass_core.state_compiler import StateCompilationError
+
+    def forbidden(_):
+        pytest.fail("Invalid state must not reach a transport")
+
+    for metadata, error in [
+        ({"state_facts": {"declared": KEY}}, ProviderError),
+        (
+            {"state_facts": {"declared": "界"}, "state_budgets": {"max_total_bytes": 20}},
+            StateCompilationError,
+        ),
+    ]:
+        with pytest.raises(error):
+            await provider(forbidden).choice(
+                ChoiceRequest(
+                    observation=Observation(content="charged", metadata=metadata),
+                    ontology=ontology,
+                )
+            )
+
+
 def response_body() -> dict[str, Any]:
     return {
         "model": "typesafe-ai/jev",

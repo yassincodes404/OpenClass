@@ -17,6 +17,11 @@ from openclass_core.models import (
 )
 from openclass_core.project_evolution import ChoiceProposal, ProposalKind
 from openclass_core.projects import DecisionRun, DecisionService
+from openclass_core.supervision import (
+    InferenceProvenance,
+    OperatingProfile,
+    ProvenancedChoiceResult,
+)
 
 
 class MockChoiceTeacher:
@@ -47,6 +52,11 @@ class MockChoiceTeacher:
 
 
 class MockDecisionProvider:
+    operating_profile = OperatingProfile(
+        calibration_status="simulated",
+        allow_simulated_continuation=True,
+    )
+
     async def choice(self, request: ChoiceRequest) -> ChoiceResult:
         content = request.observation.content.casefold()
         hits: list[str] = []
@@ -70,12 +80,17 @@ class MockDecisionProvider:
             )
             for c in request.ontology.classes
         }
-        return ChoiceResult(
+        return ProvenancedChoiceResult(
+            inference_provenance=InferenceProvenance(execution_mode="mock", simulated=True),
             provider="mock",
             model="lexical-demo-v1",
             probabilities=probabilities,
             unknown_probability=unknown,
-            provider_metadata={"simulated": True},
+            provider_metadata={
+                "simulated": True,
+                "execution_mode": "mock",
+                "real_inference": False,
+            },
             estimated_cost=0.0,
         )
 
