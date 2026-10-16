@@ -64,12 +64,16 @@ def test_seal_screens_holdout_against_json_run_payloads(postgres_url: str) -> No
         assert dataset.status_code == 201
         dataset_id = dataset.json()["id"]
 
+        # Holdout-leakage screening (which reads run payloads) only runs when an
+        # example is marked verified_holdout; without it the PG-sensitive query
+        # is never reached and this test would be vacuous.
         example = client.post(
             f"/api/v1/projects/{slug}/eval-datasets/{dataset_id}/examples",
             json={
                 "text": "verified billing question from ticket history",
                 "label": "BILLING",
                 "source": "human",
+                "source_type": "verified_holdout",
                 "annotator": "annotator@acme.test",
                 "rationale": "verified from ticket history",
             },
