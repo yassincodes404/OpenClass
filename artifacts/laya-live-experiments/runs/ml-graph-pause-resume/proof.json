@@ -1,0 +1,52 @@
+{
+  "base_url": "loopback experiment engine",
+  "forward_counters": {
+    "after": 99,
+    "before": 97,
+    "delta": 2
+  },
+  "steps": {
+    "after_resume": {
+      "checkpoint_revision": 3,
+      "current_node_key": "billing-followup",
+      "next_node_key": null,
+      "repeated_pause_preserved": true,
+      "run_status": "paused",
+      "steps_executed": 2,
+      "supervision_outcome": "REVIEW"
+    },
+    "audit_resume_events": [
+      {
+        "actor": "driver-pause-resume-proof",
+        "event_type": "decision_run_resumed"
+      }
+    ],
+    "paused_at_triage": {
+      "checkpoint_revision": 1,
+      "current_node_key": "triage",
+      "pending_operation_type": "node_supervision_gate",
+      "proposed_choice": "BILLING",
+      "run_status": "paused",
+      "selected_choice": "BILLING",
+      "steps_executed": 1,
+      "supervision_outcome": "REVIEW"
+    },
+    "resume_response": {
+      "current_node_key": "billing-followup",
+      "resumed_by": "driver-pause-resume-proof",
+      "run_status": "paused",
+      "selected_choice": "REFUND",
+      "supervision_outcome": "REVIEW"
+    },
+    "service": {
+      "id": "1b080327-b8d3-4e49-983d-24f5dc1952e7",
+      "nodes": [
+        "triage",
+        "billing-followup"
+      ],
+      "provider_override": "laya",
+      "service_hash": null
+    }
+  },
+  "verified": true
+}

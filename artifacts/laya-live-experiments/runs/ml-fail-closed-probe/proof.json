@@ -1,0 +1,10 @@
+{
+  "daemon": "stopped before probe (port closed)",
+  "error_keys": [
+    "detail"
+  ],
+  "execution_http_status": 502,
+  "successful_runs_after_failure": 0,
+  "verified": true,
+  "visible_failure": true
+}
