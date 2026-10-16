@@ -47,9 +47,7 @@ def _simulated_source_commit(monkeypatch: pytest.MonkeyPatch) -> None:
     def simulated() -> dict[str, Any]:
         return {
             "commit": "SIMULATED-commit-not-a-git-sha",
-            "files": {
-                name: file_hash(Path(runner.__file__).with_name(name)) for name in names
-            },
+            "files": {name: file_hash(Path(runner.__file__).with_name(name)) for name in names},
         }
 
     monkeypatch.setattr(runner, "source_identity", simulated)
