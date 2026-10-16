@@ -24,10 +24,10 @@ No provider prediction becomes a label, ontology mutation, or promotion evidence
 
 `artifacts/laya-live-experiments/dataset/cases.jsonl` contains 120 observations:
 
-| Split | English | Arabic | Per label per language |
-| --- | ---: | ---: | ---: |
-| development | 24 | 24 | 6 |
-| holdout | 36 | 36 | 9 |
+| Split       | English | Arabic | Per label per language |
+| ----------- | ------: | -----: | ---------------------: |
+| development |      24 |     24 |                      6 |
+| holdout     |      36 |     36 |                      9 |
 
 Sixty semantic groups each contain an English/Arabic translation pair. Both members
 stay in the same split. Cases include known paraphrases, negation, instruction-like
@@ -67,13 +67,15 @@ The runner accepts a driver-generated JSON proof with these required fields:
 {
   "checkpoint": "official repository identity",
   "revision": "40 lowercase hexadecimal commit characters",
-  "weight_files": {"relative weight filename": "64 lowercase hexadecimal SHA256 characters"},
+  "weight_files": { "relative weight filename": "64 lowercase hexadecimal SHA256 characters" },
   "model": "exact model string persisted by the OpenClass Laya adapter",
   "device": "actual inspected device",
   "backend": "actual inspected backend",
-  "packages": {"distribution": "installed version"},
+  "packages": { "distribution": "installed version" },
   "forward_calls": 1,
-  "forward_instrumentation": {"method": "driver's actual instrumentation and evidence references"},
+  "forward_instrumentation": {
+    "method": "driver's actual instrumentation and evidence references"
+  },
   "cold_start_ms": null,
   "memory": null
 }
