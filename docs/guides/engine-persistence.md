@@ -96,6 +96,21 @@ and text search in SQL **before** pagination. Ordering is descending
 `(created_at, id)`; `next_cursor` is the next offset, not a snapshot token.
 Use bounded pages; concurrent insertions can shift offsets.
 
+Clustering calls `ProjectService.list_unknown_runs()` with the requested limit;
+known runs never consume that limit. Legacy classifier discovery resolves the
+requested evidence through the typed `Repository.unknowns_by_ids()` port.
+Missing, known-only and other-classifier IDs remain a 409 conflict, even when
+other eligible evidence exists. Neither caller scans a capped page.
+
+Checkpoint decision fields are required in the domain **and NOT NULL** in
+migration 0026 and the current table mapping. They cannot deliberately clear a
+selection or supervision outcome to null. A SQL outer join produces null only
+when the checkpoint row is absent; coalescing then retains the immutable run.
+With a checkpoint present, explicit values override the run in both SQL
+eligibility and the returned overlay. Other nullable checkpoint fields (such as
+`next_node_key` and claim metadata) retain their existing clearing semantics.
+No schema or lifecycle change is required.
+
 UNKNOWN detail and evidence synchronization use direct IDs, not a 200-row scan.
 Detail and listing share the project-scoped recurrence query, so repeated runs
 for one source event have the same recurrence count in both responses.
@@ -111,8 +126,17 @@ aggregates and disjoint time windows. No accuracy labels are inferred.
 `record_provider_error` atomically increments the supplied provider/model rollup
 and appends `decision.provider_failed` with provider, model and latency only.
 Raw exception text, submitted content and credentials are excluded. The decision
-route must supply actual configured identity; this guide does not claim that
-out-of-scope caller or cross-service correlation work is complete.
+route supplies the provider's public configured identity when no result exists.
+Jev and Laya expose read-only `model` properties and their provider names for this
+path, including injected adapters. Successful results retain the validated
+upstream-reported model: a configured alias may legitimately resolve to a
+different actual name. Only an **omitted** wire model uses the configured model;
+explicit null, empty or malformed values still fail validation. Jev's existing
+model-format and credential guards also apply to the fallback. Configuration
+must not contain the adapter's credential in its model identity. This is
+model-sensitive reporting, not a configuration-equality constraint. The caller
+tests use synthetic wire responses and establish no inference-quality or cost
+benchmark claims; broader cross-service correlation remains outside this change.
 
 ### Latency and exact-window declared cost
 
@@ -166,10 +190,9 @@ when the boundary falls halfway through a calendar day.
 cost cannot contaminate a last-hour alert. An entirely empty, fully accounted
 interval has a measured cost of zero and zero timestamped attempts.
 
-Persistence exposes `SQLRepository.unknowns_by_ids()` and
-`ProjectService.list_unknown_runs()` for discovery and clustering integration.
-Those callers must use these methods rather than scanning a capped page of all
-runs. Active project promotion remains the evolution lane's transaction boundary.
+Discovery and clustering use `SQLRepository.unknowns_by_ids()` through the core
+port and `ProjectService.list_unknown_runs()`, respectively. Active project
+promotion remains the evolution lane's transaction boundary.
 
 ## Validation
 

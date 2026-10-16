@@ -50,6 +50,9 @@ class Repository(Protocol):
     async def unknowns(
         self, classifier_id: UUID, limit: int, offset: int
     ) -> list[UnknownEvent]: ...
+    async def unknowns_by_ids(
+        self, classifier_id: UUID, ids: tuple[UUID, ...]
+    ) -> list[UnknownEvent]: ...
     async def get_classification(
         self, classifier_id: UUID, run_id: UUID
     ) -> ClassificationRecord: ...

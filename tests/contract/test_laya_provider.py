@@ -65,6 +65,64 @@ def create_mock_provider(handler: Any) -> LayaDecisionProvider:
     )
 
 
+@pytest.mark.parametrize("reported", [None, "laya-resolved-v2"])
+async def test_nondefault_model_attribution_preserves_reported_or_configured(
+    ontology: OntologyVersion, reported: str | None
+) -> None:
+    body = synthetic_laya_response()
+    if reported is None:
+        body.pop("model")
+    else:
+        body["model"] = reported
+    provider = LayaDecisionProvider(
+        model="laya-configured-alias",
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=body)),
+    )
+    result = await provider.choice(
+        ChoiceRequest(observation=Observation(content="charged"), ontology=ontology)
+    )
+    assert result.model == (reported or "laya-configured-alias")
+    assert provider.model == "laya-configured-alias"
+    with pytest.raises(AttributeError):
+        provider.model = "laya-other"
+
+
+@pytest.mark.parametrize("invalid_model", [None, "", 42, True, "x" * 101])
+async def test_present_invalid_model_is_not_treated_as_omitted(
+    ontology: OntologyVersion, invalid_model: Any
+) -> None:
+    body = {**synthetic_laya_response(), "model": invalid_model}
+    provider = LayaDecisionProvider(
+        model="laya-configured-alias",
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=body)),
+    )
+    with pytest.raises(ProviderError, match="Malformed Laya response"):
+        await provider.choice(
+            ChoiceRequest(observation=Observation(content="charged"), ontology=ontology)
+        )
+
+
+@pytest.mark.parametrize("field", ["model", "probability"])
+async def test_malformed_response_details_do_not_escape_adapter_errors(
+    ontology: OntologyVersion, field: str
+) -> None:
+    import traceback
+
+    private_detail = "synthetic-upstream-private-detail"
+    body = synthetic_laya_response()
+    if field == "model":
+        body["model"] = {"private": private_detail}
+    else:
+        body["answers"]["classification"]["probabilities"]["billing"] = private_detail
+    provider = create_mock_provider(lambda _: httpx.Response(200, json=body))
+    with pytest.raises(ProviderError, match="^Malformed Laya response$") as error:
+        await provider.choice(
+            ChoiceRequest(observation=Observation(content="charged"), ontology=ontology)
+        )
+    assert private_detail not in str(error.value)
+    assert private_detail not in "".join(traceback.format_exception(error.value))
+
+
 async def test_laya_known_choice_request_mapping(ontology: OntologyVersion) -> None:
     def handle(request: httpx.Request) -> httpx.Response:
         assert str(request.url) == "http://127.0.0.1:8000/v1/systemone"

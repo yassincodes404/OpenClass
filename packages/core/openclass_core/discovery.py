@@ -25,8 +25,7 @@ class DiscoveryService:
             raise ConflictError("At least three distinct unknown observations are required")
         classifier = await self.repository.get_classifier(identifier)
         ontology = await self.repository.get_ontology(classifier.active_ontology_version_id)
-        unknowns = tuple(await self.repository.unknowns(classifier.id, 200, 0))
-        selected = tuple(u for u in unknowns if u.id in set(unknown_ids))
+        selected = tuple(await self.repository.unknowns_by_ids(classifier.id, unknown_ids))
         if len(selected) != len(unknown_ids):
             raise ConflictError("Unknown evidence is not available for this classifier")
         try:

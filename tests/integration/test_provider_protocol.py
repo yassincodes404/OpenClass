@@ -16,8 +16,6 @@ from openclass_core.providers import ProviderError
 from openclass_server.main import create_app
 from openclass_server.settings import Settings
 
-from tests.conftest import database_url  # noqa: F401
-
 
 def _make_project(client: TestClient) -> str:
     return client.post("/api/v1/projects", json={"name": "Proto Co"}).json()["slug"]
@@ -181,3 +179,87 @@ def _ontology_fixture() -> Any:
         classes=(OntologyClass(canonical_name="billing", display_name="Billing"),),
         created_by="t",
     )
+
+
+@pytest.mark.parametrize("name", ["jev", "laya"])
+def test_real_adapters_keep_two_model_success_and_failure_usage_separate(database_url, name):
+    """Synthetic wire responses prove attribution only, not model quality."""
+    import json
+
+    import httpx
+    from openclass_provider_jev import JevDecisionProvider
+    from openclass_provider_laya import LayaDecisionProvider
+    from pydantic import SecretStr
+
+    key = "synthetic-attribution-credential"
+    slug = service = ""
+    expected = {}
+    for suffix in ("a", "b"):
+        configured = f"typesafe-ai/jev-alias-{suffix}" if name == "jev" else f"laya-alias-{suffix}"
+        actual = f"typesafe-ai/jev-actual-{suffix}" if name == "jev" else f"laya-actual-{suffix}"
+        calls = 0
+
+        def handle(request, actual_model=actual):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                return httpx.Response(500, text=key)
+            criteria = json.loads(request.content)["questions"]["classification"]["criteria"]
+            return httpx.Response(
+                200,
+                json={
+                    "model": actual_model,
+                    "answers": {
+                        "classification": {
+                            "type": "choice",
+                            "choice": "billing",
+                            "confidence": 0.95,
+                            "probabilities": {
+                                item: 0.95 if item == "billing" else 0.05 for item in criteria
+                            },
+                        }
+                    },
+                    "usage": {"input_tokens": 10, "output_tokens": 2},
+                },
+            )
+
+        adapter = (
+            JevDecisionProvider(
+                api_key=SecretStr(key),
+                base_url="https://api.typesafe.ai",
+                model=configured,
+                transport=httpx.MockTransport(handle),
+            )
+            if name == "jev"
+            else LayaDecisionProvider(model=configured, transport=httpx.MockTransport(handle))
+        )
+        settings = Settings(database_url=database_url, decision_provider="mock")
+        with TestClient(create_app(settings, provider=adapter)) as client:
+            if not slug:
+                slug = _make_project(client)
+                service = _make_service(client, slug)
+            path = f"/api/v1/projects/{slug}/decision-services/{service}/runs"
+            success = client.post(path, json={"content": f"billing {suffix}"})
+            assert success.status_code == 201, success.text
+            assert success.json()[0]["model"] == actual
+            failure = client.post(
+                path,
+                json={"content": "billing failure"},
+                headers={"X-Correlation-ID": f"attribution-{suffix}"},
+            )
+            assert failure.status_code == 502, failure.text
+            assert failure.headers["X-Correlation-ID"] == f"attribution-{suffix}"
+            expected[actual] = (1, 0)
+            expected[configured] = (0, 1)
+            usage = client.get(f"/api/v1/projects/{slug}/providers/usage").json()
+            assert {row["model"]: (row["calls"], row["errors"]) for row in usage} == expected
+            assert {row["provider"] for row in usage} == {name}
+            assert len(client.get(f"/api/v1/projects/{slug}/runs").json()) == len(expected) // 2
+            audits = client.get(f"/api/v1/projects/{slug}/audit").json()
+            failures = [
+                entry for entry in audits if entry["event_type"] == "decision.provider_failed"
+            ]
+            assert {entry["payload"]["model"] for entry in failures} == {
+                model for model, counts in expected.items() if counts == (0, 1)
+            }
+            assert key not in json.dumps(usage) + json.dumps(audits) + failure.text

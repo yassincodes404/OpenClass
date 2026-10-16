@@ -58,6 +58,8 @@ def unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 class JevDecisionProvider:
+    provider_name = "jev"
+
     def __init__(
         self,
         *,
@@ -68,7 +70,11 @@ class JevDecisionProvider:
         max_retries: int = 0,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
-        if base_url not in BASE_URLS or not api_key.get_secret_value().strip():
+        if (
+            base_url not in BASE_URLS
+            or not api_key.get_secret_value().strip()
+            or api_key.get_secret_value() in model
+        ):
             raise ValueError("Invalid Jev configuration")
         if not math.isfinite(timeout) or not 0 < timeout <= 60 or not 0 <= max_retries <= 2:
             raise ValueError("Invalid Jev request bounds")
@@ -78,6 +84,11 @@ class JevDecisionProvider:
         self._timeout = timeout
         self._retries = max_retries
         self._transport = transport
+
+    @property
+    def model(self) -> str:
+        """Configured identity for failures that have no upstream result."""
+        return self._model
 
     async def choice(self, request: ChoiceRequest) -> ChoiceResult:
         if len(request.ontology.classes) > 254:
@@ -141,9 +152,10 @@ class JevDecisionProvider:
                                     data.extend(chunk)
                                     if len(data) > 1_000_000:
                                         raise ValueError("Oversized response")
-                                wire = Response.model_validate(
-                                    json.loads(data, object_pairs_hook=unique_object)
-                                )
+                                raw = json.loads(data, object_pairs_hook=unique_object)
+                                if isinstance(raw, dict) and "model" not in raw:
+                                    raw["model"] = self._model
+                                wire = Response.model_validate(raw)
                                 if self._key.get_secret_value() in wire.model:
                                     raise ValueError("Invalid model identity")
                                 if set(wire.answers) != {QUESTION}:

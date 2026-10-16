@@ -42,13 +42,15 @@ class WireAnswer(BaseModel):
 
 class WireResponse(BaseModel):
     model_config = ConfigDict(extra="ignore", strict=True)
-    model: str = Field(default="laya-router", min_length=1, max_length=100)
+    model: str = Field(min_length=1, max_length=100)
     answers: dict[str, WireAnswer]
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class LayaDecisionProvider:
     """DecisionProvider adapter for local Laya inference."""
+
+    provider_name = "laya"
 
     def __init__(
         self,
@@ -76,6 +78,11 @@ class LayaDecisionProvider:
     @property
     def profile(self) -> LayaProfile:
         return self._profile
+
+    @property
+    def model(self) -> str:
+        """Configured identity for failures that have no upstream result."""
+        return self._model
 
     async def choice(self, request: ChoiceRequest) -> ChoiceResult:
         if len(request.ontology.classes) > 254:
@@ -274,9 +281,11 @@ class LayaDecisionProvider:
         self, raw: dict[str, Any], request: ChoiceRequest, latency: float
     ) -> ChoiceResult:
         try:
+            if isinstance(raw, dict) and "model" not in raw:
+                raw = {**raw, "model": self._model}
             parsed = WireResponse.model_validate(raw)
-        except Exception as exc:
-            raise ProviderError(f"Malformed Laya response: {exc}") from exc
+        except Exception:
+            raise ProviderError("Malformed Laya response") from None
 
         if QUESTION not in parsed.answers:
             raise ProviderError(f"Missing '{QUESTION}' in Laya response answers")
