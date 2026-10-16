@@ -230,9 +230,12 @@ verified evidence, replay evaluation and human review. Laya is not that Teacher.
 
 ## Offline validation
 
+Run from the experiment worktree root
+(`D:\Projects 2\OpenClass-workstreams\laya-experiments`):
+
 ```powershell
-& "D:\Projects 2\OpenClass\.venv\Scripts\python.exe" -m pytest -q tests/unit/test_laya_experiments.py
-& "D:\Projects 2\OpenClass\.venv\Scripts\ruff.exe" check scripts/laya_experiments/__init__.py scripts/laya_experiments/dataset.py scripts/laya_experiments/metrics.py scripts/laya_experiments/runner.py scripts/laya_experiments/verify.py tests/unit/test_laya_experiments.py
+uv run pytest -q tests/unit/test_laya_experiments.py
+uv run ruff check scripts/laya_experiments/__init__.py scripts/laya_experiments/dataset.py scripts/laya_experiments/metrics.py scripts/laya_experiments/runner.py scripts/laya_experiments/verify.py tests/unit/test_laya_experiments.py
 ```
 
 Tests use explicitly SIMULATED HTTP/runtime-proof fixtures, not Laya or Torch.
