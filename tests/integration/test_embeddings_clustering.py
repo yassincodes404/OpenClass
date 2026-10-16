@@ -165,3 +165,76 @@ def test_unknown_transition_synchronizes_linked_evidence_status(mock_client: Tes
     evidence_after = mock_client.get(f"/api/v1/projects/{slug}/evidence").json()
     linked_after = [ev for ev in evidence_after if ev["decision_run_id"] == run_id]
     assert linked_after[0]["status"] == "dismissed"
+
+
+@pytest.mark.parametrize("limit", [2, 7])
+def test_clustering_filters_unknowns_before_limit(
+    mock_client: TestClient, database_url: str, limit: int
+):
+    """Simulated eligible runs must not disappear behind newer known history."""
+    import asyncio
+    from datetime import UTC, datetime, timedelta
+    from uuid import uuid4
+
+    import sqlalchemy as sa
+    from openclass_server.persistence.tables import DecisionRunRow
+    from sqlalchemy.ext.asyncio import create_async_engine
+
+    slug = _setup_project_with_unknowns(mock_client)
+    eligible = mock_client.get(f"/api/v1/projects/{slug}/runs").json()
+    expected = {run["id"] for run in eligible[:limit]}
+
+    async def seed_known_history():
+        engine = create_async_engine(database_url)
+        try:
+            async with engine.begin() as connection:
+                row = (
+                    (
+                        await connection.execute(
+                            sa.select(DecisionRunRow).where(DecisionRunRow.id == eligible[0]["id"])
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                values = dict(row)
+                newer = datetime.now(UTC) + timedelta(seconds=1)
+                rows = []
+                for _ in range(1001):
+                    identifier = str(uuid4())
+                    payload = {
+                        **values["payload"],
+                        "id": identifier,
+                        "created_at": newer.isoformat(),
+                        "selected_choice": "BILLING",
+                        "supervision_outcome": "TRUSTED",
+                    }
+                    rows.append(
+                        {
+                            **values,
+                            "id": identifier,
+                            "created_at": newer,
+                            "selected_choice": "BILLING",
+                            "supervision_outcome": "TRUSTED",
+                            "payload": payload,
+                        }
+                    )
+                await connection.execute(sa.insert(DecisionRunRow), rows)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(seed_known_history())
+    response = mock_client.post(
+        f"/api/v1/projects/{slug}/unknowns/cluster", json={"limit": len(expected)}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["simulated"] is True
+    clusters = mock_client.get(f"/api/v1/projects/{slug}/unknowns/clusters").json()
+    members = {
+        member["run_id"]
+        for cluster in clusters
+        for member in mock_client.get(
+            f"/api/v1/projects/{slug}/unknowns/clusters/{cluster['id']}"
+        ).json()["members"]
+    }
+    assert members == expected

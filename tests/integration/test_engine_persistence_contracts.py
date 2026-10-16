@@ -435,6 +435,61 @@ async def test_unknown_sql_filter_precedes_paging_and_analytics_do_not_scan_payl
         assert stats["by_status"] == {"needs_evidence": 251}
 
 
+@pytest.mark.parametrize(
+    ("choice", "outcome", "expected_choice", "expected_outcome"),
+    [
+        (None, None, "UNKNOWN", "UNKNOWN"),
+        ("KNOWN", "UNKNOWN", "KNOWN", "UNKNOWN"),
+        ("UNKNOWN", "TRUSTED", "UNKNOWN", "TRUSTED"),
+        ("KNOWN", "TRUSTED", "KNOWN", "TRUSTED"),
+    ],
+)
+async def test_checkpoint_sql_eligibility_agrees_with_returned_decisions(
+    contract_url, choice, outcome, expected_choice, expected_outcome
+):
+    from openclass_core.unknown_pool import run_is_unknown
+
+    async with persistence(contract_url) as (repo, _):
+        service, project, _, _, run = await fixture_run(repo)
+        await service.record_decision_run(run)
+        async with repo.sessions.begin() as session:
+            if choice is None:
+                await session.execute(
+                    sa.delete(DecisionRunCheckpointRow).where(
+                        DecisionRunCheckpointRow.run_id == str(run.id)
+                    )
+                )
+            else:
+                await session.execute(
+                    sa.update(DecisionRunCheckpointRow)
+                    .where(DecisionRunCheckpointRow.run_id == str(run.id))
+                    .values(selected_choice=choice, supervision_outcome=outcome)
+                )
+        effective = await repo.get_decision_run(project.id, run.id)
+        assert effective.selected_choice == expected_choice
+        assert effective.supervision_outcome == expected_outcome
+        DecisionRun.model_validate(effective.model_dump())
+        listed = await service.list_unknown_runs(str(project.id), limit=1)
+        assert [item.id for item in listed] == ([run.id] if run_is_unknown(effective) else [])
+        assert all(run_is_unknown(item) for item in listed)
+
+
+@pytest.mark.parametrize("field", ["selected_choice", "supervision_outcome"])
+async def test_checkpoint_decisions_cannot_be_cleared_to_null(contract_url, field):
+    async with persistence(contract_url) as (repo, _):
+        service, project, _, _, run = await fixture_run(repo)
+        await service.record_decision_run(run)
+        with pytest.raises(sa.exc.IntegrityError):
+            async with repo.sessions.begin() as session:
+                await session.execute(
+                    sa.update(DecisionRunCheckpointRow)
+                    .where(DecisionRunCheckpointRow.run_id == str(run.id))
+                    .values(**{field: None})
+                )
+        effective = await repo.get_decision_run(project.id, run.id)
+        assert (effective.selected_choice, effective.supervision_outcome) == ("UNKNOWN", "UNKNOWN")
+
+
 @pytest.mark.parametrize("operation", ["UPDATE", "DELETE"])
 async def test_history_rejects_sql_mutation_and_parent_deletion(contract_url, operation):
     async with persistence(contract_url) as (repo, _):

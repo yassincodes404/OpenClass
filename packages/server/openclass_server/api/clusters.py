@@ -8,7 +8,6 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 from openclass_core.embeddings import EmbeddedItem, group_into_clusters
 from openclass_core.projects import ProjectService as ProjectDomainService
-from openclass_core.unknown_pool import run_is_unknown
 from pydantic import BaseModel, Field
 
 from openclass_server.embeddings_local import HashLexicalEmbedder
@@ -35,14 +34,10 @@ def clusters_router(
     router = APIRouter(tags=["clusters"])
     embedder = embedding_provider(config)
 
-    async def _unknown_runs(identifier: str, scan_limit: int = 1000) -> list[Any]:
-        runs = await projects.list_decision_runs(identifier=identifier, limit=scan_limit, offset=0)
-        return [run for run in runs if run_is_unknown(run)]
-
     @router.post("/api/v1/projects/{identifier}/unknowns/cluster")
     async def run_clustering(identifier: str, body: ClusterRequest) -> dict[str, Any]:
         project = await projects.get(identifier)
-        runs = (await _unknown_runs(identifier, scan_limit=max(body.limit, 1000)))[: body.limit]
+        runs = await projects.list_unknown_runs(identifier=identifier, limit=body.limit, offset=0)
         if len(runs) < 2:
             raise HTTPException(status_code=400, detail="clustering needs at least 2 UNKNOWN runs")
         run_uuids: list[UUID] = []

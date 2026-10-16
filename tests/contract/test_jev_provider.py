@@ -116,8 +116,11 @@ async def test_unknown_and_absent_usage_are_not_fabricated(ontology) -> None:
         "bad_confidence",
         "negative_tokens",
         "bad_cost",
-        "missing_model",
+        "null_model",
         "secret_model",
+        "embedded_secret_model",
+        "empty_model",
+        "number_model",
         "negative_cost",
         "nan_cost",
         "bool_tokens",
@@ -173,16 +176,50 @@ async def test_invalid_shapes_fail_closed(ontology, mutation: str) -> None:
             "negative_cost": "-1",
             "nan_cost": "NaN",
         }[mutation]
-    elif mutation == "missing_model":
-        body.pop("model")
+    elif mutation == "null_model":
+        body["model"] = None
     elif mutation == "secret_model":
         body["model"] = KEY
+    elif mutation == "embedded_secret_model":
+        body["model"] = f"jev-{KEY}"
+    elif mutation == "empty_model":
+        body["model"] = ""
+    elif mutation == "number_model":
+        body["model"] = 42
     with pytest.raises(ProviderError, match="^Jev request failed$") as error:
         await provider(lambda _: httpx.Response(200, content=json.dumps(body))).choice(
             ChoiceRequest(observation=Observation(content="charged"), ontology=ontology)
         )
     assert error.value.__context__ is None
     assert KEY not in "".join(traceback.format_exception(error.value))
+
+
+@pytest.mark.parametrize("reported", [None, "typesafe-ai/jev-resolved"])
+async def test_model_attribution_preserves_reported_identity_or_uses_configured(
+    ontology, reported
+) -> None:
+    body = response_body()
+    if reported is None:
+        body.pop("model")
+    else:
+        body["model"] = reported
+    adapter = provider(lambda _: httpx.Response(200, json=body))
+    result = await adapter.choice(
+        ChoiceRequest(observation=Observation(content="charged"), ontology=ontology)
+    )
+    assert result.model == (reported or "typesafe-ai/jev")
+    assert adapter.model == "typesafe-ai/jev"
+    with pytest.raises(AttributeError):
+        adapter.model = "typesafe-ai/jev-other"
+
+
+def test_configured_identity_cannot_expose_provider_credential() -> None:
+    with pytest.raises(ValueError, match="^Invalid Jev configuration$"):
+        JevDecisionProvider(
+            api_key=SecretStr(KEY),
+            base_url="https://api.typesafe.ai",
+            model=f"jev-{KEY}",
+        )
 
 
 @pytest.mark.parametrize(
