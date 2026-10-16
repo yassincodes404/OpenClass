@@ -4,7 +4,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  OpenClass,
   type Project,
   type DecisionService,
   type DecisionRun,
@@ -12,7 +11,8 @@ import {
 } from "@openclass/sdk";
 import { ProjectShell } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
+import { GraphEditor } from "../../../../../portal/src/graph-editor";
 
 interface ChoiceInput {
   key: string;
@@ -30,6 +30,8 @@ export default function ProjectDecisionsPage() {
   const [runs, setRuns] = useState<DecisionRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [providerStatus, setProviderStatus] = useState<ProviderStatus | null>(null);
+  const [editing, setEditing] = useState<DecisionService | null>(null);
+  const [loadError, setLoadError] = useState("");
 
   // New Service Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -76,7 +78,7 @@ export default function ProjectDecisionsPage() {
       setServices(svcList);
       setRuns(runList);
     } catch {
-      // Best-effort loading
+      setLoadError("Could not load services and runs. Refresh after checking the control plane.");
     } finally {
       setLoading(false);
     }
@@ -195,6 +197,7 @@ export default function ProjectDecisionsPage() {
 
       {/* Decision Services Panel */}
       <section className="panel" style={{ marginBottom: "28px" }}>
+        {loadError && <p role="alert">{loadError}</p>}
         <div className="section-heading">
           <div>
             <h2 style={{ margin: "0 0 4px" }}>Decision Services</h2>
@@ -256,13 +259,42 @@ export default function ProjectDecisionsPage() {
                   </div>
                 </div>
                 <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "auto" }}>
-                  Provider: {svc.provider_override || "Default (Laya)"}
+                  Provider: {svc.provider_override || "Project / server default"}
                 </div>
+                <button type="button" onClick={() => setEditing(svc)}>
+                  Edit graph for {svc.name}
+                </button>
               </div>
             ))}
           </div>
         )}
       </section>
+      {editing && (
+        <section className="panel">
+          <button type="button" onClick={() => setEditing(null)}>
+            Close graph editor
+          </button>
+          <GraphEditor
+            key={editing.active_version_id ?? editing.updated_at}
+            service={editing}
+            onSave={async (graph) => {
+              if (!slug) return;
+              const latest = await client.decisionService({ project: slug, serviceId: editing.id });
+              if (
+                latest.active_version_id !== editing.active_version_id ||
+                latest.updated_at !== editing.updated_at
+              )
+                throw new Error("Service changed since loading. Refresh before editing.");
+              await client.updateDecisionService({
+                project: slug,
+                serviceId: editing.id,
+                changes: graph,
+              });
+              await loadData(slug);
+            }}
+          />
+        </section>
+      )}
 
       {/* Decision Runs Explorer Panel */}
       <section className="panel">
@@ -274,7 +306,7 @@ export default function ProjectDecisionsPage() {
             </p>
           </div>
           <Link
-            href={`/projects/${project.slug}/data`}
+            href={`/projects/${project.id}/data`}
             style={{
               fontSize: "13px",
               color: "var(--accent)",
@@ -291,7 +323,7 @@ export default function ProjectDecisionsPage() {
         ) : runs.length === 0 ? (
           <p className="empty" data-testid="empty-runs">
             No decision runs recorded yet. Ingest raw events on the{" "}
-            <Link href={`/projects/${project.slug}/data`} style={{ color: "var(--accent)" }}>
+            <Link href={`/projects/${project.id}/data`} style={{ color: "var(--accent)" }}>
               Data page
             </Link>{" "}
             and run intelligence.

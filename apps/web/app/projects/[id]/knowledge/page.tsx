@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  OpenClass,
   type Project,
   type DecisionService,
   type ChoiceCandidate,
@@ -12,7 +11,7 @@ import {
 } from "@openclass/sdk";
 import { ProjectShell } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
 
 export default function KnowledgeExplorerPage() {
   const params = useParams<{ id: string }>();
@@ -105,7 +104,7 @@ export default function KnowledgeExplorerPage() {
             </p>
           </div>
           <Link
-            href={`/projects/${project.slug}/evolution`}
+            href={`/projects/${project.id}/evolution`}
             style={{
               padding: "8px 16px",
               background: "rgba(196, 244, 138, 0.15)",
@@ -160,7 +159,7 @@ export default function KnowledgeExplorerPage() {
         {services.length === 0 ? (
           <p className="empty">
             No decision services found. Create one in the{" "}
-            <Link href={`/projects/${project.slug}/decisions`}>Decisions tab</Link>.
+            <Link href={`/projects/${project.id}/decisions`}>Decisions tab</Link>.
           </p>
         ) : (
           <div>
@@ -366,8 +365,8 @@ export default function KnowledgeExplorerPage() {
         {promotedCandidates.length === 0 ? (
           <p className="empty">
             No promoted evolution choices yet. Use the{" "}
-            <Link href={`/projects/${project.slug}/evolution`}>Evolution tab</Link> to synthesize
-            and promote choices from UNKNOWN evidence.
+            <Link href={`/projects/${project.id}/evolution`}>Evolution tab</Link> to synthesize and
+            promote choices from UNKNOWN evidence.
           </p>
         ) : (
           <div style={{ display: "grid", gap: "16px" }}>

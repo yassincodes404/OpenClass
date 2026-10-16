@@ -19,6 +19,7 @@ import { SecurityController } from "./security.controller.js";
 import { UnknownController } from "./unknown.controller.js";
 import { WorkspaceController } from "./workspace.controller.js";
 import { WorkspaceService } from "./workspace.service.js";
+import { WorkflowController } from "./workflow.controller.js";
 
 @Module({
   controllers: [
@@ -30,6 +31,7 @@ import { WorkspaceService } from "./workspace.service.js";
     IngestionController,
     DecisionController,
     UnknownController,
+    WorkflowController,
   ],
   providers: [
     KeycloakGuard,

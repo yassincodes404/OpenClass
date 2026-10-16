@@ -74,6 +74,25 @@ function serviceWith(pool: Pool, engine: EngineClient) {
 }
 
 describe("ProjectService", () => {
+  it("rejects ambiguous owned slugs instead of selecting the first workspace", async () => {
+    const pool = fakePool(async () => ({
+      rows: [
+        { id: "p1", workspace_id: "w1" },
+        { id: "p2", workspace_id: "w2" },
+      ],
+      rowCount: 2,
+    }));
+    const engine = fakeEngine();
+    await expect(serviceWith(pool, engine).service.resolve(owner, "shared-slug")).rejects.toThrow(
+      "Project identifier is ambiguous; use its project id",
+    );
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("p.engine_project_id::text = $1"),
+      ["shared-slug", owner.subject],
+    );
+    expect(engine.request).not.toHaveBeenCalled();
+  });
+
   it("creates a project via the engine and stores the control mapping", async () => {
     const inserts: Array<unknown[] | undefined> = [];
     const pool = fakePool(async (text, params) => {
@@ -308,6 +327,47 @@ describe("ProjectService", () => {
         unknownFallback: true,
       }),
     ).rejects.toThrow(BadRequestException);
+  });
+
+  it("imports an owned same-slug engine project without overwriting a different mapping", async () => {
+    const existing = {
+      id: "cp-old",
+      workspace_id: "w1",
+      engine_project_id: "engine-old",
+      slug: "shared",
+      name: "Original",
+      created_at: new Date(),
+    };
+    const pool = fakePool(async (text, params) => {
+      if (text.startsWith("SELECT role")) return { rows: [{ role: "owner" }], rowCount: 1 };
+      if (text.startsWith("SELECT workspace_id FROM control_projects")) {
+        expect(params).toEqual(["engine-new"]);
+        expect(text).not.toContain("OR slug");
+        return { rows: [], rowCount: 0 };
+      }
+      if (text.startsWith("SELECT slug")) return { rows: [{ slug: "shared" }], rowCount: 1 };
+      if (text.startsWith("SELECT id, workspace_id")) return { rows: [existing], rowCount: 1 };
+      if (text.startsWith("INSERT INTO control_projects")) {
+        expect(text).toContain("ON CONFLICT (workspace_id, slug) DO NOTHING");
+        expect(params).toEqual(["w1", "engine-new", "shared-2", "External"]);
+        return {
+          rows: [{ ...existing, id: "cp-new", engine_project_id: "engine-new", slug: "shared-2" }],
+          rowCount: 1,
+        };
+      }
+      throw new Error("Unexpected mapping query");
+    });
+    const engine = fakeEngine({
+      listProjects: vi.fn(async () => [
+        { id: "engine-new", workspace_id: "w1", slug: "shared", name: "External", description: "" },
+      ]),
+    });
+    const projects = await serviceWith(pool, engine).service.list(owner, "w1");
+    expect(projects.map((project) => project.engine_project_id)).toEqual([
+      "engine-old",
+      "engine-new",
+    ]);
+    expect(existing.engine_project_id).toBe("engine-old");
   });
 
   it("reconciles missing engine projects into control_projects on listProjects", async () => {

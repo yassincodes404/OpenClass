@@ -40,6 +40,7 @@ export const sectionLinks = [
   { label: "Classifiers", path: "/classifiers" },
   { label: "Decisions", path: "/decisions" },
   { label: "Runs", path: "/runs" },
+  { label: "Evidence & cases", path: "/evidence" },
   { label: "Data", path: "/data" },
   { label: "Observations", path: "/observations" },
   { label: "Unknowns", path: "/unknowns" },

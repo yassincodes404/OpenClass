@@ -4,6 +4,9 @@ import { Link, useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
 import { ProjectShell, type Project } from "./projects";
+import { GraphEditor } from "./graph-editor";
+import { useWorkflowClient } from "./workflow-client";
+import type { DecisionService as FullDecisionService } from "@openclass/sdk";
 
 export type DecisionChoice = { key: string; label: string; description?: string };
 export type DecisionService = {
@@ -210,15 +213,16 @@ export function DecisionServicePage() {
   const { projectId = "", serviceId = "" } = useParams();
   const token = useToken();
   const queryClient = useQueryClient();
+  const workflow = useWorkflowClient();
   const project = useProjectQuery(projectId);
   const service = useQuery({
     queryKey: ["decision-service", projectId, serviceId],
     enabled: project.isSuccess,
-    queryFn: async (): Promise<DecisionService> =>
+    queryFn: async (): Promise<FullDecisionService> =>
       (await controlFetch(
         `/workspaces/${project.data!.workspace_id}/projects/${projectId}/decision-services/${serviceId}`,
         token,
-      )) as DecisionService,
+      )) as FullDecisionService,
   });
   const [testInput, setTestInput] = useState("");
   const [testResult, setTestResult] = useState<DecisionRun | null>(null);
@@ -255,6 +259,26 @@ export function DecisionServicePage() {
           <p className="eyebrow">DECISION SERVICE / {service.data.slug.toUpperCase()}</p>
           <h2>{service.data.name}</h2>
           <p className="muted">{service.data.instructions}</p>
+          <GraphEditor
+            key={service.data.active_version_id ?? service.data.updated_at}
+            service={service.data}
+            onSave={async (graph) => {
+              const latest = await workflow.decisionService({ project: projectId, serviceId });
+              if (
+                latest.active_version_id !== service.data.active_version_id ||
+                latest.updated_at !== service.data.updated_at
+              )
+                throw new Error("Service changed since loading. Refresh before editing.");
+              await workflow.updateDecisionService({
+                project: projectId,
+                serviceId,
+                changes: graph,
+              });
+              await queryClient.invalidateQueries({
+                queryKey: ["decision-service", projectId, serviceId],
+              });
+            }}
+          />
           <table className="table">
             <thead>
               <tr>
@@ -299,6 +323,9 @@ export function DecisionServicePage() {
                 {run.isPending ? "Running…" : "Run decision"}
               </button>
             </div>
+            {run.isError && (
+              <p role="alert">{run.error.message} No automatic retry was attempted.</p>
+            )}
             {testResult && <ProbabilityBars run={testResult} />}
           </div>
         </section>

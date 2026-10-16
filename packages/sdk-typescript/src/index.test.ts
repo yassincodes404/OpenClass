@@ -6,7 +6,57 @@ import {
   OpenClassClient,
   OpenClassControlClient,
   OpenClassError,
+  OpenClassWorkspaceClient,
+  type DiscoveryCandidateSummary,
 } from "./index.ts";
+
+test("control relay requests preserve upstream success statuses without changing body-only callers", async () => {
+  for (const status of [200, 201, 207, 204]) {
+    const body = status === 204 ? undefined : { accepted: true, status };
+    const client = new OpenClassControlClient({
+      baseUrl: "http://local/control",
+      fetcher: async () =>
+        status === 204 ? new Response(null, { status }) : Response.json(body, { status }),
+    });
+    assert.deepEqual(await client.requestWithStatus("/workspaces"), { status, body });
+    assert.deepEqual(await client.request("/workspaces"), body);
+  }
+});
+
+test("typed discovery inventory preserves its HTTP contract and generic record callers", async () => {
+  const candidate: DiscoveryCandidateSummary = {
+    id: "11111111-1111-4111-8111-111111111111",
+    cluster_id: "22222222-2222-4222-8222-222222222222",
+    type: "NEW_CLASS",
+    canonical_name: "refund",
+    display_name: "Refund",
+    confidence: 0.8,
+    status: "candidate",
+    provider: "mock",
+    simulated: true,
+    evidence_count: 5,
+    created_at: "2026-10-15T00:00:00Z",
+  };
+  const legacy: DiscoveryCandidateSummary = {
+    ...candidate,
+    id: "legacy-mapping",
+    cluster_id: null,
+    type: "new_class",
+  };
+  const fetcher: typeof fetch = async (url, init) => {
+    assert.equal(url, "http://local/api/v1/projects/project%2Fscope/discovery-candidates");
+    assert.equal(init?.method, "GET");
+    assert.equal(init?.body, undefined);
+    return Response.json([candidate, legacy]);
+  };
+  const client = new OpenClass("http://local", fetcher);
+  const typed = await client.discoveryCandidates("project/scope");
+  assert.equal(typed[0]?.canonical_name, "refund");
+  assert.equal(typed[0]?.decision_service_id, undefined);
+  assert.equal(typed[1]?.cluster_id, null);
+  const generic: Array<Record<string, unknown>> = typed;
+  assert.deepEqual(generic, [candidate, legacy]);
+});
 
 test("webhook retries retain external event identity and send credentials only in headers", async () => {
   const fetcher: typeof fetch = async (url, init) => {
@@ -1015,4 +1065,259 @@ test("OpenClassClient forwards X-OpenClass-Workspace-Id header and supports work
     { url: "http://example.internal/api/v1/projects", workspaceId: "ws-override" },
     { url: "http://example.internal/api/v1/projects/acme/claim", workspaceId: "ws-claimed" },
   ]);
+});
+
+test("OpenClassWorkspaceClient requires a session token and never issues unauthenticated requests", async () => {
+  let calls = 0;
+  const fetcher: typeof fetch = async () => {
+    calls += 1;
+    return Response.json([]);
+  };
+  const control = new OpenClassControlClient({ baseUrl: "/control", fetcher });
+  const client = new OpenClassWorkspaceClient(control, () => undefined);
+
+  await assert.rejects(
+    client.projects(),
+    (err: unknown) => err instanceof ControlApiError && err.status === 401,
+  );
+  await assert.rejects(
+    client.project("p-1"),
+    (err: unknown) => err instanceof ControlApiError && err.status === 401,
+  );
+  await assert.rejects(
+    client.workspaces(),
+    (err: unknown) => err instanceof ControlApiError && err.status === 401,
+  );
+  assert.equal(calls, 0);
+});
+
+test("OpenClassWorkspaceClient lists projects across real workspace memberships", async () => {
+  const seen: string[] = [];
+  const mapping = (workspaceId: string, id: string, engineId: string) => ({
+    id,
+    workspace_id: workspaceId,
+    engine_project_id: engineId,
+    slug: id,
+    name: id.toUpperCase(),
+    created_at: "2026-10-15T00:00:00Z",
+  });
+  const project = (id: string, name: string) => ({
+    id,
+    slug: id,
+    name,
+    description: "",
+    status: "active",
+    owner_id: null,
+    workspace_id: "ws-engine",
+    created_at: "2026-10-15T00:00:00Z",
+    updated_at: "2026-10-15T00:00:00Z",
+  });
+  const fetcher: typeof fetch = async (url, init) => {
+    const urlStr = String(url);
+    seen.push(`${init?.method ?? "GET"} ${urlStr}`);
+    if (urlStr === "/control/workspaces") {
+      return Response.json([
+        { id: "ws-1", name: "One", slug: "one", role: "admin" },
+        { id: "ws-2", name: "Two", slug: "two", role: "viewer" },
+      ]);
+    }
+    if (urlStr === "/control/workspaces/ws-1/projects") {
+      return Response.json([mapping("ws-1", "cp-1", "ep-1")]);
+    }
+    if (urlStr === "/control/workspaces/ws-2/projects") {
+      return Response.json([mapping("ws-2", "cp-2", "ep-2"), mapping("ws-2", "cp-3", "ep-3")]);
+    }
+    if (urlStr.endsWith("/projects/cp-1/workflow")) return Response.json(project("ep-1", "CP-1"));
+    if (urlStr.endsWith("/projects/cp-2/workflow")) return Response.json(project("ep-2", "CP-2"));
+    if (urlStr.endsWith("/projects/cp-3/workflow")) return Response.json(project("ep-3", "CP-3"));
+    return new Response(JSON.stringify({ detail: "not found" }), { status: 404 });
+  };
+
+  const control = new OpenClassControlClient({ baseUrl: "/control", fetcher });
+  const client = new OpenClassWorkspaceClient(control, () => "session-jwt");
+
+  const projects = await client.projects();
+  assert.equal(projects.length, 3);
+  assert.deepEqual(
+    projects.map((p) => p.name),
+    ["CP-1", "CP-2", "CP-3"],
+  );
+  assert.ok(seen.includes("GET /control/workspaces"));
+  assert.ok(seen.includes("GET /control/workspaces/ws-1/projects"));
+  assert.ok(seen.includes("GET /control/workspaces/ws-2/projects"));
+  assert.ok(
+    seen.includes("GET /control/workspaces/ws-1/projects/cp-1/workflow"),
+    "engine project state read through the workflow route",
+  );
+  assert.ok(!seen.some((entry) => entry.includes("/api/v1/")), "never calls the engine directly");
+});
+
+test("OpenClassWorkspaceClient creates projects through the selected workspace only", async () => {
+  const seen: Array<{ url: string; method: string; body?: string }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const urlStr = String(url);
+    seen.push({ url: urlStr, method: init?.method ?? "GET", body: init?.body as string });
+    if (urlStr === "/control/workspaces/ws-1/projects" && init?.method === "POST") {
+      return Response.json(
+        {
+          id: "cp-new",
+          workspace_id: "ws-1",
+          engine_project_id: "ep-new",
+          slug: "acme",
+          name: "Acme",
+          created_at: "2026-10-15T00:00:00Z",
+        },
+        { status: 201 },
+      );
+    }
+    if (urlStr === "/control/workspaces/ws-1/projects/cp-new/workflow") {
+      return Response.json({
+        id: "ep-new",
+        slug: "acme",
+        name: "Acme",
+        description: "Support desk",
+        status: "active",
+        owner_id: null,
+        workspace_id: "ws-1",
+        created_at: "2026-10-15T00:00:00Z",
+        updated_at: "2026-10-15T00:00:00Z",
+      });
+    }
+    return new Response(JSON.stringify({ detail: "not found" }), { status: 404 });
+  };
+
+  const control = new OpenClassControlClient({ baseUrl: "/control", fetcher });
+  const client = new OpenClassWorkspaceClient(
+    control,
+    () => "session-jwt",
+    () => "ws-1",
+  );
+  const created = await client.createProject({ name: "Acme", description: "Support desk" });
+  assert.equal(created.id, "ep-new");
+  assert.equal(created.name, "Acme");
+  const post = seen.find((entry) => entry.method === "POST");
+  assert.equal(post?.url, "/control/workspaces/ws-1/projects");
+  assert.deepEqual(JSON.parse(post?.body ?? "{}"), { name: "Acme", description: "Support desk" });
+
+  const noWorkspace = new OpenClassWorkspaceClient(control, () => "session-jwt");
+  await assert.rejects(
+    noWorkspace.createProject({ name: "Orphan" }),
+    (err: unknown) => err instanceof ControlApiError && err.status === 400,
+  );
+});
+
+test("OpenClassWorkspaceClient forwards engine-shaped routes with allowlisted headers only", async () => {
+  const seen: Array<{
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    body?: string;
+  }> = [];
+  const fetcher: typeof fetch = async (url, init) => {
+    const headers: Record<string, string> = {};
+    new Headers(init?.headers).forEach((value, key) => {
+      headers[key.toLowerCase()] = value;
+    });
+    const urlStr = String(url);
+    seen.push({ url: urlStr, method: init?.method ?? "GET", headers, body: init?.body as string });
+    if (urlStr === "/control/projects/cp-1") {
+      return Response.json({
+        id: "cp-1",
+        workspace_id: "ws-1",
+        engine_project_id: "ep-1",
+        slug: "acme",
+        name: "Acme",
+        created_at: "2026-10-15T00:00:00Z",
+      });
+    }
+    if (urlStr.endsWith("/projects/cp-1/workflow")) {
+      return Response.json({
+        id: "ep-1",
+        slug: "acme",
+        name: "Acme",
+        description: "",
+        status: "active",
+        owner_id: null,
+        workspace_id: "ws-1",
+        created_at: "2026-10-15T00:00:00Z",
+        updated_at: "2026-10-15T00:00:00Z",
+      });
+    }
+    if (urlStr.endsWith("/workflow/decision-services/svc-1")) {
+      return Response.json({
+        id: "svc-1",
+        name: "Router",
+        description: "",
+        instructions: "",
+        status: "draft",
+        version_number: 2,
+        nodes: [],
+        transitions: [],
+        created_at: "2026-10-15T00:00:00Z",
+        updated_at: "2026-10-15T00:00:00Z",
+      });
+    }
+    return new Response(JSON.stringify({ detail: "not found" }), { status: 404 });
+  };
+
+  const control = new OpenClassControlClient({ baseUrl: "/control", fetcher });
+  const client = new OpenClassWorkspaceClient(
+    control,
+    () => "session-jwt",
+    () => "ws-1",
+  );
+
+  const service = await client.updateDecisionService({
+    project: "cp-1",
+    serviceId: "svc-1",
+    changes: {
+      name: "Router",
+      nodes: [
+        {
+          name: "Entry",
+          instructions: "Route the request",
+          choices: [{ key: "KNOWN", label: "Answer", description: "Known answer" }],
+        },
+      ],
+      transitions: [],
+    },
+  });
+  assert.equal(service.version_number, 2);
+
+  const mutation = seen.find((entry) => entry.method === "PATCH");
+  assert.equal(
+    mutation?.url,
+    "/control/workspaces/ws-1/projects/cp-1/workflow/decision-services/svc-1",
+  );
+  assert.equal(mutation?.headers.authorization, "Bearer session-jwt");
+  const parsedBody = JSON.parse(mutation?.body ?? "{}");
+  assert.equal(parsedBody.nodes.length, 1);
+  assert.equal(parsedBody.nodes[0].choices[0].key, "KNOWN");
+
+  // Header allowlist: correlation/idempotency survive, internal engine credentials never do.
+  await client.project("cp-1", {
+    headers: {
+      "x-correlation-id": "corr-9",
+      "idempotency-key": "idem-9",
+      "x-openclass-internal-token": "engine-secret",
+      "x-openclass-workspace-id": "ws-spoofed",
+    },
+  });
+  const read = seen[seen.length - 1]!;
+  assert.equal(read.method, "GET");
+  assert.equal(read.url, "/control/workspaces/ws-1/projects/cp-1/workflow");
+  assert.equal(read.headers["x-correlation-id"], "corr-9");
+  assert.equal(read.headers["idempotency-key"], "idem-9", "idempotency keys are allowlisted");
+  assert.equal(read.headers["x-openclass-internal-token"], undefined);
+  assert.equal(read.headers["x-openclass-workspace-id"], undefined);
+  assert.equal(
+    seen.filter((entry) => entry.headers["x-openclass-internal-token"]).length,
+    0,
+    "internal engine token never leaves the client",
+  );
+
+  await assert.rejects(
+    client.health(),
+    (err: unknown) => err instanceof ControlApiError && err.status === 404,
+  );
 });

@@ -30,6 +30,9 @@ const DecisionServicePage = lazy(() =>
   import("./decision-pages").then((m) => ({ default: m.DecisionServicePage })),
 );
 const RunsPage = lazy(() => import("./decision-pages").then((m) => ({ default: m.RunsPage })));
+const EvidencePage = lazy(() =>
+  import("./evidence-page").then((m) => ({ default: m.EvidencePage })),
+);
 
 const UnknownsPage = lazy(() =>
   import("./unknowns-page").then((m) => ({ default: m.UnknownsPage })),
@@ -218,6 +221,7 @@ export function Portal() {
             element={<DecisionServicePage />}
           />
           <Route path="/projects/:projectId/runs" element={<RunsPage />} />
+          <Route path="/projects/:projectId/evidence" element={<EvidencePage />} />
           <Route path="/projects/:projectId/unknowns" element={<UnknownsPage />} />
           <Route path="/projects/:projectId/unknowns/clusters" element={<ClustersPage />} />
           <Route path="/projects/:projectId/analytics" element={<AnalyticsPage />} />

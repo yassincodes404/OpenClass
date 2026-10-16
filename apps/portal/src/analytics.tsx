@@ -12,6 +12,11 @@ export type Summary = {
   unknown_rate_delta: number | null;
   latency_avg_ms: number | null;
   provider_cost: number | null;
+  provider_cost_measurement?: {
+    status: "complete" | "partial" | "unavailable";
+    amount: number | null;
+    declared_cost: number;
+  };
   recurring_unknowns: number | null;
   top_classes: Array<{ class: string; count: number }>;
   daily: Array<{ date: string; total: number; unknowns: number }>;
@@ -133,8 +138,19 @@ export function OverviewKpis({ projectId }: { projectId: string }) {
           <span>most repeated unknown</span>
         </div>
         <div>
-          <b>${(summary.data.provider_cost ?? 0).toFixed(4)}</b>
+          <b>
+            {summary.data.provider_cost == null
+              ? "Unavailable"
+              : `$${summary.data.provider_cost.toFixed(4)}`}
+          </b>
           <span>provider cost (window)</span>
+          {summary.data.provider_cost_measurement?.status === "partial" && (
+            <span>
+              Partial: declared subtotal $
+              {summary.data.provider_cost_measurement.declared_cost.toFixed(4)}; missing costs
+              remain unknown.
+            </span>
+          )}
         </div>
       </div>
     );

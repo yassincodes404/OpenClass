@@ -6,10 +6,13 @@ COPY apps/portal/package.json apps/portal/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY packages/sdk-typescript/package.json packages/sdk-typescript/package.json
 COPY services/control-plane/package.json services/control-plane/package.json
-RUN pnpm --filter @openclass/web... install --frozen-lockfile
+RUN pnpm --filter @openclass/web... --filter @openclass/portal... install --frozen-lockfile
 COPY packages/sdk-typescript packages/sdk-typescript
+COPY apps/portal/src apps/portal/src
 COPY apps/web apps/web
 # Rewrites are serialized at build time. Never embed the internal token in Next.
+ARG KEYCLOAK_PUBLIC_URL=http://127.0.0.1:8080
+ENV NEXT_PUBLIC_KEYCLOAK_URL=$KEYCLOAK_PUBLIC_URL
 ENV OPENCLASS_SERVER_URL=http://server:7331 NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS=--max-old-space-size=1024 CIRCLE_NODE_TOTAL=3
 RUN pnpm --filter @openclass/web build

@@ -60,6 +60,17 @@ for (const scenario of [
           await new Promise((resolve) => setTimeout(resolve, 20));
         }
         assert.ok(paused, `Runner did not reach ${scenario.phase}: ${errors}`);
+        const manifestFile = output.match(/Isolated stack: (.+)\r?\n/)?.[1]?.trim();
+        assert.ok(manifestFile);
+        const state = JSON.parse(await readFile(manifestFile, "utf8"));
+        const realm = JSON.parse(
+          await readFile(path.join(state.realmDirectory, "openclass-local-realm.json"), "utf8"),
+        );
+        assert.deepEqual(realm.clients[0].redirectUris, [
+          `${state.urls.portal}/*`,
+          `${state.urls.web}/*`,
+        ]);
+        assert.deepEqual(realm.clients[0].webOrigins, [state.urls.portal, state.urls.web]);
         if (process.platform === "win32") child.send({ signal: scenario.signal });
         else child.kill(scenario.signal);
         if (scenario.duplicate) {

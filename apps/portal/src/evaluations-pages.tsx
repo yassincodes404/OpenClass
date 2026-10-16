@@ -4,6 +4,8 @@ import { Link, useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
 import { ProjectShell, type Project } from "./projects";
+import { ReplayWorkspace } from "./replay-workspace";
+import { useWorkflowClient } from "./workflow-client";
 
 export type Dataset = {
   id: string;
@@ -39,100 +41,28 @@ function useProjectQuery(projectId: string) {
 
 export function EvaluationsPage() {
   const { projectId = "" } = useParams();
-  const token = useToken();
-  const queryClient = useQueryClient();
   const project = useProjectQuery(projectId);
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const datasets = useQuery({
-    queryKey: ["datasets", projectId],
-    enabled: project.isSuccess,
-    queryFn: async (): Promise<Dataset[]> =>
-      (await controlFetch(
-        `/workspaces/${project.data!.workspace_id}/projects/${projectId}/eval-datasets`,
-        token,
-      )) as Dataset[],
-  });
-  const create = useMutation({
-    mutationFn: async () =>
-      controlFetch(
-        `/workspaces/${project.data!.workspace_id}/projects/${projectId}/eval-datasets`,
-        token,
-        {
-          method: "POST",
-          body: JSON.stringify({ name }),
-        },
-      ),
-    onSuccess: () => {
-      setName("");
-      setError(null);
-      void queryClient.invalidateQueries({ queryKey: ["datasets", projectId] });
-    },
-    onError: (err: Error) => setError(err.message),
-  });
-  if (project.isPending)
+  const client = useWorkflowClient();
+  if (project.isError)
     return (
       <main>
-        <p className="lede">Loading evaluations…</p>
+        <p role="alert">{project.error.message}</p>
       </main>
     );
   if (!project.data)
     return (
       <main>
-        <p className="lede">Project unavailable.</p>
+        <p role="status">Loading evaluations…</p>
       </main>
     );
   return (
     <main>
       <ProjectShell project={project.data} active="/evaluations">
-        <section className="signal">
-          <p className="eyebrow">EVALUATIONS / VERIFIED DATASETS</p>
-          <h2>Ground truth with human provenance — the only basis for replay.</h2>
-          <p className="muted">
-            Predictions can never become ground truth; datasets are immutable once sealed.
-          </p>
-          <div className="panel-head">
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="New dataset name (e.g. support-gold-v1)"
-            />
-            <button
-              disabled={name.trim().length < 2 || create.isPending}
-              onClick={() => create.mutate()}
-            >
-              Create dataset
-            </button>
-          </div>
-          {error && <p className="field-error">{error}</p>}
-          {datasets.data?.length === 0 && <p className="muted">No datasets yet.</p>}
-          <div className="card-grid">
-            {datasets.data?.map((dataset) => (
-              <article key={dataset.id} className="project-card">
-                <p className="status">
-                  <i /> {dataset.size} examples{" "}
-                  {dataset.sealed_at && <span className="chip locked">sealed</span>}
-                </p>
-                <h3>{dataset.name}</h3>
-                <p className="muted">
-                  slices:{" "}
-                  {Object.entries(dataset.coverage)
-                    .filter(([, n]) => n > 0)
-                    .map(([k, n]) => `${k}×${n}`)
-                    .join(" · ") || "none"}
-                </p>
-                <Link to={`/projects/${projectId}/evaluations/datasets/${dataset.id}`}>
-                  Open dataset →
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
+        <ReplayWorkspace key={projectId} client={client} projectId={projectId} />
       </ProjectShell>
     </main>
   );
 }
-
 export type EvaluationSummary = {
   id: string;
   dataset_id: string;
@@ -304,7 +234,7 @@ export function DatasetPage() {
   const [form, setForm] = useState({
     text: "",
     label: "BILLING",
-    annotator: "owner@acme.openclass.test",
+    annotator: "",
     rationale: "",
   });
   const [message, setMessage] = useState<string | null>(null);

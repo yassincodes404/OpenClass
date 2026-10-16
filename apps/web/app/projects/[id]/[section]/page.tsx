@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { OpenClass, type Project } from "@openclass/sdk";
+import { type Project } from "@openclass/sdk";
 import { ProjectShell, UnavailableSection } from "../../shell";
 
-const client = new OpenClass("");
+import { workspaceClient as client } from "../../../../lib/workspace-client";
 const TITLES: Record<string, string> = {
   data: "Data",
   decisions: "Decisions",

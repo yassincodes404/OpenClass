@@ -1,0 +1,67 @@
+.workflow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workflow fieldset {
+  min-width: 0;
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--line, #343b35);
+}
+
+.workflow legend {
+  padding: 0 0.4rem;
+}
+
+.workflow label {
+  display: block;
+  margin: 0.85rem 0;
+  line-height: 1.5;
+}
+
+.workflow input:not([type="checkbox"]),
+.workflow textarea,
+.workflow select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: 0.35rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line, #343b35);
+  border-radius: 4px;
+  background: var(--bg, #101411);
+  color: var(--text, #f0f2ed);
+  font: inherit;
+}
+
+.workflow textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.workflow :is(input, textarea, select, button):focus-visible {
+  outline: 2px solid var(--accent, #c4f48a);
+  outline-offset: 3px;
+}
+
+.workflow button {
+  min-height: 2.75rem;
+  margin: 0.25rem 0.5rem 0.25rem 0;
+}
+
+.workflow :disabled {
+  opacity: 0.6;
+}
+
+.workflow table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.workflow :is(th, td) {
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--line, #343b35);
+}

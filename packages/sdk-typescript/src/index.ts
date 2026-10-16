@@ -239,6 +239,36 @@ export interface EvolutionSummary {
   total_cases: number;
 }
 
+/** Discovery/cluster inventory, distinct from evidence-synthesis ChoiceCandidate. */
+export interface DiscoveryCandidateSummary extends Record<string, unknown> {
+  id: string;
+  cluster_id: string | null;
+  type:
+    | "NEW_CLASS"
+    | "EXISTING_CLASS"
+    | "ALIAS"
+    | "INSUFFICIENT_EVIDENCE"
+    | "OUT_OF_DOMAIN"
+    | "SCHEMA_ISSUE"
+    // Existing legacy evaluation rows also appear in this inventory.
+    | "new_class";
+  canonical_name: string | null;
+  display_name: string | null;
+  confidence: number;
+  status:
+    | "discovered"
+    | "candidate"
+    | "collecting_evidence"
+    | "validating"
+    | "approved"
+    | "active"
+    | "rejected";
+  provider: string;
+  simulated: boolean;
+  evidence_count: number;
+  created_at: string;
+}
+
 export interface DiagnosisResult {
   diagnosis: DiagnosisCategory;
   rationale: string;
@@ -262,6 +292,9 @@ export interface DecisionChoice {
   key: string;
   label: string;
   description: string;
+  aliases?: string[];
+  target_node_id?: string | null;
+  target_node_name?: string | null;
 }
 
 export interface DecisionNode {
@@ -269,6 +302,23 @@ export interface DecisionNode {
   name: string;
   instructions: string;
   choices: DecisionChoice[];
+  risk_level?: "ordinary" | "high";
+  min_margin?: number | null;
+  max_unknown_probability?: number | null;
+  pause_on_review?: boolean;
+}
+
+export interface DecisionTransition {
+  from_node_key: string;
+  choice_key: string;
+  to_node_key: string;
+  require_approval: boolean;
+}
+
+export type DecisionNodeInput = Omit<DecisionNode, "id"> & { id?: string };
+export interface DecisionGraphInput {
+  nodes: DecisionNodeInput[];
+  transitions: DecisionTransition[];
 }
 
 export interface DecisionService {
@@ -279,6 +329,9 @@ export interface DecisionService {
   description: string;
   instructions: string;
   nodes: DecisionNode[];
+  transitions?: DecisionTransition[];
+  version_number?: number;
+  active_version_id?: string | null;
   status: "active" | "draft" | "archived";
   provider_override: string | null;
   created_at: string;
@@ -406,6 +459,50 @@ export interface CandidateEvaluationResult {
   evaluated_at: string;
 }
 
+export interface VerifiedEvaluationExample {
+  id: string;
+  text: string;
+  label: string;
+  source: "human" | "verified_external";
+  annotator: string;
+  rationale: string;
+  slice_tag: "historical" | "recent" | "rare" | "hard" | "unknown" | "adversarial";
+  split: "holdout" | "regression" | "calibration";
+}
+export interface EvaluationDataset {
+  id: string;
+  name: string;
+  description: string;
+  sealed_at: string | null;
+  dataset_hash: string | null;
+  size: number;
+  coverage: Record<string, number>;
+  examples?: VerifiedEvaluationExample[];
+}
+export interface ReplayEvaluation {
+  id: string;
+  dataset_id: string;
+  candidate_id: string;
+  overall_passed: boolean;
+  is_simulated?: boolean;
+  provider?: string;
+  model?: string;
+  created_at?: string;
+  metrics?: {
+    examples: number;
+    simulated?: boolean;
+    baseline: Record<string, number | null>;
+    candidate: Record<string, number | null>;
+  };
+  gates?: Array<{
+    gate: string;
+    passed: boolean;
+    reason?: string;
+    value?: number;
+    threshold?: number;
+  }>;
+}
+
 export interface PromoteCandidateResponse {
   candidate: ChoiceCandidate;
   decision_service: DecisionService;
@@ -504,7 +601,7 @@ export class OpenClass {
     }
   }
 
-  private async request<T>(
+  protected async request<T>(
     path: string,
     body?: unknown,
     method?: "GET" | "POST" | "PATCH" | "DELETE",
@@ -737,6 +834,8 @@ export class OpenClass {
       instructions?: string;
       status?: "active" | "draft" | "archived";
       provider_override?: string | null;
+      nodes?: DecisionNodeInput[];
+      transitions?: DecisionTransition[];
     };
   }): Promise<DecisionService> {
     return this.request(
@@ -1165,7 +1264,7 @@ export class OpenClass {
     );
   }
 
-  discoveryCandidates(project: string): Promise<Array<Record<string, unknown>>> {
+  discoveryCandidates(project: string): Promise<DiscoveryCandidateSummary[]> {
     return this.request(`/api/v1/projects/${encodeURIComponent(project)}/discovery-candidates`);
   }
 
@@ -1200,7 +1299,7 @@ export class OpenClass {
     );
   }
 
-  evalDatasets(project: string): Promise<Array<Record<string, unknown>>> {
+  evalDatasets(project: string): Promise<EvaluationDataset[]> {
     return this.request(`/api/v1/projects/${encodeURIComponent(project)}/eval-datasets`);
   }
 
@@ -1208,7 +1307,7 @@ export class OpenClass {
     project: string;
     name: string;
     description?: string;
-  }): Promise<Record<string, unknown>> {
+  }): Promise<EvaluationDataset> {
     return this.request(
       `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets`,
       { name: input.name, description: input.description ?? "" },
@@ -1216,7 +1315,7 @@ export class OpenClass {
     );
   }
 
-  evalDataset(input: { project: string; datasetId: string }): Promise<Record<string, unknown>> {
+  evalDataset(input: { project: string; datasetId: string }): Promise<EvaluationDataset> {
     return this.request(
       `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets/${encodeURIComponent(input.datasetId)}`,
     );
@@ -1247,6 +1346,20 @@ export class OpenClass {
     );
   }
 
+  addVerifiedEvaluationExample(input: {
+    project: string;
+    datasetId: string;
+    example: Omit<VerifiedEvaluationExample, "id"> & {
+      source_type: "verified_holdout" | "regression_baseline" | "calibration_dev";
+    };
+  }): Promise<VerifiedEvaluationExample> {
+    return this.request(
+      `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets/${encodeURIComponent(input.datasetId)}/examples`,
+      input.example,
+      "POST",
+    );
+  }
+
   sealEvalDataset(input: { project: string; datasetId: string }): Promise<Record<string, unknown>> {
     return this.request(
       `/api/v1/projects/${encodeURIComponent(input.project)}/eval-datasets/${encodeURIComponent(input.datasetId)}/seal`,
@@ -1260,7 +1373,7 @@ export class OpenClass {
     datasetId: string;
     candidateId: string;
     serviceId?: string;
-  }): Promise<Record<string, unknown>> {
+  }): Promise<ReplayEvaluation> {
     const body: Record<string, unknown> = {
       dataset_id: input.datasetId,
       candidate_id: input.candidateId,
@@ -1273,11 +1386,11 @@ export class OpenClass {
     );
   }
 
-  evaluations(project: string): Promise<Array<Record<string, unknown>>> {
+  evaluations(project: string): Promise<ReplayEvaluation[]> {
     return this.request(`/api/v1/projects/${encodeURIComponent(project)}/evaluations`);
   }
 
-  evaluation(input: { project: string; evaluationId: string }): Promise<Record<string, unknown>> {
+  evaluation(input: { project: string; evaluationId: string }): Promise<ReplayEvaluation> {
     return this.request(
       `/api/v1/projects/${encodeURIComponent(input.project)}/evaluations/${encodeURIComponent(input.evaluationId)}`,
     );
@@ -1551,6 +1664,14 @@ export class OpenClassControlClient {
   }
 
   async request<T = unknown>(path: string, init?: ControlRequestInit): Promise<T> {
+    return (await this.requestWithStatus<T>(path, init)).body;
+  }
+
+  /** For HTTP relays that must retain 201/207/204 semantics without raw headers. */
+  async requestWithStatus<T = unknown>(
+    path: string,
+    init?: ControlRequestInit,
+  ): Promise<{ status: number; body: T }> {
     const {
       token: initToken,
       idempotencyKey,
@@ -1600,7 +1721,7 @@ export class OpenClassControlClient {
     };
 
     const response = await this.fetcher(this.resolveUrl(path), fetchInit);
-    if (response.status === 204) return undefined as T;
+    if (response.status === 204) return { status: response.status, body: undefined as T };
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as {
         detail?: unknown;
@@ -1619,7 +1740,7 @@ export class OpenClassControlClient {
                 : `Request failed (${response.status})`;
       throw new ControlApiError(response.status, detail);
     }
-    return (await response.json()) as T;
+    return { status: response.status, body: (await response.json()) as T };
   }
 
   listProjects(
@@ -2047,5 +2168,95 @@ export class OpenClassControlClient {
       `${this.projectPrefix(projectOrWorkspaceId)}/keys`,
       projectIdOrInit,
     );
+  }
+}
+
+export interface ControlWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+}
+
+/**
+ * The engine-shaped HTTP SDK for authenticated browser workspaces.
+ * Every operation goes through the control plane's closed workflow allowlist.
+ * It never accepts an internal engine credential or caller-supplied role.
+ */
+export class OpenClassWorkspaceClient extends OpenClass {
+  constructor(
+    private readonly control: OpenClassControlClient,
+    private readonly sessionToken: () => string | undefined,
+    private readonly selectedWorkspace: () => string | undefined = () => undefined,
+  ) {
+    super("");
+  }
+
+  async workspaces(): Promise<ControlWorkspace[]> {
+    const token = this.requireToken();
+    return this.control.request("/workspaces", { token });
+  }
+
+  private requireToken(): string {
+    const token = this.sessionToken();
+    if (!token) throw new ControlApiError(401, "Sign in to your workspace");
+    return token;
+  }
+
+  protected override async request<T>(
+    path: string,
+    body?: unknown,
+    method?: "GET" | "POST" | "PATCH" | "DELETE",
+    options?: Record<string, string> | OpenClassRequestOptions,
+  ): Promise<T> {
+    const token = this.requireToken();
+    const verb = method ?? (body === undefined ? "GET" : "POST");
+    const suppliedHeaders =
+      options && "headers" in options
+        ? (options as OpenClassRequestOptions).headers
+        : (options as Record<string, string> | undefined);
+    const headers: Record<string, string> = {};
+    for (const [key, value] of Object.entries(suppliedHeaders ?? {})) {
+      if (["idempotency-key", "x-correlation-id"].includes(key.toLowerCase())) headers[key] = value;
+    }
+    if (path === "/api/v1/projects") {
+      if (verb === "GET") {
+        const workspaces = await this.workspaces();
+        const lists = await Promise.all(
+          workspaces.map(async (workspace) => {
+            const mappings = await this.control.listProjects(workspace.id, { token });
+            return Promise.all(
+              mappings.map((mapping) =>
+                this.control.request<Project>(`${this.prefix(mapping)}/workflow`, { token }),
+              ),
+            );
+          }),
+        );
+        return lists.flat() as T;
+      }
+      if (verb === "POST") {
+        const workspaceId = this.selectedWorkspace();
+        if (!workspaceId)
+          throw new ControlApiError(400, "Select a workspace before creating a project");
+        const mapping = await this.control.createProject(
+          workspaceId,
+          body as { name: string; description?: string },
+          { token, headers },
+        );
+        return this.control.request<T>(`${this.prefix(mapping)}/workflow`, { token });
+      }
+    }
+    const match = /^\/api\/v1\/projects\/([^/?]+)(\/[^?]*)?(\?.*)?$/.exec(path);
+    if (!match)
+      throw new ControlApiError(404, "This action is not supported in an authenticated workspace");
+    const mapping = await this.control.getProject(decodeURIComponent(match[1]!), { token });
+    return this.control.request<T>(
+      `${this.prefix(mapping)}/workflow${match[2] ?? ""}${match[3] ?? ""}`,
+      { token, method: verb, body: body === undefined ? undefined : JSON.stringify(body), headers },
+    );
+  }
+
+  private prefix(project: ControlProject) {
+    return `/workspaces/${encodeURIComponent(project.workspace_id)}/projects/${encodeURIComponent(project.id)}`;
   }
 }
