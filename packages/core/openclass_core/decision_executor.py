@@ -5,13 +5,12 @@ configured DecisionProvider (Laya / Jev / Mock), applies OpenClass supervision,
 and creates immutable DecisionRuns with execution provenance and snapshots.
 """
 
-import json
 from typing import Any, Literal
 from uuid import UUID, uuid4, uuid5
 
 from pydantic import ValidationError
 
-from openclass_core.decision import content_digest
+from openclass_core.decision import content_digest, evaluate_predicates
 from openclass_core.models import (
     ChoiceRequest,
     Observation,
@@ -29,32 +28,33 @@ from openclass_core.projects import (
     now,
 )
 from openclass_core.providers import DecisionProvider, ProviderError
+from openclass_core.state_compiler import (
+    RuntimeDecisionConfig,
+    StateCompilationError,
+    check_total,
+    compile_runtime_state,
+)
+from openclass_core.supervision import (
+    InferenceProvenance,
+    OperatingProfile,
+    ProvenancedChoiceResult,
+    RuntimeSupervisionPolicy,
+    evaluate_supervision,
+)
 
-MAX_STATE_FIELD_CHARS = 4096
 MAX_GRAPH_STEPS = 8
 
 
 def compile_event_state(
-    metadata: dict[str, Any],
+    event: RawEvent,
     resolved_decisions: list[dict[str, str]],
+    config: RuntimeDecisionConfig,
 ) -> dict[str, Any]:
-    """Compile bounded, deterministic state facts and prior decisions without classifying text."""
-    bounded_facts: dict[str, Any] = {}
-    for key, value in sorted(metadata.items()):
-        if value is None:
-            continue
-        if isinstance(value, str):
-            bounded_facts[key] = value[:MAX_STATE_FIELD_CHARS]
-        elif isinstance(value, (bool, int, float)):
-            bounded_facts[key] = value
-        else:
-            rendered = json.dumps(value, sort_keys=True, separators=(",", ":"), default=str)
-            bounded_facts[key] = rendered[:MAX_STATE_FIELD_CHARS]
-    snapshot: dict[str, Any] = {
-        "facts": bounded_facts,
-        "resolved_decisions": list(resolved_decisions),
-    }
+    snapshot = compile_runtime_state(event, resolved_decisions, config.state_schema, config.budgets)
+    snapshot["runtime_config"] = config.model_dump(mode="json")
+    snapshot.pop("snapshot_hash")
     snapshot["snapshot_hash"] = content_digest(snapshot)
+    check_total(snapshot, config.budgets)
     return snapshot
 
 
@@ -176,6 +176,7 @@ class DecisionExecutor:
         current_node: DecisionServiceNode,
         version_id: UUID,
         resolved_decisions: list[dict[str, str]],
+        runtime_config: RuntimeDecisionConfig,
     ) -> tuple[
         Any,
         dict[str, float],
@@ -228,35 +229,28 @@ class DecisionExecutor:
             classes=tuple(classes),
         )
 
-        state_snapshot = compile_event_state(dict(event.metadata), resolved_decisions)
-        obs_metadata = dict(event.metadata)
-        if resolved_decisions:
-            obs_metadata["resolved_decisions"] = list(resolved_decisions)
-
+        state_snapshot = compile_event_state(event, resolved_decisions, runtime_config)
+        predicates = runtime_config.node_preconditions.get(
+            str(current_node.id), runtime_config.node_preconditions.get(current_node.name, ())
+        )
+        if not evaluate_predicates(predicates, state_snapshot["facts"]):
+            raise StateCompilationError("precondition_unsatisfied")
         observation = Observation(
             content=event.content,
-            metadata=obs_metadata,
+            metadata={
+                "state_facts": state_snapshot["facts"],
+                "state_provenance": state_snapshot["provenance"],
+                "resolved_decisions": state_snapshot["resolved_decisions"],
+                "state_budgets": runtime_config.budgets.model_dump(mode="json"),
+            },
         )
-
         base_instructions = (current_node.instructions or service.instructions).strip()
-        context_lines: list[str] = []
-        if base_instructions:
-            context_lines.append(base_instructions)
-        if state_snapshot["facts"]:
-            facts_json = json.dumps(state_snapshot["facts"], sort_keys=True, separators=(",", ":"))
-            context_lines.append(f"Structured state facts: {facts_json}")
-        if resolved_decisions:
-            prior_summary = "; ".join(
-                f"{d['node_name']}={d['choice']} ({d['label']})" for d in resolved_decisions
-            )
-            context_lines.append(f"Prior resolved decisions: {prior_summary}")
-        effective_instructions = "\n".join(context_lines).strip()
-
         request = ChoiceRequest(
             observation=observation,
             ontology=ontology,
-            instructions=effective_instructions or None,
+            instructions=base_instructions or None,
         )
+        check_total(request.model_dump(mode="json"), runtime_config.budgets)
 
         try:
             result = await self.provider.choice(request)
@@ -290,13 +284,16 @@ class DecisionExecutor:
         unknown_prob = probabilities.get("UNKNOWN", 0.0)
 
         supervision_outcome, supervision_reason = self._supervise(
-            provider_name=result.provider,
+            provenance=result.inference_provenance
+            if isinstance(result, ProvenancedChoiceResult)
+            else None,
+            profile=runtime_config.operating_profile,
+            policy=runtime_config.supervision,
+            choice_count=len(current_node.choices),
             selected_choice=top_choice,
             top_prob=top_prob,
-            second_prob=second_prob,
             margin=margin,
             unknown_prob=unknown_prob,
-            metadata=result.provider_metadata,
             node=current_node,
         )
 
@@ -319,6 +316,9 @@ class DecisionExecutor:
         service: DecisionService,
         node_id: UUID | None = None,
     ) -> DecisionRun:
+        # Frozen models contain mutable JSON mappings: detach them before awaits.
+        event = event.model_copy(deep=True)
+        service = service.model_copy(deep=True)
         # Select starting node (default to first node if not specified)
         current_node: DecisionServiceNode | None = None
         if node_id is not None:
@@ -335,6 +335,14 @@ class DecisionExecutor:
         version_id = service.active_version_id or uuid5(
             service.id, f"version:{service.version_number}:{shash}"
         )
+
+        runtime_config = service.runtime_config
+        if runtime_config.operating_profile is None:
+            configured_profile = getattr(self.provider, "operating_profile", None)
+            if isinstance(configured_profile, OperatingProfile):
+                runtime_config = runtime_config.model_copy(
+                    update={"operating_profile": configured_profile.model_copy(deep=True)}
+                )
 
         visited_nodes: set[UUID] = set()
         resolved_decisions: list[dict[str, str]] = []
@@ -382,6 +390,7 @@ class DecisionExecutor:
                 current_node=current_node,
                 version_id=version_id,
                 resolved_decisions=resolved_decisions,
+                runtime_config=runtime_config,
             )
 
             selected_spec = next((c for c in current_node.choices if c.key == top_choice), None)
@@ -416,6 +425,12 @@ class DecisionExecutor:
                     "supervision_outcome": supervision_outcome,
                     "supervision_reason": supervision_reason,
                     "latency_ms": float(result.latency_ms),
+                    "inference_provenance": (
+                        result.inference_provenance.model_dump(mode="json")
+                        if isinstance(result, ProvenancedChoiceResult)
+                        and result.inference_provenance is not None
+                        else None
+                    ),
                 }
             )
 
@@ -465,18 +480,33 @@ class DecisionExecutor:
             current_node = next_node
 
         assert last_result is not None
-        final_state_snapshot = compile_event_state(dict(event.metadata), resolved_decisions)
+        final_state_snapshot = compile_event_state(event, resolved_decisions, runtime_config)
 
         # Extract Provenance
         meta = dict(last_result.provider_metadata)
+        provenance = (
+            last_result.inference_provenance
+            if isinstance(last_result, ProvenancedChoiceResult)
+            else None
+        )
+        meta["inference_provenance"] = (
+            provenance.model_dump(mode="json") if provenance is not None else None
+        )
+        if provenance is not None:
+            meta.update(
+                execution_mode=provenance.execution_mode,
+                simulated=provenance.simulated,
+                real_inference=not provenance.simulated,
+            )
+        else:
+            meta["real_inference"] = False
         if last_result.input_tokens is not None:
             meta.setdefault("input_tokens", last_result.input_tokens)
         if last_result.output_tokens is not None:
             meta.setdefault("output_tokens", last_result.output_tokens)
         if last_result.estimated_cost is not None:
             meta.setdefault("estimated_cost", last_result.estimated_cost)
-        default_mode = "mock" if last_result.provider == "mock" else "daemon"
-        execution_mode = str(meta.get("execution_mode", default_mode))
+        execution_mode = str(meta.get("execution_mode", "daemon"))
         real_inference = bool(meta.get("real_inference", False))
 
         return DecisionRun(
@@ -537,6 +567,19 @@ class DecisionExecutor:
                 f"Decision run {run.id} is not paused and cannot be resumed "
                 f"(status={run.run_status}, outcome={run.supervision_outcome})"
             )
+
+        captured_config = run.state_snapshot.get("runtime_config")
+        runtime_config = (
+            RuntimeDecisionConfig.model_validate(captured_config)
+            if captured_config is not None
+            else service.runtime_config
+        )
+        captured_service = (run.pending_operation or {}).get("service_snapshot")
+        if isinstance(captured_service, dict):
+            pinned = DecisionService.model_validate(captured_service)
+            if pinned.id != run.decision_service_id or pinned.project_id != run.project_id:
+                raise ValueError("Checkpoint service identity changed")
+            service = pinned
 
         paused_node: DecisionServiceNode | None = None
         if run.current_node_key:
@@ -645,7 +688,7 @@ class DecisionExecutor:
         resume_time = now()
 
         if next_node is None:
-            final_state_snapshot = compile_event_state(dict(event.metadata), resolved_decisions)
+            final_state_snapshot = compile_event_state(event, resolved_decisions, runtime_config)
             return run.model_copy(
                 update={
                     "decision_node_id": paused_node.id,
@@ -712,6 +755,7 @@ class DecisionExecutor:
                 current_node=current_node,
                 version_id=version_id,
                 resolved_decisions=resolved_decisions,
+                runtime_config=runtime_config,
             )
 
             sub_spec = next((c for c in current_node.choices if c.key == top_choice), None)
@@ -746,6 +790,12 @@ class DecisionExecutor:
                     "supervision_outcome": supervision_outcome,
                     "supervision_reason": supervision_reason,
                     "latency_ms": float(result.latency_ms),
+                    "inference_provenance": (
+                        result.inference_provenance.model_dump(mode="json")
+                        if isinstance(result, ProvenancedChoiceResult)
+                        and result.inference_provenance is not None
+                        else None
+                    ),
                 }
             )
 
@@ -793,7 +843,7 @@ class DecisionExecutor:
             )
             current_node = sub_next_node
 
-        final_state_snapshot = compile_event_state(dict(event.metadata), resolved_decisions)
+        final_state_snapshot = compile_event_state(event, resolved_decisions, runtime_config)
         return run.model_copy(
             update={
                 "decision_node_id": last_node.id,
@@ -830,55 +880,36 @@ class DecisionExecutor:
 
     def _supervise(
         self,
-        provider_name: str,
+        *,
+        profile: OperatingProfile | None,
+        provenance: InferenceProvenance | None,
+        policy: RuntimeSupervisionPolicy,
+        choice_count: int,
         selected_choice: str,
         top_prob: float,
-        second_prob: float | None,
         margin: float,
         unknown_prob: float,
-        metadata: dict[str, Any],
-        node: DecisionServiceNode | None = None,
+        node: DecisionServiceNode,
     ) -> tuple[Literal["TRUSTED", "REVIEW", "UNKNOWN"], str]:
-        # Semantic UNKNOWN is always UNKNOWN
-        if selected_choice == "UNKNOWN":
-            return "UNKNOWN", "Provider selected semantic UNKNOWN outcome"
-
-        if (
-            node is not None
-            and node.max_unknown_probability is not None
-            and unknown_prob > node.max_unknown_probability
-        ):
-            return (
-                "REVIEW",
-                f"Unknown probability ({unknown_prob:.2f} > {node.max_unknown_probability:.2f})"
-                " exceeds node threshold",
+        # Node thresholds may only tighten the captured service policy.
+        updates: dict[str, Any] = {}
+        if node.min_margin is not None:
+            updates["min_margin"] = max(policy.min_margin, node.min_margin)
+        if node.max_unknown_probability is not None:
+            updates["max_unknown_probability"] = min(
+                policy.max_unknown_probability, node.max_unknown_probability
             )
-
-        if node is not None and node.risk_level == "high":
-            return "REVIEW", "High-risk decision node requires supervisor or human review"
-
-        if node is not None and node.pause_on_review:
+        outcome, reason = evaluate_supervision(
+            policy=policy.model_copy(update=updates),
+            profile=profile,
+            provenance=provenance,
+            selected_choice=selected_choice,
+            top_probability=top_prob,
+            margin=margin,
+            unknown_probability=unknown_prob,
+            risk_level=node.risk_level,
+            choice_count=choice_count,
+        )
+        if outcome == "TRUSTED" and node.pause_on_review:
             return "REVIEW", "Decision node configured with pause_on_review requires human review"
-
-        # Laya or explicitly uncalibrated research profile: conservative supervision requires REVIEW
-        if provider_name == "laya" or metadata.get("calibration_status") == "uncalibrated":
-            reason = "Laya provider operates under research calibration (conservative supervision)"
-            return "REVIEW", reason
-
-        # Jev or calibrated providers: margin-based supervision
-        if provider_name == "jev":
-            req_margin = (
-                node.min_margin if (node is not None and node.min_margin is not None) else 0.20
-            )
-            if margin >= req_margin and top_prob >= 0.50:
-                return "TRUSTED", "Calibrated confidence and margin thresholds satisfied"
-            return (
-                "REVIEW",
-                f"Low decision margin ({margin:.2f} < {req_margin:.2f}) warrants supervisor review",
-            )
-
-        # Mock / default provider
-        req_margin = node.min_margin if (node is not None and node.min_margin is not None) else 0.25
-        if margin >= req_margin:
-            return "TRUSTED", "Decision margin threshold satisfied"
-        return "REVIEW", "Low decision margin requires human review"
+        return outcome, reason

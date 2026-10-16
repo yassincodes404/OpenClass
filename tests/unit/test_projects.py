@@ -79,6 +79,11 @@ class InMemoryProjects(ProjectRepository):
     async def record_provider_error(self, project_id, provider, model, latency_ms):
         return None
 
+    async def record_state_error(self, project_id, service_id, code):
+        if not hasattr(self, "state_errors"):
+            self.state_errors = []
+        self.state_errors.append((project_id, service_id, code))
+
     async def get_raw_event_by_hash(self, project_id, content_hash):
         if not hasattr(self, "raw_events"):
             self.raw_events = []

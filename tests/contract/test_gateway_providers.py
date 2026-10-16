@@ -23,6 +23,28 @@ def configuration(handler):
     )
 
 
+async def test_compiled_state_budget_and_credentials_are_not_sent():
+    from openclass_core.state_compiler import StateCompilationError
+
+    def forbidden(_):
+        pytest.fail("Invalid state must not reach a transport")
+
+    for metadata, error in [
+        ({"state_facts": {"declared": "contract-secret"}}, ProviderError),
+        (
+            {"state_facts": {"declared": "界"}, "state_budgets": {"max_estimated_tokens": 10}},
+            StateCompilationError,
+        ),
+    ]:
+        request = choice_request().model_copy(
+            update={
+                "observation": Observation(content="charged", metadata=metadata),
+            }
+        )
+        with pytest.raises(error):
+            await GatewayDecisionProvider(**configuration(forbidden)).choice(request)
+
+
 def choice_request(content="actual observation"):
     return ChoiceRequest(
         observation=Observation(content=content),

@@ -176,6 +176,20 @@ def _make_multi_node_supervised_service(client: TestClient) -> tuple[str, dict[s
     body = {
         "name": "Two-Stage Support Graph",
         "instructions": "Route and resolve customer tickets across two stages.",
+        "runtime_config": {
+            "state_schema": {
+                "id": "ticket_state",
+                "version": 1,
+                "features": [
+                    {
+                        "id": "ticket_priority",
+                        "kind": "string",
+                        "sensor_field": "ticket_priority",
+                        "required": False,
+                    }
+                ],
+            }
+        },
         "nodes": [
             {
                 "name": "triage-router",

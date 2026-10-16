@@ -33,6 +33,7 @@ from .evidence import (
 )
 from .models import Model
 from .repositories import ConflictError
+from .state_compiler import RuntimeDecisionConfig
 
 CURRENT_WORKSPACE_ID: ContextVar[str | None] = ContextVar("current_workspace_id", default=None)
 
@@ -237,6 +238,7 @@ class DecisionService(Model):
     nodes: tuple[DecisionServiceNode, ...] = Field(min_length=1)
     transitions: tuple[DecisionServiceTransition, ...] = ()
     status: DecisionServiceStatus = DecisionServiceStatus.ACTIVE
+    runtime_config: RuntimeDecisionConfig = Field(default_factory=RuntimeDecisionConfig)
     provider_override: str | None = None
     version_number: int = Field(default=1, ge=1)
     active_version_id: UUID | None = None
@@ -246,7 +248,12 @@ class DecisionService(Model):
 
 def compute_service_hash(service: DecisionService) -> str:
     """Compute a deterministic SHA-256 fingerprint of a DecisionService definition."""
-    snapshot = json.dumps(service.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    definition = service.model_dump(mode="json")
+    # Preserve existing checkpoint fingerprints when adding default-only config.
+    # Non-default schemas, policies and profiles are always part of the identity.
+    if service.runtime_config == RuntimeDecisionConfig():
+        definition.pop("runtime_config")
+    snapshot = json.dumps(definition, sort_keys=True, separators=(",", ":"))
     return sha256(snapshot.encode()).hexdigest()
 
 
@@ -255,6 +262,7 @@ class DecisionServiceUpdate(Model):
     description: str | None = Field(default=None, max_length=2000)
     instructions: str | None = Field(default=None, max_length=4000)
     status: DecisionServiceStatus | None = None
+    runtime_config: RuntimeDecisionConfig | None = None
     provider_override: str | None = None
     nodes: tuple[DecisionServiceNode, ...] | None = None
     transitions: tuple[DecisionServiceTransition, ...] | None = None
@@ -269,6 +277,7 @@ class DecisionServiceUpdate(Model):
             and self.provider_override is None
             and self.nodes is None
             and self.transitions is None
+            and self.runtime_config is None
         ):
             raise ValueError("update must change at least one field")
         return self
@@ -603,6 +612,13 @@ class ProjectRepository(EvidenceRepository, UnitOfWork, Protocol):
     async def record_provider_error(
         self, project_id: UUID, provider: str, model: str, latency_ms: float
     ) -> None: ...
+
+    async def record_state_error(self, project_id: UUID, service_id: UUID, code: str) -> None:
+        """Append the decision_run.failed audit event for a rejected state.
+
+        Implementations must record this atomically; callers rely on it for
+        the audit trail, so missing support must fail loudly."""
+        ...
 
     async def create_decision_service(self, service: DecisionService) -> None: ...
 
@@ -992,6 +1008,7 @@ class ProjectService:
         *,
         nodes: list[dict[str, Any]] | tuple[DecisionServiceNode, ...] | None = None,
         transitions: list[dict[str, Any]] | tuple[DecisionServiceTransition, ...] = (),
+        runtime_config: RuntimeDecisionConfig | None = None,
     ) -> DecisionService:
         project = await self.repository.get_project(identifier)
         if not name.strip():
@@ -1026,6 +1043,7 @@ class ProjectService:
             instructions=instructions.strip(),
             nodes=node_objs,
             transitions=transition_objs,
+            runtime_config=runtime_config or RuntimeDecisionConfig(),
             provider_override=provider_override,
             version_number=1,
             active_version_id=uuid4(),
@@ -1070,6 +1088,9 @@ class ProjectService:
             version_bump = True
         if update.transitions is not None:
             updates["transitions"] = update.transitions
+            version_bump = True
+        if update.runtime_config is not None:
+            updates["runtime_config"] = update.runtime_config
             version_bump = True
         if update.status is not None:
             updates["status"] = update.status

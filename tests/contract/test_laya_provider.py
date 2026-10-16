@@ -12,6 +12,77 @@ from openclass_provider_laya.profile import LayaProfile
 from openclass_provider_laya.status import LayaStatus, check_jev_status, check_laya_endpoint
 
 
+@pytest.mark.parametrize("reports_simulation", [False, True])
+async def test_inprocess_router_receives_bounded_declared_state_as_data(
+    ontology,
+    reports_simulation,
+):
+    from openclass_core.state_compiler import StateCompilationError
+    from openclass_core.supervision import ProvenancedChoiceResult
+
+    captured = []
+
+    class Router:
+        def __init__(self, **kwargs):
+            pass
+
+        def predict(self, state, questions):
+            captured.append((json.loads(state), questions))
+            response = synthetic_laya_response()
+            response["provider_metadata"]["simulated"] = reports_simulation
+            return response
+
+    provider = LayaDecisionProvider()
+    request = ChoiceRequest(
+        observation=Observation(
+            content="charged",
+            metadata={
+                "state_facts": {"blocked": False, "comment": None},
+                "state_provenance": {"blocked": {"source": "metadata"}},
+            },
+        ),
+        ontology=ontology,
+    )
+    result = await provider._in_process_choice(
+        request,
+        {"billing": "Billing", UNKNOWN: "Unknown"},
+        Router,
+    )
+    assert isinstance(result, ProvenancedChoiceResult)
+    assert (result.inference_provenance is None) is reports_simulation
+    assert result.provider_metadata["real_inference"] is not reports_simulation
+    if result.inference_provenance is not None:
+        assert result.inference_provenance.execution_mode == "in_process"
+    assert captured[0][0]["untrusted_state_facts"] == {"blocked": False, "comment": None}
+    assert "blocked" not in captured[0][1]["classification"]["instructions"]
+    too_small = request.model_copy(
+        update={
+            "observation": Observation(
+                content="charged",
+                metadata={
+                    "state_facts": {"blocked": False},
+                    "state_budgets": {"max_total_bytes": 1},
+                },
+            )
+        }
+    )
+    with pytest.raises(StateCompilationError):
+        await provider._in_process_choice(too_small, {"billing": "Billing"}, Router)
+    assert len(captured) == 1
+
+
+async def test_nonjson_http_failure_is_safe_and_not_a_semantic_unknown(ontology):
+    provider = create_mock_provider(lambda _: httpx.Response(200, text="SECRET malformed"))
+    with pytest.raises(ProviderError) as error:
+        await provider.choice(
+            ChoiceRequest(observation=Observation(content="charged"), ontology=ontology)
+        )
+    assert error.value.kind == "bad_response"
+    import traceback
+
+    assert "SECRET" not in "".join(traceback.format_exception(error.value))
+
+
 @pytest.fixture
 def ontology() -> OntologyVersion:
     return OntologyVersion(

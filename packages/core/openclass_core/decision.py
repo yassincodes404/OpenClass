@@ -46,6 +46,8 @@ class StateFeature(Model):
     kind: Literal["string", "integer", "boolean"]
     sensor_field: str = Field(min_length=1, max_length=200)
     required: bool = True
+    nullable: bool = False
+    source: Literal["metadata", "prior_decision"] = "metadata"
 
 
 class StateSchema(Model):
@@ -100,7 +102,7 @@ def compile_state(
                 raise ValueError(f"missing sensor fact: {feature.id}")
             continue
         value = sensor_facts[feature.sensor_field]
-        if type(value) is not types[feature.kind]:
+        if not (value is None and feature.nullable) and type(value) is not types[feature.kind]:
             raise ValueError(f"wrong sensor type: {feature.id}")
         facts[feature.id] = value
     return StateSnapshot(

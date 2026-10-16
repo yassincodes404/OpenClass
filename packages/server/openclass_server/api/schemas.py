@@ -4,6 +4,7 @@ from uuid import UUID
 from openclass_core.models import Model, Observation, OntologyClass, OntologyVersion
 from openclass_core.project_evolution import ChoiceCandidate
 from openclass_core.projects import DecisionService
+from openclass_core.state_compiler import RuntimeDecisionConfig
 from pydantic import Field, model_validator
 
 
@@ -178,6 +179,7 @@ class DecisionServiceCreate(Model):
     nodes: list[DecisionServiceNodeCreate] | None = None
     transitions: list[DecisionServiceTransitionCreate] = Field(default_factory=list)
     description: str = Field(default="", max_length=2000)
+    runtime_config: RuntimeDecisionConfig = Field(default_factory=RuntimeDecisionConfig)
     provider_override: str | None = None
 
     @model_validator(mode="after")
@@ -199,6 +201,7 @@ class DecisionServiceUpdateSchema(Model):
     description: str | None = Field(default=None, max_length=2000)
     instructions: str | None = Field(default=None, max_length=4000)
     status: Literal["active", "draft", "archived"] | None = None
+    runtime_config: RuntimeDecisionConfig | None = None
     provider_override: str | None = None
     nodes: list[DecisionServiceNodeCreate] | None = None
     transitions: list[DecisionServiceTransitionCreate] | None = None
@@ -213,6 +216,7 @@ class DecisionServiceUpdateSchema(Model):
             and self.provider_override is None
             and self.nodes is None
             and self.transitions is None
+            and self.runtime_config is None
         ):
             raise ValueError("update must change at least one field")
         return self
