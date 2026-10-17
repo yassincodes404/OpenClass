@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
+import { Dialog } from "./dialog";
 import { ProjectShell, type Project } from "./projects";
 
 export type Cluster = {
@@ -128,22 +129,17 @@ export function ClustersPage() {
         </section>
       </ProjectShell>
       {open && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-label="Cluster members"
-          onClick={() => setOpen(null)}
-        >
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <p className="eyebrow">CLUSTER / PROVENANCE</p>
-            <h2>Members</h2>
-            {detail.isPending && <p className="muted">Loading…</p>}
-            {detail.data && (
-              <>
-                <p className="muted">
-                  model {detail.data.model} · threshold {detail.data.threshold} · algorithm{" "}
-                  {detail.data.algorithm}
-                </p>
+        <Dialog label="Cluster members" onClose={() => setOpen(null)}>
+          <p className="eyebrow">CLUSTER / PROVENANCE</p>
+          <h2>Members</h2>
+          {detail.isPending && <p className="muted">Loading…</p>}
+          {detail.data && (
+            <>
+              <p className="muted">
+                model {detail.data.model} · threshold {detail.data.threshold} · algorithm{" "}
+                {detail.data.algorithm}
+              </p>
+              <div className="table-wrap" role="region" aria-label="Cluster members" tabIndex={0}>
                 <table className="table">
                   <thead>
                     <tr>
@@ -162,15 +158,15 @@ export function ClustersPage() {
                     ))}
                   </tbody>
                 </table>
-              </>
-            )}
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setOpen(null)}>
-                Close
-              </button>
-            </div>
+              </div>
+            </>
+          )}
+          <div className="modal-actions">
+            <button className="ghost" onClick={() => setOpen(null)}>
+              Close
+            </button>
           </div>
-        </div>
+        </Dialog>
       )}
     </main>
   );

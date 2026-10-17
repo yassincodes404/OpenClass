@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { Link, NavLink, useParams } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ControlApiError, controlFetch } from "./api";
 import { useAuth } from "./auth";
+import { Dialog } from "./dialog";
 import { OverviewKpis } from "./analytics";
 
 export type Workspace = { id: string; slug: string; name: string; role: string };
@@ -59,9 +60,19 @@ function useToken() {
   return auth.token() ?? "";
 }
 
-function SectionNav({ projectId }: { projectId: string; active: string }) {
+function SectionNav({ projectId, active }: { projectId: string; active: string }) {
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav || typeof nav.scrollTo !== "function" || nav.scrollWidth <= nav.clientWidth) return;
+    const activeEl = nav.querySelector<HTMLElement>("a.active");
+    if (!activeEl) return;
+    const targetLeft = activeEl.offsetLeft - nav.clientWidth / 2 + activeEl.clientWidth / 2;
+    nav.scrollTo({ left: Math.max(0, targetLeft), behavior: "instant" });
+  }, [projectId, active]);
+
   return (
-    <nav className="section-nav" aria-label="Project navigation">
+    <nav ref={navRef} className="section-nav" aria-label="Project navigation">
       {sectionLinks.map((section) => (
         <NavLink
           key={section.label}
@@ -228,8 +239,8 @@ function CreateProjectModal({
     onError: (error: Error) => setServerError(error.message),
   });
   return (
-    <div className="modal-backdrop" role="dialog" aria-label="Create project">
-      <form className="modal" onSubmit={handleSubmit((form) => create.mutate(form))}>
+    <Dialog label="Create project" onClose={onClose}>
+      <form onSubmit={handleSubmit((form) => create.mutate(form))}>
         <p className="eyebrow">NEW PROJECT / {workspace.name.toUpperCase()}</p>
         <h2>Create a project</h2>
         <label>
@@ -256,7 +267,7 @@ function CreateProjectModal({
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }
 
@@ -385,32 +396,34 @@ function OverviewPanels({ project, token }: { project: Project; token: string })
         )}
         {keys.isPending && <p className="muted">Loading keys…</p>}
         {keys.data?.length === 0 && <p className="muted">No keys yet.</p>}
-        <table className="table">
-          <tbody>
-            {keys.data?.map((key) => (
-              <tr key={key.id}>
-                <td>
-                  <code>{key.prefix}…</code>
-                </td>
-                <td>{key.scopes.join(", ")}</td>
-                <td>
-                  {key.revoked_at ? (
-                    <span className="chip danger">revoked</span>
-                  ) : (
-                    <span className="chip">active</span>
-                  )}
-                </td>
-                <td>
-                  {key.revoked_at ? null : (
-                    <button className="ghost danger" onClick={() => revokeKey.mutate(key.id)}>
-                      Revoke
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap" role="region" aria-label="Scoped API keys" tabIndex={0}>
+          <table className="table">
+            <tbody>
+              {keys.data?.map((key) => (
+                <tr key={key.id}>
+                  <td>
+                    <code>{key.prefix}…</code>
+                  </td>
+                  <td>{key.scopes.join(", ")}</td>
+                  <td>
+                    {key.revoked_at ? (
+                      <span className="chip danger">revoked</span>
+                    ) : (
+                      <span className="chip">active</span>
+                    )}
+                  </td>
+                  <td>
+                    {key.revoked_at ? null : (
+                      <button className="ghost danger" onClick={() => revokeKey.mutate(key.id)}>
+                        Revoke
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
@@ -548,8 +561,8 @@ function CreateClassifierModal({
     onError: (error: Error) => setServerError(error.message),
   });
   return (
-    <div className="modal-backdrop" role="dialog" aria-label="Create classifier">
-      <form className="modal" onSubmit={handleSubmit((form) => create.mutate(form))}>
+    <Dialog label="Create classifier" onClose={onClose}>
+      <form onSubmit={handleSubmit((form) => create.mutate(form))}>
         <p className="eyebrow">NEW CLASSIFIER / {project.name.toUpperCase()}</p>
         <h2>Create a classifier</h2>
         <label>
@@ -575,7 +588,7 @@ function CreateClassifierModal({
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }
 
@@ -619,32 +632,34 @@ export function ClassifierDetailPage() {
             Slug <code>{classifier.data.slug}</code> · initial version is immutable; evolution
             arrives in later phases.
           </p>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Canonical name</th>
-                <th>Display name</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classifier.data.classes.map((cls) => (
-                <tr key={cls.canonical_name}>
-                  <td>
-                    <code>{cls.canonical_name}</code>
-                  </td>
-                  <td>{cls.display_name}</td>
+          <div className="table-wrap" role="region" aria-label="Classifier classes" tabIndex={0}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Canonical name</th>
+                  <th>Display name</th>
                 </tr>
-              ))}
-              <tr>
-                <td>
-                  <code>UNKNOWN</code>
-                </td>
-                <td>
-                  <span className="chip locked">permanent fallback — locked</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {classifier.data.classes.map((cls) => (
+                  <tr key={cls.canonical_name}>
+                    <td>
+                      <code>{cls.canonical_name}</code>
+                    </td>
+                    <td>{cls.display_name}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td>
+                    <code>UNKNOWN</code>
+                  </td>
+                  <td>
+                    <span className="chip locked">permanent fallback — locked</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
       </ProjectShell>
     </main>

@@ -3,6 +3,8 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "./auth";
+import { DecisionSpecimen } from "./decision-specimen";
+import { Dialog } from "./dialog";
 import {
   OpenWorldLoopStage,
   PREDEFINED_SCENARIOS,
@@ -557,5 +559,59 @@ describe("portal landing page (Precision Observatory)", () => {
       expect(matches0410.length).toBeGreaterThanOrEqual(2);
       expect(screen.getAllByText(/0\.140/).length).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it("toggles DecisionSpecimen between Open-world abstention and Closed-world forced guess", () => {
+    render(<DecisionSpecimen />);
+    const openBtn = screen.getByRole("button", { name: "Open-world" });
+    const closedBtn = screen.getByRole("button", { name: "Closed-world guess" });
+    expect(openBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(closedBtn.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByText("UNKNOWN")).toBeTruthy();
+
+    fireEvent.click(closedBtn);
+    expect(openBtn.getAttribute("aria-pressed")).toBe("false");
+    expect(closedBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText(/billing \(forced\)/i)).toBeTruthy();
+
+    fireEvent.click(openBtn);
+    expect(openBtn.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText("UNKNOWN")).toBeTruthy();
+  });
+
+  it("traps focus, closes on Escape, and restores focus to the trigger when Dialog unmounts", () => {
+    const onClose = vi.fn();
+    const trigger = document.createElement("button");
+    trigger.textContent = "Launch dialog";
+    document.body.appendChild(trigger);
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
+
+    const { unmount } = render(
+      <Dialog label="Test accessible dialog" onClose={onClose}>
+        <input aria-label="First field" />
+        <button type="button">Second action</button>
+      </Dialog>,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Test accessible dialog" });
+    const firstInput = within(dialog).getByLabelText("First field");
+    const secondBtn = within(dialog).getByRole("button", { name: "Second action" });
+    expect(document.activeElement).toBe(firstInput);
+
+    secondBtn.focus();
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(document.activeElement).toBe(firstInput);
+
+    firstInput.focus();
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(secondBtn);
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    unmount();
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
   });
 });

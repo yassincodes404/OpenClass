@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
+import { Dialog } from "./dialog";
 import { ProjectShell, type Project } from "./projects";
 
 export type EventPreview = { id: string; source_type: string; preview: string; created_at: string };
@@ -114,7 +115,7 @@ export function DataIngestPage() {
 
   return (
     <main>
-      <ProjectShell project={project.data} active="/observations">
+      <ProjectShell project={project.data} active="/data">
         <section className="signal">
           <p className="eyebrow">DATA / INGESTION</p>
           <h2>Observations enter the loop here.</h2>
@@ -242,8 +243,9 @@ export function ObservationsPage() {
         <section className="signal">
           <p className="eyebrow">OBSERVATIONS / HISTORY</p>
           <h2>Every ingested observation, newest first.</h2>
-          <div className="panel-head">
+          <div className="panel-head filter-toolbar">
             <input
+              aria-label="Search ingested observations"
               placeholder="Search content…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -255,6 +257,7 @@ export function ObservationsPage() {
               }}
             />
             <select
+              aria-label="Filter by source type"
               value={source}
               onChange={(event) => {
                 setCursor(null);
@@ -275,26 +278,47 @@ export function ObservationsPage() {
           {observations.isSuccess && observations.data.items.length === 0 && (
             <p className="muted">No observations match. Ingest data from the Data tab.</p>
           )}
-          <table className="table">
-            <tbody>
-              {observations.data?.items.map((item) => (
-                <tr
-                  key={item.id}
-                  onClick={() => setSelected(item.id)}
-                  className={selected === item.id ? "selected" : undefined}
-                >
-                  <td>
-                    <code>{item.id.slice(0, 8)}…</code>
-                  </td>
-                  <td>{item.preview}</td>
-                  <td>
-                    <span className="chip">{item.source_type}</span>
-                  </td>
-                  <td className="muted">{new Date(item.created_at).toLocaleString()}</td>
+          <div className="table-wrap" role="region" aria-label="Observations" tabIndex={0}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Event ID</th>
+                  <th>Preview</th>
+                  <th>Source</th>
+                  <th>Ingested</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {observations.data?.items.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={
+                      selected === item.id ? "interactive-row selected" : "interactive-row"
+                    }
+                    tabIndex={0}
+                    aria-label={`Open observation detail: ${item.preview}`}
+                    onClick={() => setSelected(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelected(item.id);
+                      }
+                    }}
+                  >
+                    <td>
+                      <code>{item.id.slice(0, 8)}…</code>
+                    </td>
+                    <td>{item.preview}</td>
+                    <td>
+                      <span className="chip">{item.source_type}</span>
+                    </td>
+                    <td className="muted">{new Date(item.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {observations.data?.next_cursor && (
             <button className="ghost" onClick={() => setCursor(observations.data!.next_cursor)}>
               More →
@@ -303,36 +327,29 @@ export function ObservationsPage() {
         </section>
       </ProjectShell>
       {selected && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-label="Observation detail"
-          onClick={() => setSelected(null)}
-        >
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <p className="eyebrow">OBSERVATION / {detail.data?.source_type ?? "…"}</p>
-            <h2>Detail</h2>
-            {detail.isPending && <p className="muted">Loading…</p>}
-            {detail.data && (
-              <>
-                <p className="muted">
-                  Ingested {new Date(detail.data.created_at).toLocaleString()} · id{" "}
-                  <code>{detail.data.id.slice(0, 8)}…</code>
-                </p>
-                <p>Members see the original content; list previews are redacted.</p>
-                <pre className="detail-pre">{detail.data.content}</pre>
-                {detail.data.metadata && Object.keys(detail.data.metadata).length > 0 && (
-                  <pre className="detail-pre">{JSON.stringify(detail.data.metadata, null, 2)}</pre>
-                )}
-              </>
-            )}
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setSelected(null)}>
-                Close
-              </button>
-            </div>
+        <Dialog label="Observation detail" onClose={() => setSelected(null)}>
+          <p className="eyebrow">OBSERVATION / {detail.data?.source_type ?? "…"}</p>
+          <h2>Detail</h2>
+          {detail.isPending && <p className="muted">Loading…</p>}
+          {detail.data && (
+            <>
+              <p className="muted">
+                Ingested {new Date(detail.data.created_at).toLocaleString()} · id{" "}
+                <code>{detail.data.id.slice(0, 8)}…</code>
+              </p>
+              <p>Members see the original content; list previews are redacted.</p>
+              <pre className="detail-pre">{detail.data.content}</pre>
+              {detail.data.metadata && Object.keys(detail.data.metadata).length > 0 && (
+                <pre className="detail-pre">{JSON.stringify(detail.data.metadata, null, 2)}</pre>
+              )}
+            </>
+          )}
+          <div className="modal-actions">
+            <button className="ghost" onClick={() => setSelected(null)}>
+              Close
+            </button>
           </div>
-        </div>
+        </Dialog>
       )}
     </main>
   );

@@ -4,7 +4,7 @@ import { useAuth } from "./auth";
 import { ClassifierDetailPage, ClassifiersPage, ProjectOverview, Projects } from "./projects";
 import { OpenWorldLoopStage } from "./open-world-stage";
 import { ObservatoryArchitectureSections } from "./observatory-sections";
-import "./landing.css";
+import { BrandMark, DecisionSpecimen } from "./decision-specimen";
 
 const ProjectSettingsPage = lazy(() =>
   import("./security-pages").then((m) => ({ default: m.ProjectSettingsPage })),
@@ -96,27 +96,22 @@ function Home() {
               Try the loop
             </a>
           </div>
-        </div>
-        <aside className="oc-hero-example" aria-label="Simulated classification example">
-          <p className="oc-example-label">A SMALL EXAMPLE. A DIFFERENT OUTCOME.</p>
-          <blockquote>“Cancel my plan.”</blockquote>
-          <div className="oc-example-choices" aria-label="Available classes">
-            <span>billing</span>
-            <span>technical</span>
-            <span>sales</span>
-          </div>
-          <div className="oc-example-result">
-            <span aria-hidden="true">↳</span>
+          <dl className="oc-hero-ledger" aria-label="Architectural guarantees">
             <div>
-              <strong>UNKNOWN</strong>
-              <p>Not a bad guess. A useful signal.</p>
+              <dt>FAST PATH</dt>
+              <dd>Bounded choice + explicit UNKNOWN</dd>
             </div>
-          </div>
-          <p className="oc-example-caption">
-            Simulated example with a three-class ontology. Unknown does not automatically mean a new
-            class.
-          </p>
-        </aside>
+            <div>
+              <dt>SUPERVISION</dt>
+              <dd>Deterministic margin &amp; fault gates</dd>
+            </div>
+            <div>
+              <dt>EVOLUTION</dt>
+              <dd>Replay-verified, human-approved vN+1</dd>
+            </div>
+          </dl>
+        </div>
+        <DecisionSpecimen />
       </section>
 
       <div className="oc-product-principles" aria-label="OpenClass principles">
@@ -131,6 +126,7 @@ function Home() {
 
       <section className="oc-closing-banner" aria-label="Get started with OpenClass">
         <div>
+          <p className="eyebrow">GOVERNED ONTOLOGY EVOLUTION</p>
           <h2>Your classes are a starting point.</h2>
           <p>Keep the evidence. Make the next decision with more context.</p>
         </div>
@@ -172,10 +168,11 @@ function Header() {
   const auth = useAuth();
   return (
     <header>
-      <NavLink to="/" className="brand">
-        <strong>O↗</strong> OPENCLASS
+      <NavLink to="/" className="brand" aria-label="OpenClass home">
+        <BrandMark />
+        <span>OPENCLASS</span>
       </NavLink>
-      <nav>
+      <nav aria-label="Primary navigation">
         <NavLink to="/">Home</NavLink>
         <NavLink to="/projects">Projects</NavLink>
       </nav>
@@ -194,7 +191,14 @@ export function Portal() {
   return (
     <div className={`portal-shell${pathname === "/" ? " is-landing" : ""}`}>
       <Header />
-      <Suspense fallback={<div className="panel">Loading workspace module…</div>}>
+      <Suspense
+        fallback={
+          <main className="module-loading" role="status">
+            <span className="loading-orbit" aria-hidden="true" />
+            <p>Loading workspace module…</p>
+          </main>
+        }
+      >
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/projects" element={<Projects />} />

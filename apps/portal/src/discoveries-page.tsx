@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
+import { Dialog } from "./dialog";
 import { ProjectShell, type Project } from "./projects";
 
 export type Candidate = {
@@ -113,51 +114,44 @@ export function DiscoveriesPage() {
         </section>
       </ProjectShell>
       {open && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-label="Candidate detail"
-          onClick={() => setOpen(null)}
-        >
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <p className="eyebrow">CANDIDATE / {detail.data?.status?.toUpperCase() ?? "…"}</p>
-            <h2>{detail.data?.display_name ?? detail.data?.canonical_name ?? "…"}</h2>
-            {detail.isPending && <p className="muted">Loading…</p>}
-            {detail.data && (
-              <>
-                <p>
-                  <TypeChip type={detail.data.type} /> · confidence{" "}
-                  {(detail.data.confidence * 100).toFixed(0)}%
-                </p>
-                {detail.data.definition && <p className="muted">{detail.data.definition}</p>}
-                {detail.data.aliases.length > 0 && (
-                  <p className="muted">aliases: {detail.data.aliases.join(", ")}</p>
-                )}
-                <p className="muted">
-                  existing match: {detail.data.existing_match ?? "none"} · reason:{" "}
-                  {detail.data.reason}
-                </p>
-                <p className="muted">
-                  evidence: {detail.data.evidence_run_ids.length} member runs (
-                  {detail.data.evidence_run_ids
-                    .slice(0, 3)
-                    .map((id) => id.slice(0, 8))
-                    .join(", ")}
-                  )
-                </p>
-                <p className="muted">
-                  provider {detail.data.provider}
-                  {detail.data.simulated ? " (simulated)" : ""}
-                </p>
-              </>
-            )}
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setOpen(null)}>
-                Close
-              </button>
-            </div>
+        <Dialog label="Candidate detail" onClose={() => setOpen(null)}>
+          <p className="eyebrow">CANDIDATE / {detail.data?.status?.toUpperCase() ?? "…"}</p>
+          <h2>{detail.data?.display_name ?? detail.data?.canonical_name ?? "…"}</h2>
+          {detail.isPending && <p className="muted">Loading…</p>}
+          {detail.data && (
+            <>
+              <p>
+                <TypeChip type={detail.data.type} /> · confidence{" "}
+                {(detail.data.confidence * 100).toFixed(0)}%
+              </p>
+              {detail.data.definition && <p className="muted">{detail.data.definition}</p>}
+              {detail.data.aliases.length > 0 && (
+                <p className="muted">aliases: {detail.data.aliases.join(", ")}</p>
+              )}
+              <p className="muted">
+                existing match: {detail.data.existing_match ?? "none"} · reason:{" "}
+                {detail.data.reason}
+              </p>
+              <p className="muted">
+                evidence: {detail.data.evidence_run_ids.length} member runs (
+                {detail.data.evidence_run_ids
+                  .slice(0, 3)
+                  .map((id) => id.slice(0, 8))
+                  .join(", ")}
+                )
+              </p>
+              <p className="muted">
+                provider {detail.data.provider}
+                {detail.data.simulated ? " (simulated)" : ""}
+              </p>
+            </>
+          )}
+          <div className="modal-actions">
+            <button className="ghost" onClick={() => setOpen(null)}>
+              Close
+            </button>
           </div>
-        </div>
+        </Dialog>
       )}
     </main>
   );
@@ -273,22 +267,29 @@ export function CandidateReviewPage() {
             <div className="panel-head">
               <h3>Evidence manager</h3>
             </div>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Evidence run</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.data.evidence_run_ids.map((id) => (
-                  <tr key={id}>
-                    <td>
-                      <code>{id}</code>
-                    </td>
+            <div
+              className="table-wrap"
+              role="region"
+              aria-label="Attached evidence runs"
+              tabIndex={0}
+            >
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Evidence run</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {detail.data.evidence_run_ids.map((id) => (
+                    <tr key={id}>
+                      <td>
+                        <code>{id}</code>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {notAttached.length > 0 && (
               <>
                 <p className="muted">Attach more evidence from the UNKNOWN pool:</p>

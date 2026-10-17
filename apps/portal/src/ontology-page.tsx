@@ -98,7 +98,8 @@ export function OntologyPage() {
       </main>
     );
   const versions = ontology.data.versions;
-  const latest = versions.length ? versions[versions.length - 1].version_number : 0;
+  const latest = versions.length ? Math.max(...versions.map((v) => v.version_number)) : 0;
+  const orderedVersions = [...versions].sort((a, b) => a.version_number - b.version_number);
   return (
     <main>
       <ProjectShell project={project.data} active="/ontology">
@@ -109,42 +110,156 @@ export function OntologyPage() {
             Current: {ontology.data.current_choices.map((choice) => choice.key).join(", ")} ·{" "}
             {versions.length} version(s)
           </p>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Version</th>
-                <th>Origin</th>
-                <th>Actor</th>
-                <th>Rationale</th>
-                <th>Choices</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {versions.map((version) => (
-                <tr key={version.version_number}>
-                  <td>
-                    <b>v{version.version_number}</b>
-                    {version.version_number === latest ? " (current)" : ""}
-                  </td>
-                  <td>{version.origin}</td>
-                  <td className="muted">{version.actor}</td>
-                  <td className="muted">{version.rationale.slice(0, 50)}</td>
-                  <td>{version.choices.map((choice) => choice.key).join(", ")}</td>
-                  <td>
-                    {version.version_number !== latest && version.version_number < latest && (
-                      <button
-                        className="ghost"
-                        onClick={() => setRange({ from: version.version_number, to: latest })}
+          {orderedVersions.length > 0 && (
+            <div className="panel">
+              <div className="panel-head">
+                <h3>Immutable snapshot lineage</h3>
+                <span className="chip locked">UNKNOWN — permanent</span>
+              </div>
+              <svg
+                className="trend"
+                role="img"
+                aria-label="Ontology version lineage"
+                viewBox={`0 0 ${Math.max(920, orderedVersions.length * 180 + 280)} 88`}
+                preserveAspectRatio="xMinYMid meet"
+              >
+                {orderedVersions.map((v, idx) => {
+                  const x = 68 + idx * 172;
+                  const isCurrent = v.version_number === latest;
+                  return (
+                    <g key={v.version_number}>
+                      {idx > 0 && (
+                        <line
+                          x1={x - 116}
+                          y1={44}
+                          x2={x - 56}
+                          y2={44}
+                          stroke="rgba(198, 242, 119, 0.45)"
+                          strokeWidth="2"
+                        />
+                      )}
+                      <rect
+                        x={x - 56}
+                        y={16}
+                        width="112"
+                        height="56"
+                        rx="8"
+                        fill={isCurrent ? "rgba(198, 242, 119, 0.1)" : "#0e1512"}
+                        stroke={isCurrent ? "#c6f277" : "#314039"}
+                        strokeWidth={isCurrent ? "1.75" : "1"}
+                      />
+                      <text
+                        x={x}
+                        y={39}
+                        textAnchor="middle"
+                        fontSize="12"
+                        fontWeight="700"
+                        fill={isCurrent ? "#c6f277" : "#f0f2e9"}
+                        fontFamily="var(--font-mono)"
                       >
-                        Diff to latest
-                      </button>
-                    )}
-                  </td>
+                        v{v.version_number}
+                      </text>
+                      <text
+                        x={x}
+                        y={56}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fill="#a8b4aa"
+                        fontFamily="var(--font-mono)"
+                      >
+                        {v.origin} · {v.choices.length}c
+                      </text>
+                    </g>
+                  );
+                })}
+                {(() => {
+                  const gx = 68 + versions.length * 172;
+                  return (
+                    <g aria-hidden="true">
+                      <line
+                        x1={gx - 116}
+                        y1={44}
+                        x2={gx - 56}
+                        y2={44}
+                        stroke="rgba(242, 200, 121, 0.4)"
+                        strokeWidth="1.5"
+                        strokeDasharray="4 4"
+                      />
+                      <rect
+                        x={gx - 56}
+                        y={16}
+                        width="210"
+                        height="56"
+                        rx="8"
+                        fill="rgba(242, 200, 121, 0.05)"
+                        stroke="rgba(242, 200, 121, 0.36)"
+                        strokeDasharray="4 4"
+                      />
+                      <text
+                        x={gx + 49}
+                        y={38}
+                        textAnchor="middle"
+                        fontSize="9.5"
+                        fontWeight="700"
+                        fill="#f2c879"
+                        fontFamily="var(--font-mono)"
+                      >
+                        NEXT SNAPSHOT GATE (v{latest + 1})
+                      </text>
+                      <text
+                        x={gx + 49}
+                        y={55}
+                        textAnchor="middle"
+                        fontSize="8.5"
+                        fill="#a8b4aa"
+                        fontFamily="var(--font-mono)"
+                      >
+                        Replay (OC-008) + Human (OC-009)
+                      </text>
+                    </g>
+                  );
+                })()}
+              </svg>
+            </div>
+          )}
+          <div className="table-wrap" role="region" aria-label="Ontology versions" tabIndex={0}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Origin</th>
+                  <th>Actor</th>
+                  <th>Rationale</th>
+                  <th>Choices</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {versions.map((version) => (
+                  <tr key={version.version_number}>
+                    <td>
+                      <b>v{version.version_number}</b>
+                      {version.version_number === latest ? " (current)" : ""}
+                    </td>
+                    <td>{version.origin}</td>
+                    <td className="muted">{version.actor}</td>
+                    <td className="muted">{version.rationale.slice(0, 50)}</td>
+                    <td>{version.choices.map((choice) => choice.key).join(", ")}</td>
+                    <td>
+                      {version.version_number !== latest && version.version_number < latest && (
+                        <button
+                          className="ghost"
+                          onClick={() => setRange({ from: version.version_number, to: latest })}
+                        >
+                          Diff to latest
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {range && (
             <div className="panel">
               <div className="panel-head">
@@ -168,8 +283,9 @@ export function OntologyPage() {
             <div className="panel-head">
               <h3>Rollback (creates a new version)</h3>
             </div>
-            <div className="panel-head">
+            <div className="panel-head filter-toolbar">
               <select
+                aria-label="Target rollback version"
                 value={rollbackTo}
                 onChange={(event) =>
                   setRollbackTo(event.target.value ? Number(event.target.value) : "")

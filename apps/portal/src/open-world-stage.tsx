@@ -1066,11 +1066,11 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
     return () => window.clearTimeout(timer);
   }, [isPlaying, isInView, isDocVisible, reducedMotion, presetId, stepIndex]);
 
-  function selectPreset(nextId: PresetId) {
+  function selectPreset(nextId: PresetId, animate = false) {
     setPresetId(nextId);
     setStepIndex(0);
     setIsPlaying(false);
-    setAnimateStep(false);
+    setAnimateStep(animate);
     const chosen = PRESET_SCENARIOS.find((p) => p.id === nextId);
     if (chosen && onSelectObservation && nextId !== "error_timeout") {
       onSelectObservation(chosen.observation);
@@ -1096,9 +1096,17 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
               : null;
     if (next === null) return;
     event.preventDefault();
-    selectPreset(PRESET_SCENARIOS[next]!.id);
+    selectPreset(PRESET_SCENARIOS[next]!.id, false);
     document.getElementById(`${stageId}-scenario-${next}`)?.focus();
   }
+
+  const isAutoplayActive = isPlaying && isInView && isDocVisible && !reducedMotion;
+  const activeTargetNodeId = activeStep.activeNodes[activeStep.activeNodes.length - 1];
+  const activeTargetNode = DIAGRAM_NODES.find((node) => node.id === activeTargetNodeId);
+  const packetSocketX = activeTargetNode
+    ? activeTargetNode.x + activeTargetNode.w - 14
+    : activeStep.packetCoord.x;
+  const packetSocketY = activeTargetNode ? activeTargetNode.y + 18 : activeStep.packetCoord.y;
 
   return (
     <section
@@ -1106,6 +1114,7 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
       ref={stageRef}
       className={`oc-observatory-stage tone-${activePreset.accentTone}`}
       data-motion={animateStep && !reducedMotion ? "animate" : "instant"}
+      data-playing={isAutoplayActive ? "true" : "false"}
       aria-label="Interactive open-world decision and governed discovery architecture"
     >
       {/* Top Instrument Control Bar: Scenario Presets + Playback Toggle */}
@@ -1155,7 +1164,7 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
               aria-controls={`${stageId}-scenario-panel`}
               tabIndex={isSelected ? 0 : -1}
               className={`oc-preset-pill tone-${preset.accentTone} ${isSelected ? "active" : ""}`}
-              onClick={() => selectPreset(preset.id)}
+              onClick={(event) => selectPreset(preset.id, event.detail > 0)}
               onKeyDown={(event) => navigateScenarios(event, index)}
             >
               <span className="oc-preset-kicker">{preset.shortTitle}</span>
@@ -1203,17 +1212,108 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
             {/* Precision Instrument Grid Background */}
             <rect x="0" y="0" width="960" height="440" fill="url(#oc-instrument-grid)" />
 
+            {/* Top-Left Routing Gate Calibration Schematic (fills void cleanly) */}
+            <g className="oc-svg-gate-legend" aria-hidden="true">
+              <rect x="16" y="24" width="548" height="108" rx="10" className="oc-gate-legend-box" />
+              <text x="30" y="44" className="oc-gate-legend-title">
+                DETERMINISTIC ROUTING CALIBRATION · ONTOLOGY SNAPSHOT v1 (891dc20d)
+              </text>
+              <g
+                className={`oc-gate-rule tone-known ${activePreset.accentTone === "known" ? "active" : ""}`}
+              >
+                <rect x="28" y="54" width="256" height="30" rx="6" />
+                <circle cx="42" cy="69" r="3.5" />
+                <text x="54" y="73">
+                  LANE A · P(unk) &lt; 0.450 ∧ margin ≥ 0.200
+                </text>
+              </g>
+              <g
+                className={`oc-gate-rule tone-review ${activePreset.accentTone === "review" ? "active" : ""}`}
+              >
+                <rect x="296" y="54" width="256" height="30" rx="6" />
+                <circle cx="310" cy="69" r="3.5" />
+                <text x="322" y="73">
+                  LANE B · P(unk) &lt; 0.450 ∧ margin &lt; 0.200
+                </text>
+              </g>
+              <g
+                className={`oc-gate-rule tone-unknown ${activePreset.accentTone === "unknown" ? "active" : ""}`}
+              >
+                <rect x="28" y="92" width="256" height="30" rx="6" />
+                <circle cx="42" cy="107" r="3.5" />
+                <text x="54" y="111">
+                  LANE C · P(unk) ≥ 0.450 (ABSTAIN)
+                </text>
+              </g>
+              <g
+                className={`oc-gate-rule tone-error ${activePreset.accentTone === "error" ? "active" : ""}`}
+              >
+                <rect x="296" y="92" width="256" height="30" rx="6" />
+                <circle cx="310" cy="107" r="3.5" />
+                <text x="322" y="111">
+                  LANE D · ProviderError 502 / Timeout
+                </text>
+              </g>
+            </g>
+
+            {/* Structural Lane Enclosure Bands */}
+            <g className="oc-svg-lanes" aria-hidden="true">
+              <rect
+                x="16"
+                y="148"
+                width="522"
+                height="106"
+                rx="10"
+                className="oc-lane-band tone-neutral"
+              />
+              <text x="26" y="164" className="oc-svg-lane-label tone-neutral">
+                INGRESS &amp; BOUNDED SCORING SPINE
+              </text>
+              <rect
+                x="592"
+                y="24"
+                width="354"
+                height="108"
+                rx="10"
+                className={`oc-lane-band tone-known ${activePreset.accentTone === "known" ? "active" : ""}`}
+              />
+              <rect
+                x="592"
+                y="136"
+                width="354"
+                height="100"
+                rx="10"
+                className={`oc-lane-band tone-review ${activePreset.accentTone === "review" ? "active" : ""}`}
+              />
+              <rect
+                x="376"
+                y="240"
+                width="570"
+                height="98"
+                rx="10"
+                className={`oc-lane-band tone-unknown ${activePreset.accentTone === "unknown" ? "active" : ""}`}
+              />
+              <rect
+                x="376"
+                y="342"
+                width="570"
+                height="88"
+                rx="10"
+                className={`oc-lane-band tone-error ${activePreset.accentTone === "error" ? "active" : ""}`}
+              />
+            </g>
+
             {/* Lane Labels */}
-            <text x="602" y="40" className="oc-svg-lane-label tone-known">
+            <text x="602" y="42" className="oc-svg-lane-label tone-known">
               LANE A · SYNCHRONOUS FAST PATH (TRUSTED KNOWN)
             </text>
-            <text x="602" y="146" className="oc-svg-lane-label tone-review">
+            <text x="602" y="150" className="oc-svg-lane-label tone-review">
               LANE B · ASYNCHRONOUS SUPERVISOR AUDIT (OC-016)
             </text>
-            <text x="602" y="254" className="oc-svg-lane-label tone-unknown">
+            <text x="602" y="256" className="oc-svg-lane-label tone-unknown">
               LANE C · PERMANENT UNKNOWN → TEACHER → REPLAY GATE
             </text>
-            <text x="602" y="344" className="oc-svg-lane-label tone-error">
+            <text x="602" y="348" className="oc-svg-lane-label tone-error">
               LANE D · FAULT ISOLATION (ZERO UNKNOWN POLLUTION)
             </text>
 
@@ -1258,6 +1358,12 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
                     rx="8"
                     className="oc-node-box"
                   />
+                  <circle
+                    cx={node.x + node.w - 14}
+                    cy={node.y + 18}
+                    r="4"
+                    className="oc-node-socket"
+                  />
                   <text x={node.x + 12} y={node.y + 20} className="oc-node-code">
                     {node.code}
                   </text>
@@ -1271,15 +1377,15 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
               );
             })}
 
-            {/* GPU-Composited Travelling Observation Packet */}
+            {/* GPU-Composited Travelling Observation Packet (docked in active node socket) */}
             <g
               className={`oc-packet tone-${activePreset.accentTone}`}
               style={{
-                transform: `translate3d(${activeStep.packetCoord.x}px, ${activeStep.packetCoord.y}px, 0)`,
+                transform: `translate3d(${packetSocketX}px, ${packetSocketY}px, 0)`,
               }}
             >
-              <circle r="15" className="oc-packet-halo" />
-              <circle r="6" className="oc-packet-core" />
+              <circle r="13" className="oc-packet-halo" />
+              <circle r="5" className="oc-packet-core" />
             </g>
           </svg>
 
@@ -1330,6 +1436,7 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
                 >
                   <span className="oc-step-code">{step.code}</span>
                   <span className="oc-step-label">{step.label}</span>
+                  <span className="oc-step-progress" aria-hidden="true" />
                 </button>
               );
             })}
@@ -1381,11 +1488,13 @@ export function OpenWorldLoopStage({ onSelectObservation }: OpenWorldLoopStagePr
                   className={`oc-prob-row ${prob.isUnknown ? "is-unknown" : ""}`}
                 >
                   <code className="oc-prob-label">{prob.label}</code>
-                  <div className="oc-prob-track">
+                  <div
+                    className={`oc-prob-track ${activePreset.id === "error_timeout" ? "is-fault" : ""}`}
+                  >
                     <div
                       className={`oc-prob-fill ${prob.isUnknown ? "unknown" : ""}`}
                       style={{
-                        transform: `scaleX(${Math.max(0.02, prob.value)})`,
+                        transform: `scaleX(${activePreset.id === "error_timeout" ? 0 : Math.max(0.02, prob.value)})`,
                       }}
                     />
                   </div>
