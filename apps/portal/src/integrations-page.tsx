@@ -142,34 +142,46 @@ export function IntegrationsPage() {
             <div className="panel-head">
               <h3>Routing rules (UNKNOWN is fixed to escalation)</h3>
             </div>
-            <table className="table">
-              <tbody>
-                {routes.data?.map((entry) => (
-                  <tr key={entry.id}>
-                    <td>
-                      <code>{entry.match_choice}</code>
-                    </td>
-                    <td>{entry.action}</td>
-                    <td>{entry.action_value || "—"}</td>
-                  </tr>
-                ))}
-                {routes.data?.length === 0 && (
+            <div className="table-wrap" role="region" aria-label="Routing rules" tabIndex={0}>
+              <table className="table">
+                <thead>
                   <tr>
-                    <td className="muted">No rules yet — known choices get a default tag.</td>
+                    <th>Match choice</th>
+                    <th>Action</th>
+                    <th>Destination</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-            <div className="panel-head">
+                </thead>
+                <tbody>
+                  {routes.data?.map((entry) => (
+                    <tr key={entry.id}>
+                      <td>
+                        <code>{entry.match_choice}</code>
+                      </td>
+                      <td>{entry.action}</td>
+                      <td>{entry.action_value || "—"}</td>
+                    </tr>
+                  ))}
+                  {routes.data?.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="muted">
+                        No rules yet — known choices get a default tag.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="panel-head filter-toolbar">
               <input
+                aria-label="Match choice"
                 value={rule.match_choice}
                 onChange={(event) =>
                   setRule({ ...rule, match_choice: event.target.value.toUpperCase() })
                 }
                 placeholder="CHOICE"
-                style={{ width: 140 }}
               />
               <select
+                aria-label="Routing action"
                 value={rule.action}
                 onChange={(event) => setRule({ ...rule, action: event.target.value })}
               >
@@ -177,10 +189,10 @@ export function IntegrationsPage() {
                 <option value="assign_queue">assign_queue</option>
               </select>
               <input
+                aria-label="Action value"
                 value={rule.action_value}
                 onChange={(event) => setRule({ ...rule, action_value: event.target.value })}
                 placeholder="value"
-                style={{ width: 120 }}
               />
               <button disabled={addRule.isPending} onClick={() => addRule.mutate()}>
                 Add rule
@@ -191,29 +203,40 @@ export function IntegrationsPage() {
             <div className="panel-head">
               <h3>Routing outcomes (receipt log)</h3>
             </div>
-            <table className="table">
-              <tbody>
-                {outcomes.data?.map((outcome, index) => (
-                  <tr key={index}>
-                    <td>
-                      <code>{outcome.selected_choice}</code>
-                    </td>
-                    <td>{outcome.action}</td>
-                    <td className="muted">
-                      {Object.entries(outcome.detail)
-                        .map(([key, value]) => `${key}=${value}`)
-                        .join(" · ")
-                        .slice(0, 60)}
-                    </td>
-                  </tr>
-                ))}
-                {outcomes.data?.length === 0 && (
+            <div className="table-wrap" role="region" aria-label="Routing outcomes" tabIndex={0}>
+              <table className="table">
+                <thead>
                   <tr>
-                    <td className="muted">No deliveries yet.</td>
+                    <th>Choice</th>
+                    <th>Action</th>
+                    <th>Detail</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {outcomes.data?.map((outcome, index) => (
+                    <tr key={index}>
+                      <td>
+                        <code>{outcome.selected_choice}</code>
+                      </td>
+                      <td>{outcome.action}</td>
+                      <td className="muted">
+                        {Object.entries(outcome.detail)
+                          .map(([key, value]) => `${key}=${value}`)
+                          .join(" · ")
+                          .slice(0, 60)}
+                      </td>
+                    </tr>
+                  ))}
+                  {outcomes.data?.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="muted">
+                        No deliveries yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </ProjectShell>

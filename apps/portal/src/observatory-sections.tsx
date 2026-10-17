@@ -193,13 +193,17 @@ export function ObservatoryArchitectureSections() {
   return (
     <div className="oc-architecture-sections">
       <section className="oc-section-block oc-two-speeds" aria-labelledby={`${id}-paths`}>
+        <p className="eyebrow">01 / DUAL-SPEED ARCHITECTURE</p>
         <h2 id={`${id}-paths`}>Decide now. Learn deliberately.</h2>
         <p className="oc-section-sub">
           Two paths, with a clear boundary between prediction and permission.
         </p>
         <div className="oc-path-comparison">
-          <article>
-            <span className="oc-path-label">THE DECISION PATH</span>
+          <article className="oc-path-card is-fast-path">
+            <div className="oc-path-card-head">
+              <span className="oc-path-label">THE DECISION PATH</span>
+              <code className="oc-path-mode">SYNCHRONOUS · READ-ONLY vN</code>
+            </div>
             <h3>Use what you already know.</h3>
             <p>
               Score the active choices, check policy, and either return a supported result or
@@ -211,8 +215,11 @@ export function ObservatoryArchitectureSections() {
               <span>Check policy</span>
             </div>
           </article>
-          <article>
-            <span className="oc-path-label">THE LEARNING PATH</span>
+          <article className="oc-path-card is-slow-path">
+            <div className="oc-path-card-head">
+              <span className="oc-path-label">THE LEARNING PATH</span>
+              <code className="oc-path-mode">ASYNCHRONOUS · HUMAN-GATED vN+1</code>
+            </div>
             <h3>Give new knowledge a higher bar.</h3>
             <p>
               Gather evidence, inspect proposals, replay verified examples, and keep a human
@@ -225,16 +232,45 @@ export function ObservatoryArchitectureSections() {
             </div>
           </article>
         </div>
+        <div className="oc-boundary-strip">
+          <span>AUTHORITY BOUNDARY</span>
+          <p>
+            Fast-path runs can write to the <code>unknown_events</code> evidence pool, but no model
+            or supervisor can mutate <code>ontology_versions</code> without verified replay and
+            human sign-off.
+          </p>
+        </div>
       </section>
 
       <section
         className="oc-section-block oc-principles-section"
         aria-labelledby={`${id}-principles`}
       >
-        <h2 id={`${id}-principles`}>
-          Uncertainty is useful. <br />
-          Unchecked authority is not.
-        </h2>
+        <div className="oc-principles-lead">
+          <p className="eyebrow">02 / DOMAIN INVARIANTS</p>
+          <h2 id={`${id}-principles`}>
+            Uncertainty is useful. <br />
+            Unchecked authority is not.
+          </h2>
+          <p className="oc-principles-summary">
+            OpenClass separates fast classification, slow semantic reasoning, deterministic safety
+            policy, and human governance into distinct layers.
+          </p>
+          <dl className="oc-authority-summary">
+            <div>
+              <dt>DecisionProvider</dt>
+              <dd>Scores active classes + UNKNOWN</dd>
+            </div>
+            <div>
+              <dt>DiscoveryProvider</dt>
+              <dd>Proposes inactive candidates only</dd>
+            </div>
+            <div>
+              <dt>Core Domain &amp; Human Gate</dt>
+              <dd>Enforces replay &amp; promotes vN+1</dd>
+            </div>
+          </dl>
+        </div>
         <div className="oc-principles-list">
           {PRINCIPLES.map(([title, description], index) => (
             <article key={title}>
@@ -249,6 +285,7 @@ export function ObservatoryArchitectureSections() {
       </section>
 
       <section className="oc-section-block" aria-labelledby={`${id}-proofs`}>
+        <p className="eyebrow">03 / VERIFIABLE ARTIFACTS &amp; RETAINED RESEARCH</p>
         <h2 id={`${id}-proofs`}>Follow the evidence, not the claim.</h2>
         <p className="oc-section-sub">
           Examples and retained research, with their sources and limits attached.
@@ -282,13 +319,19 @@ export function ObservatoryArchitectureSections() {
           tabIndex={0}
         >
           <div className="oc-proof-intro">
-            <span className="oc-evidence-kind">{proof.kind}</span>
+            <div className="oc-proof-intro-top">
+              <span className="oc-evidence-kind">{proof.kind}</span>
+              <code className="oc-proof-artifact-pill">{proof.artifactPath}</code>
+            </div>
             <h3>{proof.title}</h3>
             <p>{proof.summary}</p>
           </div>
           <ol className="oc-proof-sequence">
-            {proof.steps.map(([phase, detail]) => (
+            {proof.steps.map(([phase, detail], stepIdx) => (
               <li key={phase}>
+                <span className="oc-proof-step-num" aria-hidden="true">
+                  0{stepIdx + 1}
+                </span>
                 <h4>{phase}</h4>
                 <p>{detail}</p>
               </li>

@@ -4,6 +4,9 @@ import { BrowserRouter } from "react-router-dom";
 import { Portal } from "./portal";
 import { AuthProvider } from "./auth";
 import "./styles.css";
+import "./workflow.css";
+import "./landing.css";
+import "./evidence-atlas.css";
 
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={new QueryClient()}>

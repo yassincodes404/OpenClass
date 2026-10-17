@@ -6,7 +6,6 @@ import type {
   ReplayEvaluation,
   VerifiedEvaluationExample,
 } from "@openclass/sdk";
-import "./workflow.css";
 
 type CandidateOption = { id: string; label: string };
 const percent = (value: unknown) =>
@@ -226,7 +225,7 @@ export function ReplayWorkspace({ client, projectId }: { client: OpenClass; proj
                   Sealed identity: <code>{dataset.dataset_hash}</code>
                 </p>
               )}
-              <div style={{ overflowX: "auto" }}>
+              <div className="table-wrap" role="region" aria-label="Verified examples" tabIndex={0}>
                 <table className="table">
                   <thead>
                     <tr>
@@ -367,7 +366,7 @@ export function ReplayWorkspace({ client, projectId }: { client: OpenClass; proj
               )}
               {!dataset.sealed_at && (
                 <div>
-                  <label>
+                  <label className="toggle-row">
                     <input
                       type="checkbox"
                       checked={sealApproved}
@@ -455,6 +454,7 @@ export function ReplayWorkspace({ client, projectId }: { client: OpenClass; proj
             {evaluations.map((run) => (
               <li key={run.id}>
                 <button
+                  className="ghost"
                   disabled={busy}
                   onClick={() => {
                     void action(async () => {
@@ -514,26 +514,57 @@ export function ReplayResult({ result }: { result: ReplayEvaluation }) {
         </>
       )}
       {metrics ? (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Baseline</th>
-              <th>Candidate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {["accuracy", "macro_f1", "coverage", "unknown_precision", "unknown_recall"].map(
-              (key) => (
-                <tr key={key}>
-                  <td>{key.replaceAll("_", " ")}</td>
-                  <td>{percent(baseline?.[key])}</td>
-                  <td>{percent(candidate?.[key])}</td>
-                </tr>
-              ),
-            )}
-          </tbody>
-        </table>
+        <div
+          className="table-wrap"
+          role="region"
+          aria-label="Replay comparison metrics"
+          tabIndex={0}
+        >
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Baseline</th>
+                <th>Candidate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {["accuracy", "macro_f1", "coverage", "unknown_precision", "unknown_recall"].map(
+                (key) => {
+                  const baseNum =
+                    typeof baseline?.[key] === "number" ? Number(baseline[key]) : null;
+                  const candNum =
+                    typeof candidate?.[key] === "number" ? Number(candidate[key]) : null;
+                  return (
+                    <tr key={key}>
+                      <td>
+                        <div>{key.replaceAll("_", " ")}</div>
+                        {(baseNum !== null || candNum !== null) && (
+                          <div className="replay-metric-bars" aria-hidden="true">
+                            <span
+                              className="replay-bar baseline"
+                              style={{
+                                width: `${Math.max(2, Math.min(100, (baseNum ?? 0) * 100))}%`,
+                              }}
+                            />
+                            <span
+                              className="replay-bar candidate"
+                              style={{
+                                width: `${Math.max(2, Math.min(100, (candNum ?? 0) * 100))}%`,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </td>
+                      <td className="metric-text">{percent(baseline?.[key])}</td>
+                      <td className="metric-text">{percent(candidate?.[key])}</td>
+                    </tr>
+                  );
+                },
+              )}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <p>Metric details unavailable.</p>
       )}

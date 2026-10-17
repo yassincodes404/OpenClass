@@ -295,33 +295,40 @@ export function ProjectProvidersPage() {
               <h3>Usage (engine rollups)</h3>
             </div>
             {usage.data?.length ? (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Provider</th>
-                    <th>Calls</th>
-                    <th>Errors</th>
-                    <th>Avg latency</th>
-                    <th>Est. cost</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {usage.data.map((row, index) => (
-                    <tr key={index}>
-                      <td>{row.date}</td>
-                      <td>
-                        <code>{row.provider}</code>
-                        {row.provider === "mock" && " (simulated)"}
-                      </td>
-                      <td>{row.calls}</td>
-                      <td>{row.errors}</td>
-                      <td>{row.avg_latency_ms}ms</td>
-                      <td>${row.estimated_cost.toFixed(4)}</td>
+              <div
+                className="table-wrap"
+                role="region"
+                aria-label="Provider usage rollups"
+                tabIndex={0}
+              >
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Provider</th>
+                      <th>Calls</th>
+                      <th>Errors</th>
+                      <th>Avg latency</th>
+                      <th>Est. cost</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {usage.data.map((row, index) => (
+                      <tr key={index}>
+                        <td>{row.date}</td>
+                        <td>
+                          <code>{row.provider}</code>
+                          {row.provider === "mock" && " (simulated)"}
+                        </td>
+                        <td>{row.calls}</td>
+                        <td>{row.errors}</td>
+                        <td>{row.avg_latency_ms}ms</td>
+                        <td>${row.estimated_cost.toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : (
               <p className="muted">No usage recorded yet — runs accrue here.</p>
             )}
@@ -375,12 +382,13 @@ export function ProjectAuditPage() {
     );
   return (
     <main>
-      <ProjectShell project={project.data} active="/settings">
+      <ProjectShell project={project.data} active="/audit">
         <section className="signal">
           <p className="eyebrow">AUDIT / APPEND-ONLY</p>
           <h2>Every mutation is recorded with actor and timestamp.</h2>
-          <div className="panel-head">
+          <div className="panel-head filter-toolbar">
             <input
+              aria-label="Filter audit events by action"
               placeholder="Filter by action (e.g. project.created)"
               defaultValue={actionFilter}
               onBlur={(event) => {
@@ -391,28 +399,30 @@ export function ProjectAuditPage() {
           </div>
           {audit.isPending && <p className="muted">Loading…</p>}
           {audit.isError && <p className="field-error">{(audit.error as Error).message}</p>}
-          <table className="table">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Actor</th>
-                <th>Action</th>
-                <th>Target</th>
-              </tr>
-            </thead>
-            <tbody>
-              {audit.data?.items.map((event) => (
-                <tr key={event.id}>
-                  <td>{new Date(event.created_at).toLocaleString()}</td>
-                  <td>
-                    <code>{event.actor.slice(0, 8)}…</code>
-                  </td>
-                  <td>{event.action}</td>
-                  <td>{event.target}</td>
+          <div className="table-wrap" role="region" aria-label="Workspace audit log" tabIndex={0}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Actor</th>
+                  <th>Action</th>
+                  <th>Target</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {audit.data?.items.map((event) => (
+                  <tr key={event.id}>
+                    <td>{new Date(event.created_at).toLocaleString()}</td>
+                    <td>
+                      <code>{event.actor.slice(0, 8)}…</code>
+                    </td>
+                    <td>{event.action}</td>
+                    <td>{event.target}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {audit.data?.next_cursor && (
             <button className="ghost" onClick={() => setCursor(audit.data!.next_cursor)}>
               Older →

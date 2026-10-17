@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { controlFetch } from "./api";
 import { useAuth } from "./auth";
+import { Dialog } from "./dialog";
 import { ProjectShell, type Project } from "./projects";
 import { GraphEditor } from "./graph-editor";
 import { useWorkflowClient } from "./workflow-client";
@@ -154,9 +155,8 @@ function CreateServiceModal({
     onError: (err: Error) => setError(err.message),
   });
   return (
-    <div className="modal-backdrop" role="dialog" aria-label="Create decision service">
+    <Dialog label="Create decision service" onClose={onClose}>
       <form
-        className="modal"
         onSubmit={(event) => {
           event.preventDefault();
           create.mutate();
@@ -205,7 +205,7 @@ function CreateServiceModal({
           </button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }
 
@@ -279,33 +279,35 @@ export function DecisionServicePage() {
               });
             }}
           />
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Label</th>
-              </tr>
-            </thead>
-            <tbody>
-              {service.data.nodes[0].choices.map((choice) => (
-                <tr
-                  key={choice.key}
-                  className={choice.key === "UNKNOWN" ? "unknown-row" : undefined}
-                >
-                  <td>
-                    <code>{choice.key}</code>
-                  </td>
-                  <td>
-                    {choice.key === "UNKNOWN" ? (
-                      <span className="chip locked">permanent fallback — locked</span>
-                    ) : (
-                      choice.label
-                    )}
-                  </td>
+          <div className="table-wrap" role="region" aria-label="Decision choices" tabIndex={0}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Label</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {service.data.nodes[0].choices.map((choice) => (
+                  <tr
+                    key={choice.key}
+                    className={choice.key === "UNKNOWN" ? "unknown-row" : undefined}
+                  >
+                    <td>
+                      <code>{choice.key}</code>
+                    </td>
+                    <td>
+                      {choice.key === "UNKNOWN" ? (
+                        <span className="chip locked">permanent fallback — locked</span>
+                      ) : (
+                        choice.label
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="panel">
             <div className="panel-head">
               <h3>Test panel</h3>
@@ -351,7 +353,7 @@ function ProbabilityBars({ run }: { run: DecisionRun }) {
           <div className="prob-track">
             <div
               className={key === "UNKNOWN" ? "prob-fill unknown" : "prob-fill"}
-              style={{ width: `${Math.round(value * 100)}%` }}
+              style={{ transform: `scaleX(${Math.max(0.02, value)})` }}
             />
           </div>
           <span>{(value * 100).toFixed(1)}%</span>
@@ -412,26 +414,51 @@ export function RunsPage() {
           {runs.data?.items.length === 0 && (
             <p className="muted">No runs yet. Test a decision service first.</p>
           )}
-          <table className="table">
-            <tbody>
-              {runs.data?.items.map((item) => (
-                <tr key={item.id} onClick={() => setSelected(item.id)}>
-                  <td>
-                    <code>{item.id.slice(0, 8)}…</code>
-                  </td>
-                  <td>
-                    {item.selected_choice === "UNKNOWN" ? (
-                      <span className="chip locked">UNKNOWN</span>
-                    ) : (
-                      <span className="chip">{item.selected_choice}</span>
-                    )}
-                  </td>
-                  <td>{item.supervision_outcome}</td>
-                  <td className="muted">{new Date(item.created_at).toLocaleString()}</td>
+          <div className="table-wrap" role="region" aria-label="Decision runs" tabIndex={0}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Run ID</th>
+                  <th>Selected choice</th>
+                  <th>Supervision</th>
+                  <th>Recorded</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {runs.data?.items.map((item) => (
+                  <tr
+                    key={item.id}
+                    className={
+                      selected === item.id ? "interactive-row selected" : "interactive-row"
+                    }
+                    tabIndex={0}
+                    aria-label={`Open run detail: ${item.id.slice(0, 8)}`}
+                    onClick={() => setSelected(item.id)}
+                    onKeyDown={(event) => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelected(item.id);
+                      }
+                    }}
+                  >
+                    <td>
+                      <code>{item.id.slice(0, 8)}…</code>
+                    </td>
+                    <td>
+                      {item.selected_choice === "UNKNOWN" ? (
+                        <span className="chip locked">UNKNOWN</span>
+                      ) : (
+                        <span className="chip">{item.selected_choice}</span>
+                      )}
+                    </td>
+                    <td>{item.supervision_outcome}</td>
+                    <td className="muted">{new Date(item.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {runs.data?.next_cursor && (
             <button className="ghost" onClick={() => setCursor(runs.data!.next_cursor)}>
               More →
@@ -440,31 +467,24 @@ export function RunsPage() {
         </section>
       </ProjectShell>
       {selected && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-label="Run detail"
-          onClick={() => setSelected(null)}
-        >
-          <div className="modal" onClick={(event) => event.stopPropagation()}>
-            <p className="eyebrow">RUN / {detail.data?.supervision_outcome ?? "…"}</p>
-            <h2>Run detail</h2>
-            {detail.isPending && <p className="muted">Loading…</p>}
-            {detail.data && (
-              <>
-                <ProbabilityBars run={detail.data} />
-                <p className="muted">
-                  event <code>{detail.data.raw_event_id.slice(0, 8)}…</code>
-                </p>
-              </>
-            )}
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setSelected(null)}>
-                Close
-              </button>
-            </div>
+        <Dialog label="Run detail" onClose={() => setSelected(null)}>
+          <p className="eyebrow">RUN / {detail.data?.supervision_outcome ?? "…"}</p>
+          <h2>Run detail</h2>
+          {detail.isPending && <p className="muted">Loading…</p>}
+          {detail.data && (
+            <>
+              <ProbabilityBars run={detail.data} />
+              <p className="muted">
+                event <code>{detail.data.raw_event_id.slice(0, 8)}…</code>
+              </p>
+            </>
+          )}
+          <div className="modal-actions">
+            <button className="ghost" onClick={() => setSelected(null)}>
+              Close
+            </button>
           </div>
-        </div>
+        </Dialog>
       )}
     </main>
   );

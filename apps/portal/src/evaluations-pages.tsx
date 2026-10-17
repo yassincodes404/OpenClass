@@ -148,49 +148,70 @@ export function EvaluationDetailPage() {
             <div className="panel-head">
               <h3>Baseline vs candidate</h3>
             </div>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Metric</th>
-                  <th>Baseline</th>
-                  <th>Candidate</th>
-                  <th>Delta</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(["accuracy", "macro_f1", "coverage"] as const).map((key) => {
-                  const before = metrics.baseline[key];
-                  const after = metrics.candidate[key];
-                  const delta = before !== null && after !== null ? after - before : null;
-                  return (
-                    <tr key={key}>
-                      <td>{key.replaceAll("_", " ")}</td>
-                      <td>{pct(before)}</td>
-                      <td>{pct(after)}</td>
-                      <td>
-                        {delta === null ? (
-                          "—"
-                        ) : (
-                          <span className={delta >= 0 ? "chip locked" : "chip danger"}>
-                            {delta >= 0 ? "+" : ""}
-                            {(delta * 100).toFixed(1)}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr>
-                  <td>unknown precision / recall</td>
-                  <td>—</td>
-                  <td>
-                    {pct(metrics.candidate.unknown_precision)} /{" "}
-                    {pct(metrics.candidate.unknown_recall)}
-                  </td>
-                  <td>—</td>
-                </tr>
-              </tbody>
-            </table>
+            <div
+              className="table-wrap"
+              role="region"
+              aria-label="Baseline vs candidate metrics"
+              tabIndex={0}
+            >
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Metric</th>
+                    <th>Baseline</th>
+                    <th>Candidate</th>
+                    <th>Delta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(["accuracy", "macro_f1", "coverage"] as const).map((key) => {
+                    const before = metrics.baseline[key];
+                    const after = metrics.candidate[key];
+                    const delta = before !== null && after !== null ? after - before : null;
+                    return (
+                      <tr key={key}>
+                        <td>
+                          <div>{key.replaceAll("_", " ")}</div>
+                          {before !== null && after !== null && (
+                            <div className="replay-metric-bars" aria-hidden="true">
+                              <span
+                                className="replay-bar baseline"
+                                style={{ transform: `scaleX(${Math.max(0.02, before)})` }}
+                              />
+                              <span
+                                className={`replay-bar candidate${after < before ? " regressed" : ""}`}
+                                style={{ transform: `scaleX(${Math.max(0.02, after)})` }}
+                              />
+                            </div>
+                          )}
+                        </td>
+                        <td>{pct(before)}</td>
+                        <td>{pct(after)}</td>
+                        <td>
+                          {delta === null ? (
+                            "—"
+                          ) : (
+                            <span className={delta >= 0 ? "chip locked" : "chip danger"}>
+                              {delta >= 0 ? "+" : ""}
+                              {(delta * 100).toFixed(1)}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td>unknown precision / recall</td>
+                    <td>—</td>
+                    <td>
+                      {pct(metrics.candidate.unknown_precision)} /{" "}
+                      {pct(metrics.candidate.unknown_recall)}
+                    </td>
+                    <td>—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <p className="muted">{metrics.examples} sealed examples replayed on both versions.</p>
           </div>
           <div className="panel">
@@ -292,34 +313,36 @@ export function DatasetPage() {
             {detail.data.description} · {detail.data.examples.length} examples · every row carries
             annotator + source provenance
           </p>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Text</th>
-                <th>Label</th>
-                <th>Source</th>
-                <th>Annotator</th>
-                <th>Slice</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.data.examples.map((example) => (
-                <tr key={example.id}>
-                  <td>{example.text.slice(0, 60)}</td>
-                  <td>
-                    <code>{example.label}</code>
-                  </td>
-                  <td>
-                    <span className="chip">{example.source}</span>
-                  </td>
-                  <td className="muted">{example.annotator}</td>
-                  <td>
-                    <span className="chip">{example.slice_tag}</span>
-                  </td>
+          <div className="table-wrap" role="region" aria-label="Dataset examples" tabIndex={0}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Text</th>
+                  <th>Label</th>
+                  <th>Source</th>
+                  <th>Annotator</th>
+                  <th>Slice</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {detail.data.examples.map((example) => (
+                  <tr key={example.id}>
+                    <td>{example.text.slice(0, 60)}</td>
+                    <td>
+                      <code>{example.label}</code>
+                    </td>
+                    <td>
+                      <span className="chip">{example.source}</span>
+                    </td>
+                    <td className="muted">{example.annotator}</td>
+                    <td>
+                      <span className="chip">{example.slice_tag}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {!sealed ? (
             <div className="panel">
               <div className="panel-head">

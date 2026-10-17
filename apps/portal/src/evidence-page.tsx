@@ -122,7 +122,7 @@ export function EvidencePage() {
     );
   if (!auth.authenticated)
     return (
-      <main>
+      <main className="access-gate">
         <h1>Sign in to your workspace.</h1>
         <button onClick={() => void auth.login()}>Continue with Keycloak</button>
       </main>
@@ -142,7 +142,7 @@ export function EvidencePage() {
   return (
     <main>
       <ProjectShell project={project.data} active="/evidence">
-        <section className="signal">
+        <section className="signal workflow">
           <h2>Evidence, diagnosis & cases</h2>
           <p>
             UNKNOWN is evidence of uncertainty, not proof of a new class. Diagnosis is advisory;
@@ -171,7 +171,7 @@ export function EvidencePage() {
           <ul>
             {evidence.data?.map((entry) => (
               <li key={entry.id}>
-                <label>
+                <label className="toggle-row">
                   <input
                     type="checkbox"
                     disabled={mutate.isPending || entry.status !== "ready_for_evolution"}
@@ -184,7 +184,11 @@ export function EvidencePage() {
                   />{" "}
                   Select {entry.id.slice(0, 8)} for inactive proposal
                 </label>
-                <button disabled={mutate.isPending} onClick={() => select(entry)}>
+                <button
+                  className={selected === entry.id ? undefined : "ghost"}
+                  disabled={mutate.isPending}
+                  onClick={() => select(entry)}
+                >
                   {entry.trigger_type} · {entry.selected_choice ?? "unavailable"} · {entry.status} ·{" "}
                   {entry.id.slice(0, 8)}
                 </button>
@@ -193,12 +197,14 @@ export function EvidencePage() {
           </ul>
           <div className="modal-actions">
             <button
+              className="ghost"
               disabled={offset === 0 || evidence.isFetching}
               onClick={() => setOffset((v) => Math.max(0, v - 25))}
             >
               Previous evidence page
             </button>
             <button
+              className="ghost"
               disabled={evidence.data?.length !== 25 || evidence.isFetching}
               onClick={() => setOffset((v) => v + 25)}
             >
@@ -251,6 +257,7 @@ export function EvidencePage() {
                         {(diagnosis.confidence * 100).toFixed(1)}%
                       </p>
                       <button
+                        className="ghost"
                         onClick={() => {
                           setCategory(diagnosis.diagnosis);
                           setRationale(diagnosis.rationale);
@@ -302,10 +309,11 @@ export function EvidencePage() {
                       <button disabled={!rationale.trim()}>Save human triage</button>
                     </fieldset>
                   </form>
-                  <div>
+                  <div className="modal-actions">
                     {transitions[item.status].map((target) => (
                       <button
                         key={target}
+                        className="ghost"
                         disabled={mutate.isPending}
                         onClick={() =>
                           mutate.mutate(() =>
@@ -351,6 +359,7 @@ export function EvidencePage() {
                     <button disabled={mutate.isPending}>Create case with this evidence</button>
                   </form>
                   <button
+                    className="ghost"
                     disabled={mutate.isPending || !caseId}
                     onClick={() =>
                       mutate.mutate(() =>
@@ -384,24 +393,28 @@ export function EvidencePage() {
                 ))}
               </select>
             </label>
-            <button
-              disabled={caseOffset === 0 || cases.isFetching || mutate.isPending}
-              onClick={() => {
-                setCaseOffset((v) => Math.max(0, v - 25));
-                setCaseId("");
-              }}
-            >
-              Previous cases page
-            </button>
-            <button
-              disabled={cases.data?.length !== 25 || cases.isFetching || mutate.isPending}
-              onClick={() => {
-                setCaseOffset((v) => v + 25);
-                setCaseId("");
-              }}
-            >
-              Next cases page
-            </button>
+            <div className="modal-actions">
+              <button
+                className="ghost"
+                disabled={caseOffset === 0 || cases.isFetching || mutate.isPending}
+                onClick={() => {
+                  setCaseOffset((v) => Math.max(0, v - 25));
+                  setCaseId("");
+                }}
+              >
+                Previous cases page
+              </button>
+              <button
+                className="ghost"
+                disabled={cases.data?.length !== 25 || cases.isFetching || mutate.isPending}
+                onClick={() => {
+                  setCaseOffset((v) => v + 25);
+                  setCaseId("");
+                }}
+              >
+                Next cases page
+              </button>
+            </div>
             {caseId && (
               <>
                 {caseItems.isPending && <p role="status">Loading case evidence…</p>}
@@ -409,7 +422,7 @@ export function EvidencePage() {
                 <ul>
                   {caseItems.data?.map((entry) => (
                     <li key={entry.id}>
-                      <button onClick={() => select(entry)}>
+                      <button className="ghost" onClick={() => select(entry)}>
                         {entry.id.slice(0, 8)} · {entry.trigger_type} · {entry.status}
                       </button>
                     </li>
@@ -461,6 +474,7 @@ export function EvidencePage() {
               Request inactive proposal from {proposalEvidence.length} selected items
             </button>
             <button
+              className="ghost"
               disabled={
                 mutate.isPending ||
                 !caseId ||
@@ -500,6 +514,7 @@ export function EvidencePage() {
                   </p>
                   {candidate.status === "candidate" && (
                     <button
+                      className="ghost danger"
                       disabled={mutate.isPending || !rejection.trim()}
                       onClick={() =>
                         mutate.mutate(() =>
